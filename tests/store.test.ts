@@ -155,8 +155,8 @@ test("buildAnalytics computes conversions from real events only", () => {
   const events: ScanEvent[] = [
     { id: "e1", storeId: "s1", type: "scan", rating: 5, chips: [], timestamp: now },
     { id: "e2", storeId: "s1", type: "scan", rating: 5, chips: [], timestamp: now },
-    { id: "e3", storeId: "s1", type: "chip_toggle", rating: 5, chips: ["Woodfired Crust"], timestamp: now },
-    { id: "e4", storeId: "s1", type: "copy_open", rating: 5, chips: ["Woodfired Crust"], timestamp: now },
+    { id: "e3", storeId: "s1", type: "chip_toggle", rating: 5, chips: ["Speciality Cold Brew"], timestamp: now },
+    { id: "e4", storeId: "s1", type: "copy_open", rating: 5, chips: ["Speciality Cold Brew"], timestamp: now },
     { id: "e5", storeId: "s1", type: "firewall_intercept", rating: 2, chips: [], timestamp: now },
   ];
 
@@ -169,7 +169,7 @@ test("buildAnalytics computes conversions from real events only", () => {
   assert.equal(summary.complaints, 0);
   assert.equal(summary.redirectionRate, 50);
   assert.equal(summary.averageRating, 3.5); // (5 + 2) / 2
-  assert.equal(summary.topChips[0].chip, "Woodfired Crust");
+  assert.equal(summary.topChips[0].chip, "Speciality Cold Brew");
   assert.equal(summary.topChips[0].count, 2);
   assert.equal(summary.dailyActivity.length, 7);
 });

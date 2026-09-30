@@ -102,9 +102,9 @@ test("POST /api/generate-review returns review with latency metrics", async () =
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      storeName: "Luigi's Woodfired Trattoria",
-      category: "Italian Trattoria",
-      chips: ["Woodfired Crust", "Marco (Host)"],
+      storeName: "Third Wave Coffee & Roastery",
+      category: "Speciality Coffee Roastery",
+      chips: ["Speciality Cold Brew", "Santosh (Barista)"],
       rating: 5,
     }),
   });
@@ -169,9 +169,9 @@ test("Reputation Firewall: POST, GET, and PATCH /api/feedback", async () => {
       storeName: "Spoofed Name That Must Be Ignored",
       rating: 1,
       tableNumber: "12",
-      customerName: "Mark S",
-      customerContact: "mark@example.com",
-      message: "Steak was overcooked and took an hour.",
+      customerName: "Rohan Sharma",
+      customerContact: "rohan.sharma@gmail.com",
+      message: "Cold brew was delayed and served warm.",
     }),
   });
 
@@ -190,7 +190,7 @@ test("Reputation Firewall: POST, GET, and PATCH /api/feedback", async () => {
   const getData = await getRes.json();
   const item = getData.feedbacks.find((f: { id: string }) => f.id === postData.feedback.id);
   assert.ok(item);
-  assert.equal(item.message, "Steak was overcooked and took an hour.");
+  assert.equal(item.message, "Cold brew was delayed and served warm.");
 
   // 3. Patch status to resolved
   const patchReq = new Request("http://localhost/api/feedback", {

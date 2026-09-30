@@ -1,4 +1,4 @@
-# FastQR / ReviewBoost — Strategic & Technical Plan ⚡
+# ReviewBoost Scanner — Strategic & Technical Plan ⚡
 
 > **Executive Product Blueprint & SaaS Prospectus Readiness Architecture**  
 > Turning dining table patrons into verified 5-star Google Reviews in 10 seconds flat.
@@ -14,9 +14,9 @@
 - **The Public Rage Asymmetry**: A single frustrated diner (cold food, delayed drink) vents publicly on Google Maps, permanently dragging down average ratings and repelling dozens of prospective patrons.
 
 ### The Solution:
-FastQR / ReviewBoost introduces a zero-friction physical-to-digital review pipeline:
+ReviewBoost Scanner introduces a zero-friction physical-to-digital review pipeline:
 1. **0ms Pre-Drafted 5-Star Review**: Instant load upon camera QR scan; no blank text box or app download required.
-2. **Sub-400ms Highlight Chips**: Diners tap dishes, server names, or vibe perks (*"Crispy Crust"*, *"Alex (Server)"*, *"Truffle Pasta"*) to instantly re-seed the review in under 400ms using Google Gemini 2.5 Flash or local edge heuristics.
+2. **Sub-400ms Highlight Chips**: Diners tap dishes, server names, or vibe perks (*"Speciality Cold Brew"*, *"Santosh (Barista)"*, *"Avocado Toast"*) to instantly re-seed the review in under 400ms using local edge heuristics.
 3. **1-Tap Clipboard & Deep-Link Hand-Off**: Copies the drafted review to clipboard and deep-links directly into Google's `writereview?placeid=<PLACE_ID>` dialog.
 4. **Reputation Firewall Shield**: Diners selecting 1–3 stars are automatically hidden from the Google Reviews flow and routed to a private GM resolution form to resolve complaints table-side before paying the bill.
 5. **Print-Ready 4x6" Standee Engine**: Browser-native foldable table tent and counter plaque generator with center crease guides and exact print color calibration.
@@ -83,7 +83,7 @@ The `/boost` route is designed as the primary conversion engine for prospects, r
 - **Monthly Churn**: **< 2.1%** (Software that directly increases Google Maps foot traffic experiences industry-low churn).
 
 ### The Viral Distribution Flywheel:
-- Every table standee features the signature: `"Powered by FastQR / ReviewBoost"`.
+- Every table standee features the signature: `"Powered by SayaLabs / ReviewBoost"`.
 - Each restaurant generates ~2,400 patron scans per month.
 - 1 in 80 diners is a local business owner or manager.
 - Diners who experience the frictionless 10-second review flow at lunch or dinner convert into organic inbound leads for their own businesses at $0 CAC.

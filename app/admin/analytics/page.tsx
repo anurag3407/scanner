@@ -9,7 +9,7 @@ import {
 } from "lucide-react";
 
 export const metadata = {
-  title: "Scan Analytics & Telemetry | FastQR Admin",
+  title: "Scan Analytics & Telemetry | ReviewBoost Admin",
   description: "Track customer scans, chip selections, redirection conversion rates, and reputation firewall metrics.",
 };
 

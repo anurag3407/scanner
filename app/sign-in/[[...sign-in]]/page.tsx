@@ -6,7 +6,7 @@ import { ArrowLeft, KeyRound, ShieldCheck } from "lucide-react";
 import { isClerkConfigured } from "@/lib/clerk";
 
 export const metadata = {
-  title: "Sign in | FastQR ReviewBoost Admin",
+  title: "Sign in | ReviewBoost Admin",
   description: "Sign in to manage restaurant locations, standees, and reputation firewall feedback.",
 };
 
@@ -21,7 +21,7 @@ export default async function SignInPage() {
           <span className="w-7 h-7 rounded-lg bg-zinc-900 text-white flex items-center justify-center font-bold text-xs">
             ⚡
           </span>
-          FastQR Admin
+          ReviewBoost Admin
         </div>
         <p className="text-xs text-zinc-500 flex items-center justify-center gap-1">
           <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />

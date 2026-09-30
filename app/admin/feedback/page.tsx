@@ -4,7 +4,7 @@ import { getFeedbacks, getAllStores } from "@/lib/store";
 import FeedbackInboxClient from "@/components/FeedbackInboxClient";
 
 export const metadata = {
-  title: "Reputation Firewall Inbox | FastQR Admin",
+  title: "Reputation Firewall Inbox | ReviewBoost Admin",
   description: "Private manager feedback inbox intercepting 1-3 star negative complaints before Google Reviews.",
 };
 

@@ -460,7 +460,7 @@ export default function StoreManagementClient({ initialStores }: Props) {
                   required
                   value={managerEmail}
                   onChange={(e) => setManagerEmail(e.target.value)}
-                  placeholder="owner@restaurant.com or anuragmishra3407@gmail.com"
+                  placeholder="anuragmishra3407@gmail.com or cafeowner@gmail.com"
                   className="w-full text-xs p-3 rounded-xl border border-amber-300 bg-white focus:outline-none focus:ring-2 focus:ring-amber-500"
                 />
               </div>
@@ -474,7 +474,7 @@ export default function StoreManagementClient({ initialStores }: Props) {
                   required
                   value={googlePlaceId}
                   onChange={(e) => setGooglePlaceId(e.target.value)}
-                  placeholder="e.g. ChIJN1t_tDeuEmsRUsoyG83frY4"
+                  placeholder="e.g. ChIJbU60y5EZrjsR55r3M_d8rTQ"
                   className="w-full text-xs p-3 rounded-xl border border-zinc-200 focus:outline-none focus:ring-2 focus:ring-zinc-900 font-mono"
                 />
                 <p className="text-[11px] text-zinc-400 mt-1">

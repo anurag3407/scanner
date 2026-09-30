@@ -4,15 +4,15 @@ import { generateOfflineReview, generateSmartReview } from "../lib/ai";
 
 test("generateOfflineReview generates review containing store name and category", () => {
   const review = generateOfflineReview({
-    storeName: "Luigi's Trattoria",
-    category: "Italian Restaurant",
-    chips: ["Woodfired Crust", "Marco (Host)"],
+    storeName: "Third Wave Coffee & Roastery",
+    category: "Speciality Coffee Roastery",
+    chips: ["Speciality Cold Brew", "Santosh (Barista)"],
     variationSeed: 0,
   });
 
-  assert.ok(review.includes("Luigi's Trattoria"), "Review should include store name");
-  assert.ok(review.includes("Woodfired Crust"), "Review should include dish chip");
-  assert.ok(review.includes("Marco (Host)"), "Review should include server chip");
+  assert.ok(review.includes("Third Wave Coffee & Roastery"), "Review should include store name");
+  assert.ok(review.includes("Speciality Cold Brew"), "Review should include dish chip");
+  assert.ok(review.includes("Santosh (Barista)"), "Review should include server chip");
   assert.ok(review.length > 50, "Review should be a substantial authentic review");
 });
 

@@ -78,7 +78,7 @@ export default async function CustomerScanPage({ params, searchParams }: Props) 
     <main className="min-h-screen bg-gradient-to-b from-zinc-100 via-zinc-50 to-zinc-100 py-6 sm:py-12 px-4 flex flex-col items-center justify-center">
       <div className="w-full max-w-md mb-3 flex items-center justify-between text-xs text-zinc-400 px-2">
         <Link href="/" className="hover:text-zinc-700 transition-colors flex items-center gap-1">
-          <ArrowLeft className="w-3.5 h-3.5" /> FastQR ReviewBoost
+          <ArrowLeft className="w-3.5 h-3.5" /> ReviewBoost
         </Link>
         {table && <span className="font-mono bg-zinc-200/70 text-zinc-700 px-2 py-0.5 rounded-full">Table #{table}</span>}
       </div>

@@ -190,10 +190,11 @@ export function generateOfflineReview({
       lower.includes("host") ||
       lower.includes("staff") ||
       lower.includes("waiter") ||
-      lower.includes("alex") ||
-      lower.includes("marco") ||
       lower.includes("rahul") ||
       lower.includes("santosh") ||
+      lower.includes("priya") ||
+      lower.includes("vikram") ||
+      lower.includes("manager") ||
       lower.includes("chef") ||
       lower.includes("barista")
     ) {

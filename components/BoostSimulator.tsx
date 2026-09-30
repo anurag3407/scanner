@@ -260,7 +260,7 @@ export default function BoostSimulator({ initialStores }: Props) {
                 value={customName}
                 onChange={(e) => setCustomName(e.target.value)}
                 className="w-full p-2.5 rounded-xl border border-zinc-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                placeholder="e.g. Bluefin Sushi Bar"
+                placeholder="e.g. Third Wave Coffee, Brik Oven"
               />
             </div>
 
@@ -271,7 +271,7 @@ export default function BoostSimulator({ initialStores }: Props) {
                 value={customCategory}
                 onChange={(e) => setCustomCategory(e.target.value)}
                 className="w-full p-2.5 rounded-xl border border-zinc-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                placeholder="e.g. Modern Japanese"
+                placeholder="e.g. Specialty Coffee Roastery, Artisanal Pizzeria"
               />
             </div>
 

@@ -1,4 +1,4 @@
-# FastQR / ReviewBoost ⚡
+# ReviewBoost Scanner ⚡
 
 > **The Zero-Friction Restaurant Review Engine & Reputation Firewall**  
 > Turn table diners into verified 5-star Google Reviews in 10 seconds flat.
@@ -9,12 +9,12 @@
 
 1. **Customer Scan Experience (`/r/[slug]`)**:
    - **0ms Pre-Drafted Review**: When a diner scans the table QR code, an authentic 5-star review is already generated and pre-selected.
-   - **Interactive Feature Chips**: Diners tap dishes, server names, or ambiance perks (e.g., *"Crispy Crust"*, *"Alex (Server)"*, *"Truffle Pasta"*) to dynamically re-seed the review in under 400ms.
+   - **Interactive Feature Chips**: Diners tap dishes, server names, or ambiance perks (e.g., *"Speciality Cold Brew"*, *"Santosh (Barista)"*, *"Avocado Toast"*) to dynamically re-seed the review in under 400ms.
    - **1-Tap Hand-Off**: "Copy Review & Open Google" copies the drafted review to `navigator.clipboard`, fires festive celebration confetti, and deep-links directly to Google Reviews (`https://search.google.com/local/writereview?placeid=<PLACE_ID>`).
    - **Reputation Firewall**: If a diner taps 1, 2, or 3 stars, the public Google Reviews link is immediately suppressed and replaced with a private General Manager resolution form to resolve complaints on-site before public damage occurs.
 
 2. **Interactive Simulator (`/boost`)**:
-   - Live mobile sandbox featuring interactive phone viewport, store switcher (Italian Trattoria, Specialty Cafe, Omakase Sushi Lounge), and real-time QR code generator to test with your actual smartphone camera.
+   - Live mobile sandbox featuring interactive phone viewport, store switcher (Specialty Cafe, Artisanal Pizzeria, Craft Brewpub), and real-time QR code generator to test with your actual smartphone camera.
 
 3. **Internal Admin Dashboard (`/admin`)**:
    - Requires a signed-in Clerk user (see below).

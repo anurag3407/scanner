@@ -4,7 +4,7 @@ import { getAllStores } from "@/lib/store";
 import StoreManagementClient from "@/components/StoreManagementClient";
 
 export const metadata = {
-  title: "Restaurant Locations & Standees | FastQR Admin",
+  title: "Restaurant Locations & Standees | ReviewBoost Admin",
   description: "Manage dining locations, customize chips, and print 4x6 table tents.",
 };
 

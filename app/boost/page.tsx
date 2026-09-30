@@ -6,7 +6,7 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 
 export const metadata = {
-  title: "Live Review Boost Simulator | FastQR ReviewBoost",
+  title: "Live Review Boost Simulator | ReviewBoost",
   description: "Experience the frictionless 10-second Google review booster and reputation firewall live in action.",
 };
 

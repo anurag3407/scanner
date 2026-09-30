@@ -61,8 +61,7 @@ function getChipBadge(chip: string): { icon: string; category: "dish" | "service
     lower.includes("ananya") ||
     lower.includes("team") ||
     lower.includes("hospitality") ||
-    lower.includes("alex") ||
-    lower.includes("marco")
+    lower.includes("manager")
   ) {
     return { icon: "👤", category: "service" };
   }
@@ -666,7 +665,7 @@ export default function CustomerReviewFlow({ store, initialTable = "", isSimulat
                         required={resolutionPreference === "manager_now"}
                         value={feedbackTable}
                         onChange={(e) => setFeedbackTable(e.target.value)}
-                        placeholder="Table 4"
+                        placeholder="e.g. Table 7 or Bar 2"
                         className="w-full text-xs px-2.5 py-2 rounded-xl border border-amber-200 focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white font-medium"
                       />
                     </div>
@@ -678,7 +677,7 @@ export default function CustomerReviewFlow({ store, initialTable = "", isSimulat
                         type="text"
                         value={customerName}
                         onChange={(e) => setCustomerName(e.target.value)}
-                        placeholder="First name"
+                        placeholder="e.g. Rahul, Priya"
                         className="w-full text-xs px-2.5 py-2 rounded-xl border border-amber-200 focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white"
                       />
                     </div>
@@ -692,7 +691,7 @@ export default function CustomerReviewFlow({ store, initialTable = "", isSimulat
                       type="text"
                       value={customerContact}
                       onChange={(e) => setCustomerContact(e.target.value)}
-                      placeholder="email@example.com or phone"
+                      placeholder="e.g. +91 98765 43210 or name@gmail.com"
                       className="w-full text-xs px-2.5 py-2 rounded-xl border border-amber-200 focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white"
                     />
                   </div>
@@ -764,7 +763,7 @@ export default function CustomerReviewFlow({ store, initialTable = "", isSimulat
                     autoFocus
                     value={customInputText}
                     onChange={(e) => setCustomInputText(e.target.value)}
-                    placeholder="e.g. Tiramisu, Espresso Martini..."
+                    placeholder="e.g. Speciality Cold Brew, Paneer Tikka..."
                     className="text-xs px-3 py-1.5 rounded-full border border-zinc-300 focus:outline-none focus:ring-2 focus:ring-zinc-900 flex-1 bg-white"
                   />
                   <button
@@ -1086,7 +1085,7 @@ export default function CustomerReviewFlow({ store, initialTable = "", isSimulat
 
         {/* Footer Guarantee */}
         <div className="mt-6 pt-4 border-t border-zinc-100 flex items-center justify-between text-[11px] text-zinc-400">
-          <span>Powered by FastQR / ReviewBoost</span>
+          <span>Powered by ReviewBoost &bull; SayaLabs</span>
           <span className="flex items-center gap-1">
             <ShieldCheck className="w-3 h-3 text-emerald-600" /> Verified Restaurant Partner
           </span>
