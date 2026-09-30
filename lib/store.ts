@@ -1,6 +1,7 @@
 import fs from "fs";
 import path from "path";
 import { Store, ScanEvent, FeedbackSubmission, AnalyticsSummary } from "./types";
+import { getSupabaseClient } from "./supabase";
 
 const INITIAL_STORES: Store[] = [
   {
@@ -125,11 +126,87 @@ interface DataStoreSchema {
   events: ScanEvent[];
 }
 
-// In-memory singletons to ensure fast serverless execution with optional local file backup
 let memoryCache: DataStoreSchema | null = null;
-
 const DATA_DIR = path.join(process.cwd(), ".data");
 const DATA_FILE = path.join(DATA_DIR, "store-data.json");
+
+function parseJsonArray(val: unknown): string[] {
+  if (Array.isArray(val)) return val as string[];
+  if (typeof val === "string") {
+    try {
+      const parsed = JSON.parse(val);
+      if (Array.isArray(parsed)) return parsed;
+    } catch {
+      return [];
+    }
+  }
+  return [];
+}
+
+// Map PostgreSQL row to Store type
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function mapRowToStore(r: any): Store {
+  return {
+    id: r.id,
+    slug: r.slug,
+    name: r.name,
+    tagline: r.tagline || "",
+    category: r.category || "restaurant",
+    googlePlaceId: r.google_place_id || r.googlePlaceId,
+    brandColor: r.brand_color || r.brandColor || "#f97316",
+    accentColor: r.accent_color || r.accentColor,
+    logoUrl: r.logo_url || r.logoUrl,
+    chips: parseJsonArray(r.chips),
+    seoKeywords: parseJsonArray(r.seo_keywords || r.seoKeywords),
+    managerEmail: r.manager_email || r.managerEmail || "",
+    managerPhone: r.manager_phone || r.managerPhone || "",
+    address: r.address || "",
+    tableCount: r.table_count || r.tableCount || 10,
+    ratingScore: typeof r.rating_score === "number" ? r.rating_score : parseFloat(r.rating_score) || 4.9,
+    reviewCount: typeof r.review_count === "number" ? r.review_count : parseInt(r.review_count, 10) || 0,
+    createdAt: r.created_at || r.createdAt || new Date().toISOString(),
+  };
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function mapStoreToRow(s: Store): any {
+  return {
+    id: s.id,
+    slug: s.slug,
+    name: s.name,
+    tagline: s.tagline || "",
+    category: s.category || "restaurant",
+    google_place_id: s.googlePlaceId,
+    brand_color: s.brandColor,
+    accent_color: s.accentColor,
+    logo_url: s.logoUrl,
+    chips: s.chips,
+    seo_keywords: s.seoKeywords,
+    manager_email: s.managerEmail || "",
+    manager_phone: s.managerPhone || "",
+    address: s.address || "",
+    table_count: s.tableCount || 10,
+    rating_score: s.ratingScore,
+    review_count: s.reviewCount,
+    created_at: s.createdAt,
+  };
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function mapRowToFeedback(r: any): FeedbackSubmission {
+  return {
+    id: r.id,
+    storeId: r.store_id || r.storeId,
+    storeName: r.store_name || r.storeName,
+    rating: r.rating,
+    tableNumber: r.table_number || r.tableNumber,
+    customerName: r.customer_name || r.customerName,
+    customerContact: r.customer_contact || r.customerContact,
+    message: r.message,
+    status: r.status,
+    createdAt: r.created_at || r.createdAt,
+  };
+}
 
 function loadStoreData(): DataStoreSchema {
   if (memoryCache) {
@@ -148,7 +225,6 @@ function loadStoreData(): DataStoreSchema {
     // Fallback to default
   }
 
-  // Generate synthetic scan events for rich dashboard
   const events: ScanEvent[] = [];
   const now = Date.now();
   for (let i = 0; i < 75; i++) {
@@ -182,29 +258,76 @@ function persistData(data: DataStoreSchema) {
     }
     fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2), "utf-8");
   } catch {
-    // If running in read-only environment, keep in memoryCache
+    // Read-only environment fallback
   }
 }
 
 export async function getAllStores(): Promise<Store[]> {
+  const supabase = getSupabaseClient();
+  if (supabase) {
+    try {
+      const { data, error } = await supabase.from("stores").select("*").order("created_at", { ascending: false });
+      if (!error && data && data.length > 0) {
+        return data.map(mapRowToStore);
+      }
+    } catch {
+      // Fallback to memoryCache
+    }
+  }
+
   const data = loadStoreData();
   return [...data.stores];
 }
 
 export async function getStoreBySlug(slug: string): Promise<Store | null> {
+  const supabase = getSupabaseClient();
+  if (supabase) {
+    try {
+      const { data, error } = await supabase
+        .from("stores")
+        .select("*")
+        .ilike("slug", slug.toLowerCase().trim())
+        .limit(1)
+        .maybeSingle();
+
+      if (!error && data) {
+        return mapRowToStore(data);
+      }
+    } catch {
+      // Fallback to memoryCache
+    }
+  }
+
   const data = loadStoreData();
   const found = data.stores.find((s) => s.slug.toLowerCase() === slug.toLowerCase());
   return found ? { ...found } : null;
 }
 
 export async function getStoreById(id: string): Promise<Store | null> {
+  const supabase = getSupabaseClient();
+  if (supabase) {
+    try {
+      const { data, error } = await supabase
+        .from("stores")
+        .select("*")
+        .eq("id", id)
+        .limit(1)
+        .maybeSingle();
+
+      if (!error && data) {
+        return mapRowToStore(data);
+      }
+    } catch {
+      // Fallback
+    }
+  }
+
   const data = loadStoreData();
   const found = data.stores.find((s) => s.id === id);
   return found ? { ...found } : null;
 }
 
 export async function createStore(input: Omit<Store, "id" | "createdAt" | "ratingScore" | "reviewCount">): Promise<Store> {
-  const data = loadStoreData();
   const newStore: Store = {
     ...input,
     id: `store_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
@@ -212,26 +335,61 @@ export async function createStore(input: Omit<Store, "id" | "createdAt" | "ratin
     reviewCount: 0,
     createdAt: new Date().toISOString(),
   };
+
+  const supabase = getSupabaseClient();
+  if (supabase) {
+    try {
+      await supabase.from("stores").insert([mapStoreToRow(newStore)]);
+    } catch {
+      // Fallback
+    }
+  }
+
+  const data = loadStoreData();
   data.stores.push(newStore);
   persistData(data);
   return newStore;
 }
 
 export async function updateStore(id: string, updates: Partial<Store>): Promise<Store | null> {
+  const existing = await getStoreById(id);
+  if (!existing) return null;
+
+  const merged: Store = {
+    ...existing,
+    ...updates,
+    id, // preserve ID
+  };
+
+  const supabase = getSupabaseClient();
+  if (supabase) {
+    try {
+      await supabase.from("stores").update(mapStoreToRow(merged)).eq("id", id);
+    } catch {
+      // Fallback
+    }
+  }
+
   const data = loadStoreData();
   const index = data.stores.findIndex((s) => s.id === id);
-  if (index === -1) return null;
+  if (index !== -1) {
+    data.stores[index] = merged;
+    persistData(data);
+  }
 
-  data.stores[index] = {
-    ...data.stores[index],
-    ...updates,
-    id: data.stores[index].id, // protect ID
-  };
-  persistData(data);
-  return { ...data.stores[index] };
+  return merged;
 }
 
 export async function deleteStore(id: string): Promise<boolean> {
+  const supabase = getSupabaseClient();
+  if (supabase) {
+    try {
+      await supabase.from("stores").delete().eq("id", id);
+    } catch {
+      // Fallback
+    }
+  }
+
   const data = loadStoreData();
   const initialLen = data.stores.length;
   data.stores = data.stores.filter((s) => s.id !== id);
@@ -243,19 +401,46 @@ export async function deleteStore(id: string): Promise<boolean> {
 }
 
 export async function logScanEvent(event: Omit<ScanEvent, "id" | "timestamp">): Promise<ScanEvent> {
-  const data = loadStoreData();
   const newEvent: ScanEvent = {
     ...event,
     id: `ev_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
     timestamp: new Date().toISOString(),
   };
+
+  const supabase = getSupabaseClient();
+  if (supabase) {
+    try {
+      await supabase.from("scan_events").insert([
+        {
+          id: newEvent.id,
+          store_id: newEvent.storeId,
+          type: newEvent.type,
+          rating: newEvent.rating,
+          chips: newEvent.chips,
+          review_text: newEvent.reviewText,
+          user_agent: newEvent.userAgent,
+          timestamp: newEvent.timestamp,
+        },
+      ]);
+    } catch {
+      // Fallback
+    }
+  }
+
+  const data = loadStoreData();
   data.events.push(newEvent);
 
-  // If positive copy_open, increment review count on the store
   if (event.type === "copy_open") {
     const store = data.stores.find((s) => s.id === event.storeId);
     if (store) {
       store.reviewCount += 1;
+      if (supabase) {
+        try {
+          await supabase.from("stores").update({ review_count: store.reviewCount }).eq("id", store.id);
+        } catch {
+          // Ignored
+        }
+      }
     }
   }
 
@@ -266,7 +451,6 @@ export async function logScanEvent(event: Omit<ScanEvent, "id" | "timestamp">): 
 export async function submitPrivateFeedback(
   feedback: Omit<FeedbackSubmission, "id" | "status" | "createdAt">
 ): Promise<FeedbackSubmission> {
-  const data = loadStoreData();
   const newFeedback: FeedbackSubmission = {
     ...feedback,
     id: `fb_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
@@ -274,24 +458,51 @@ export async function submitPrivateFeedback(
     createdAt: new Date().toISOString(),
   };
 
+  const supabase = getSupabaseClient();
+  if (supabase) {
+    try {
+      await supabase.from("feedbacks").insert([
+        {
+          id: newFeedback.id,
+          store_id: newFeedback.storeId,
+          store_name: newFeedback.storeName,
+          rating: newFeedback.rating,
+          table_number: newFeedback.tableNumber,
+          customer_name: newFeedback.customerName,
+          customer_contact: newFeedback.customerContact,
+          message: newFeedback.message,
+          status: newFeedback.status,
+          created_at: newFeedback.createdAt,
+        },
+      ]);
+    } catch {
+      // Ignored
+    }
+  }
+
+  const data = loadStoreData();
   data.feedbacks.unshift(newFeedback);
-
-  // Also log event
-  data.events.push({
-    id: `ev_fb_${newFeedback.id}`,
-    storeId: feedback.storeId,
-    type: "feedback_submit",
-    rating: feedback.rating,
-    chips: [],
-    reviewText: feedback.message,
-    timestamp: newFeedback.createdAt,
-  });
-
   persistData(data);
   return newFeedback;
 }
 
 export async function getFeedbacks(storeId?: string): Promise<FeedbackSubmission[]> {
+  const supabase = getSupabaseClient();
+  if (supabase) {
+    try {
+      let query = supabase.from("feedbacks").select("*").order("created_at", { ascending: false });
+      if (storeId) {
+        query = query.eq("store_id", storeId);
+      }
+      const { data, error } = await query;
+      if (!error && data) {
+        return data.map(mapRowToFeedback);
+      }
+    } catch {
+      // Fallback
+    }
+  }
+
   const data = loadStoreData();
   if (storeId) {
     return data.feedbacks.filter((f) => f.storeId === storeId);
@@ -303,6 +514,15 @@ export async function updateFeedbackStatus(
   id: string,
   status: FeedbackSubmission["status"]
 ): Promise<boolean> {
+  const supabase = getSupabaseClient();
+  if (supabase) {
+    try {
+      await supabase.from("feedbacks").update({ status }).eq("id", id);
+    } catch {
+      // Fallback
+    }
+  }
+
   const data = loadStoreData();
   const item = data.feedbacks.find((f) => f.id === id);
   if (item) {
@@ -327,7 +547,6 @@ export async function getAnalytics(storeId?: string): Promise<AnalyticsSummary> 
   const firewallIntercepts = feedbacks.length;
   const redirectionRate = Math.round((positiveRedirections / (positiveRedirections + firewallIntercepts || 1)) * 100);
 
-  // Chip tallies
   const chipCounts: Record<string, number> = {};
   events.forEach((ev) => {
     ev.chips.forEach((c) => {
@@ -335,7 +554,6 @@ export async function getAnalytics(storeId?: string): Promise<AnalyticsSummary> 
     });
   });
 
-  // If no chip counts recorded yet, provide realistic distribution
   const defaultChips = [
     { chip: "Woodfired Crust", count: 48 },
     { chip: "Marco (Host)", count: 39 },
@@ -352,7 +570,6 @@ export async function getAnalytics(storeId?: string): Promise<AnalyticsSummary> 
         .slice(0, 6)
     : defaultChips;
 
-  // Daily activity for last 7 days
   const dailyActivity = [
     { date: "Mon", scans: 18, reviews: 16, intercepts: 1 },
     { date: "Tue", scans: 22, reviews: 20, intercepts: 1 },
