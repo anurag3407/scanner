@@ -1,4 +1,5 @@
 import React from "react";
+import { connection } from "next/server";
 import { getAllStores } from "@/lib/store";
 import StoreManagementClient from "@/components/StoreManagementClient";
 
@@ -8,6 +9,8 @@ export const metadata = {
 };
 
 export default async function StoresPage() {
+  await connection();
+
   const stores = await getAllStores();
 
   return (

@@ -28,9 +28,32 @@ interface Props {
   initialStores: Store[];
 }
 
+// Used only when the account has no locations yet so the public simulator still
+// works. This store lives purely in the browser and never records telemetry.
+const FALLBACK_DEMO_STORE: Store = {
+  id: "sim_demo_location",
+  slug: "sample-smokehouse",
+  name: "Sample Smokehouse (Demo)",
+  tagline: "Interactive preview — switch to your own restaurant anytime",
+  category: "BBQ Smokehouse",
+  googlePlaceId: "ChIJN1t_tDeuEmsRUsoyG83frY4",
+  brandColor: "#B91C1C",
+  chips: ["14-Hour Smoked Brisket", "Truffle Mac & Cheese", "Bourbon Cocktails", "Friendly Pitmaster"],
+  seoKeywords: [],
+  managerEmail: "",
+  managerPhone: "",
+  ratingScore: 0,
+  reviewCount: 0,
+  createdAt: "",
+};
+
 export default function BoostSimulator({ initialStores }: Props) {
-  const [stores, setStores] = useState<Store[]>(initialStores);
-  const [selectedStore, setSelectedStore] = useState<Store>(initialStores[0] || ({} as Store));
+  const [stores, setStores] = useState<Store[]>(
+    initialStores.length > 0 ? initialStores : [FALLBACK_DEMO_STORE]
+  );
+  const [selectedStore, setSelectedStore] = useState<Store>(
+    initialStores[0] || FALLBACK_DEMO_STORE
+  );
   const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string>("");
   const [tableNumber, setTableNumber] = useState<string>("7");
   const [viewMode, setViewMode] = useState<"phone" | "standee" | "firewall">("phone");
@@ -90,8 +113,8 @@ export default function BoostSimulator({ initialStores }: Props) {
       seoKeywords: [customCategory.toLowerCase(), "dining"],
       managerEmail: "gm@restaurant.com",
       managerPhone: "+1 (555) 000-0000",
-      ratingScore: 5.0,
-      reviewCount: 42,
+      ratingScore: 0,
+      reviewCount: 0,
       createdAt: new Date().toISOString(),
     };
 
@@ -103,7 +126,27 @@ export default function BoostSimulator({ initialStores }: Props) {
   const handleCopyLink = () => {
     const origin = (typeof window !== "undefined" && window.location?.origin) || "https://fastqr.review";
     const targetUrl = `${origin}/r/${selectedStore.slug}?table=${encodeURIComponent(tableNumber)}`;
-    navigator.clipboard?.writeText(targetUrl);
+
+    const fallbackCopy = () => {
+      try {
+        const textArea = document.createElement("textarea");
+        textArea.value = targetUrl;
+        textArea.style.position = "fixed";
+        textArea.style.left = "-999999px";
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand("copy");
+        document.body.removeChild(textArea);
+      } catch {
+        // Nothing else we can do — the URL is still visible below the button
+      }
+    };
+
+    if (navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(targetUrl).catch(fallbackCopy);
+    } else {
+      fallbackCopy();
+    }
     setCopiedLink(true);
     setTimeout(() => setCopiedLink(false), 2500);
   };

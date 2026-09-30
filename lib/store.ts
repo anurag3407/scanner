@@ -1,124 +1,7 @@
 import fs from "fs";
 import path from "path";
-import { Store, ScanEvent, FeedbackSubmission, AnalyticsSummary } from "./types";
+import { Store, ScanEvent, ScanEventType, FeedbackSubmission, AnalyticsSummary } from "./types";
 import { getSupabaseClient } from "./supabase";
-
-const INITIAL_STORES: Store[] = [
-  {
-    id: "store_luigi_1",
-    slug: "luigis-trattoria",
-    name: "Luigi's Woodfired Trattoria",
-    tagline: "Authentic Neapolitan Pizza & Handmade Pasta",
-    category: "Italian Trattoria",
-    googlePlaceId: "ChIJN1t_tDeuEmsRUsoyG83frY4",
-    brandColor: "#E11D48",
-    chips: [
-      "Woodfired Crust",
-      "Truffle Tagliatelle",
-      "Marco (Host)",
-      "Burrata Salad",
-      "Cannoli & Espresso",
-      "Romantic Patio"
-    ],
-    seoKeywords: ["italian restaurant", "woodfired pizza", "fresh pasta", "downtown dinner"],
-    managerEmail: "gm@luigistrattoria.com",
-    managerPhone: "+1 (555) 234-8901",
-    address: "428 Elm Street, Downtown",
-    tableCount: 24,
-    ratingScore: 4.9,
-    reviewCount: 348,
-    createdAt: new Date(Date.now() - 30 * 86400000).toISOString(),
-  },
-  {
-    id: "store_brew_2",
-    slug: "brew-and-bean",
-    name: "Brew & Bean Specialty Roasters",
-    tagline: "Single-Origin Pour Overs & Artisan Pastries",
-    category: "Specialty Cafe & Roastery",
-    googlePlaceId: "ChIJLfySpTOuEmsRsc_vdJtnoGY",
-    brandColor: "#D97706",
-    chips: [
-      "Oat Milk Flat White",
-      "Flaky Croissants",
-      "Lightning Fast WiFi",
-      "Friendly Baristas",
-      "Cozy Corner",
-      "House Blend"
-    ],
-    seoKeywords: ["specialty coffee", "pour over", "remote work cafe", "artisan roastery"],
-    managerEmail: "hello@brewandbean.coffee",
-    managerPhone: "+1 (555) 345-6789",
-    address: "109 North Ave, Arts District",
-    tableCount: 16,
-    ratingScore: 4.8,
-    reviewCount: 524,
-    createdAt: new Date(Date.now() - 45 * 86400000).toISOString(),
-  },
-  {
-    id: "store_sakura_3",
-    slug: "sakura-omakase",
-    name: "Sakura Omakase & Cocktail Lounge",
-    tagline: "Artisanal Edomae Sushi & Japanese Craft Cocktails",
-    category: "Japanese Omakase",
-    googlePlaceId: "ChIJOw65i_OuEmsRweB6xMhyq8w",
-    brandColor: "#059669",
-    chips: [
-      "Melt-in-mouth Otoro",
-      "Smoked Old Fashioned",
-      "Chef Kenji",
-      "Immaculate Presentation",
-      "Date Night Vibe",
-      "Wagyu A5 Nigiri"
-    ],
-    seoKeywords: ["omakase sushi", "craft cocktails", "japanese fine dining", "fresh nigiri"],
-    managerEmail: "reservations@sakuraomakase.com",
-    managerPhone: "+1 (555) 987-6543",
-    address: "77 Blossom Boulevard, Suite 100",
-    tableCount: 12,
-    ratingScore: 5.0,
-    reviewCount: 196,
-    createdAt: new Date(Date.now() - 15 * 86400000).toISOString(),
-  },
-];
-
-const INITIAL_FEEDBACKS: FeedbackSubmission[] = [
-  {
-    id: "fb_1",
-    storeId: "store_luigi_1",
-    storeName: "Luigi's Woodfired Trattoria",
-    rating: 2,
-    tableNumber: "14",
-    customerName: "David Miller",
-    customerContact: "david.m@example.com",
-    message: "Our main course took almost 45 minutes to arrive and the pasta was lukewarm when served. Service was polite though.",
-    status: "new",
-    createdAt: new Date(Date.now() - 3 * 3600000).toISOString(),
-  },
-  {
-    id: "fb_2",
-    storeId: "store_brew_2",
-    storeName: "Brew & Bean Specialty Roasters",
-    rating: 3,
-    tableNumber: "Counter 2",
-    customerName: "Sarah Jenkins",
-    customerContact: "555-829-1029",
-    message: "The flat white was delicious as always, but the outdoor seating music was a bit too loud for phone calls today.",
-    status: "reviewed",
-    createdAt: new Date(Date.now() - 18 * 3600000).toISOString(),
-  },
-  {
-    id: "fb_3",
-    storeId: "store_sakura_3",
-    storeName: "Sakura Omakase & Cocktail Lounge",
-    rating: 2,
-    tableNumber: "Table 4",
-    customerName: "Robert Vance",
-    customerContact: "rvance@vancerefrig.com",
-    message: "Reserved counter seats 3 weeks ago but were seated at a back corner table instead. Food was good but ruined our anniversary expectations.",
-    status: "resolved",
-    createdAt: new Date(Date.now() - 48 * 3600000).toISOString(),
-  },
-];
 
 interface DataStoreSchema {
   stores: Store[];
@@ -127,15 +10,65 @@ interface DataStoreSchema {
 }
 
 let memoryCache: DataStoreSchema | null = null;
-const DATA_DIR = path.join(process.cwd(), ".data");
-const DATA_FILE = path.join(DATA_DIR, "store-data.json");
+let memoryCacheFile: string | null = null;
+
+function getDataFile(): string {
+  return process.env.STORE_DATA_FILE || path.join(process.cwd(), ".data", "store-data.json");
+}
+
+function emptyData(): DataStoreSchema {
+  return { stores: [], feedbacks: [], events: [] };
+}
+
+function loadLocalData(): DataStoreSchema {
+  const file = getDataFile();
+  if (memoryCache && memoryCacheFile === file) {
+    return memoryCache;
+  }
+
+  try {
+    const parsed = JSON.parse(fs.readFileSync(/* turbopackIgnore: true */ file, "utf-8"));
+    memoryCache = {
+      stores: Array.isArray(parsed?.stores) ? parsed.stores : [],
+      feedbacks: Array.isArray(parsed?.feedbacks) ? parsed.feedbacks : [],
+      events: Array.isArray(parsed?.events) ? parsed.events : [],
+    };
+    memoryCacheFile = file;
+    return memoryCache;
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException)?.code !== "ENOENT") {
+      console.error(`Failed to read local data file at ${file}`, err);
+    }
+  }
+
+  memoryCache = emptyData();
+  memoryCacheFile = file;
+  return memoryCache;
+}
+
+function persistLocalData(data: DataStoreSchema) {
+  try {
+    const file = getDataFile();
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    fs.writeFileSync(/* turbopackIgnore: true */ file, JSON.stringify(data, null, 2), "utf-8");
+  } catch (err) {
+    console.error(
+      "Failed to persist local store data. In serverless environments (Cloudflare Workers) configure Supabase so data is stored persistently.",
+      err
+    );
+  }
+}
+
+function id(prefix: string): string {
+  return `${prefix}_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+}
 
 function parseJsonArray(val: unknown): string[] {
-  if (Array.isArray(val)) return val as string[];
+  if (Array.isArray(val)) return val.map(String);
   if (typeof val === "string") {
     try {
       const parsed = JSON.parse(val);
-      if (Array.isArray(parsed)) return parsed;
+      if (Array.isArray(parsed)) return parsed.map(String);
     } catch {
       return [];
     }
@@ -143,7 +76,6 @@ function parseJsonArray(val: unknown): string[] {
   return [];
 }
 
-// Map PostgreSQL row to Store type
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function mapRowToStore(r: any): Store {
   return {
@@ -151,19 +83,19 @@ function mapRowToStore(r: any): Store {
     slug: r.slug,
     name: r.name,
     tagline: r.tagline || "",
-    category: r.category || "restaurant",
-    googlePlaceId: r.google_place_id || r.googlePlaceId,
-    brandColor: r.brand_color || r.brandColor || "#f97316",
-    accentColor: r.accent_color || r.accentColor,
-    logoUrl: r.logo_url || r.logoUrl,
+    category: r.category || "Restaurant",
+    googlePlaceId: r.google_place_id || r.googlePlaceId || "",
+    brandColor: r.brand_color || r.brandColor || "#E11D48",
+    accentColor: r.accent_color || r.accentColor || undefined,
+    logoUrl: r.logo_url || r.logoUrl || undefined,
     chips: parseJsonArray(r.chips),
     seoKeywords: parseJsonArray(r.seo_keywords || r.seoKeywords),
     managerEmail: r.manager_email || r.managerEmail || "",
     managerPhone: r.manager_phone || r.managerPhone || "",
     address: r.address || "",
-    tableCount: r.table_count || r.tableCount || 10,
-    ratingScore: typeof r.rating_score === "number" ? r.rating_score : parseFloat(r.rating_score) || 4.9,
-    reviewCount: typeof r.review_count === "number" ? r.review_count : parseInt(r.review_count, 10) || 0,
+    tableCount: Number(r.table_count ?? r.tableCount) || 0,
+    ratingScore: Number(r.rating_score ?? r.ratingScore) || 0,
+    reviewCount: Number(r.review_count ?? r.reviewCount) || 0,
     createdAt: r.created_at || r.createdAt || new Date().toISOString(),
   };
 }
@@ -175,19 +107,19 @@ function mapStoreToRow(s: Store): any {
     slug: s.slug,
     name: s.name,
     tagline: s.tagline || "",
-    category: s.category || "restaurant",
+    category: s.category || "Restaurant",
     google_place_id: s.googlePlaceId,
     brand_color: s.brandColor,
-    accent_color: s.accentColor,
-    logo_url: s.logoUrl,
-    chips: s.chips,
-    seo_keywords: s.seoKeywords,
+    accent_color: s.accentColor || null,
+    logo_url: s.logoUrl || null,
+    chips: s.chips || [],
+    seo_keywords: s.seoKeywords || [],
     manager_email: s.managerEmail || "",
     manager_phone: s.managerPhone || "",
     address: s.address || "",
-    table_count: s.tableCount || 10,
-    rating_score: s.ratingScore,
-    review_count: s.reviewCount,
+    table_count: s.tableCount || 0,
+    rating_score: s.ratingScore || 0,
+    review_count: s.reviewCount || 0,
     created_at: s.createdAt,
   };
 }
@@ -197,157 +129,111 @@ function mapRowToFeedback(r: any): FeedbackSubmission {
   return {
     id: r.id,
     storeId: r.store_id || r.storeId,
-    storeName: r.store_name || r.storeName,
-    rating: r.rating,
-    tableNumber: r.table_number || r.tableNumber,
-    customerName: r.customer_name || r.customerName,
-    customerContact: r.customer_contact || r.customerContact,
+    storeName: r.store_name || r.storeName || "",
+    rating: Number(r.rating) || 0,
+    tableNumber: r.table_number || r.tableNumber || undefined,
+    customerName: r.customer_name || r.customerName || undefined,
+    customerContact: r.customer_contact || r.customerContact || undefined,
     message: r.message,
     status: r.status,
     createdAt: r.created_at || r.createdAt,
   };
 }
 
-function loadStoreData(): DataStoreSchema {
-  if (memoryCache) {
-    return memoryCache;
-  }
-
-  try {
-    if (fs.existsSync(DATA_FILE)) {
-      const raw = fs.readFileSync(DATA_FILE, "utf-8");
-      memoryCache = JSON.parse(raw);
-      if (memoryCache && Array.isArray(memoryCache.stores) && memoryCache.stores.length > 0) {
-        return memoryCache;
-      }
-    }
-  } catch {
-    // Fallback to default
-  }
-
-  const events: ScanEvent[] = [];
-  const now = Date.now();
-  for (let i = 0; i < 75; i++) {
-    const isPositive = Math.random() > 0.08;
-    const rating = isPositive ? 5 : Math.floor(Math.random() * 2) + 2;
-    events.push({
-      id: `ev_${i}`,
-      storeId: INITIAL_STORES[i % 3].id,
-      type: isPositive ? "copy_open" : "feedback_submit",
-      rating,
-      chips: isPositive ? [INITIAL_STORES[i % 3].chips[0], INITIAL_STORES[i % 3].chips[1]] : [],
-      reviewText: isPositive ? "Outstanding food and service!" : undefined,
-      timestamp: new Date(now - (74 - i) * 1800000).toISOString(),
-    });
-  }
-
-  memoryCache = {
-    stores: [...INITIAL_STORES],
-    feedbacks: [...INITIAL_FEEDBACKS],
-    events,
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function mapRowToEvent(r: any): ScanEvent {
+  return {
+    id: r.id,
+    storeId: r.store_id || r.storeId,
+    type: r.type,
+    rating: Number(r.rating) || 0,
+    chips: parseJsonArray(r.chips),
+    reviewText: r.review_text || r.reviewText || undefined,
+    userAgent: r.user_agent || r.userAgent || undefined,
+    timestamp: r.timestamp || r.created_at || new Date().toISOString(),
   };
-
-  persistData(memoryCache);
-  return memoryCache;
-}
-
-function persistData(data: DataStoreSchema) {
-  try {
-    if (!fs.existsSync(DATA_DIR)) {
-      fs.mkdirSync(DATA_DIR, { recursive: true });
-    }
-    fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2), "utf-8");
-  } catch {
-    // Read-only environment fallback
-  }
 }
 
 export async function getAllStores(): Promise<Store[]> {
   const supabase = getSupabaseClient();
   if (supabase) {
-    try {
-      const { data, error } = await supabase.from("stores").select("*").order("created_at", { ascending: false });
-      if (!error && data && data.length > 0) {
-        return data.map(mapRowToStore);
-      }
-    } catch {
-      // Fallback to memoryCache
+    const { data, error } = await supabase
+      .from("stores")
+      .select("*")
+      .order("created_at", { ascending: false });
+    if (error) {
+      throw new Error(`Failed to load stores from Supabase: ${error.message}`);
     }
+    return (data ?? []).map(mapRowToStore);
   }
 
-  const data = loadStoreData();
-  return [...data.stores];
+  return [...loadLocalData().stores];
 }
 
 export async function getStoreBySlug(slug: string): Promise<Store | null> {
+  const normalized = slug.toLowerCase().trim();
   const supabase = getSupabaseClient();
   if (supabase) {
-    try {
-      const { data, error } = await supabase
-        .from("stores")
-        .select("*")
-        .ilike("slug", slug.toLowerCase().trim())
-        .limit(1)
-        .maybeSingle();
+    const { data, error } = await supabase
+      .from("stores")
+      .select("*")
+      .eq("slug", normalized)
+      .limit(1)
+      .maybeSingle();
 
-      if (!error && data) {
-        return mapRowToStore(data);
-      }
-    } catch {
-      // Fallback to memoryCache
+    if (error) {
+      throw new Error(`Failed to load store "${slug}" from Supabase: ${error.message}`);
     }
+    return data ? mapRowToStore(data) : null;
   }
 
-  const data = loadStoreData();
-  const found = data.stores.find((s) => s.slug.toLowerCase() === slug.toLowerCase());
+  const found = loadLocalData().stores.find((s) => s.slug.toLowerCase() === normalized);
   return found ? { ...found } : null;
 }
 
 export async function getStoreById(id: string): Promise<Store | null> {
   const supabase = getSupabaseClient();
   if (supabase) {
-    try {
-      const { data, error } = await supabase
-        .from("stores")
-        .select("*")
-        .eq("id", id)
-        .limit(1)
-        .maybeSingle();
+    const { data, error } = await supabase
+      .from("stores")
+      .select("*")
+      .eq("id", id)
+      .limit(1)
+      .maybeSingle();
 
-      if (!error && data) {
-        return mapRowToStore(data);
-      }
-    } catch {
-      // Fallback
+    if (error) {
+      throw new Error(`Failed to load store "${id}" from Supabase: ${error.message}`);
     }
+    return data ? mapRowToStore(data) : null;
   }
 
-  const data = loadStoreData();
-  const found = data.stores.find((s) => s.id === id);
+  const found = loadLocalData().stores.find((s) => s.id === id);
   return found ? { ...found } : null;
 }
 
-export async function createStore(input: Omit<Store, "id" | "createdAt" | "ratingScore" | "reviewCount">): Promise<Store> {
+export async function createStore(
+  input: Omit<Store, "id" | "createdAt" | "ratingScore" | "reviewCount">
+): Promise<Store> {
   const newStore: Store = {
     ...input,
-    id: `store_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
-    ratingScore: 5.0,
+    id: id("store"),
+    ratingScore: 0,
     reviewCount: 0,
     createdAt: new Date().toISOString(),
   };
 
   const supabase = getSupabaseClient();
   if (supabase) {
-    try {
-      await supabase.from("stores").insert([mapStoreToRow(newStore)]);
-    } catch {
-      // Fallback
+    const { error } = await supabase.from("stores").insert([mapStoreToRow(newStore)]);
+    if (error) {
+      throw new Error(`Failed to create store in Supabase: ${error.message}`);
     }
+    return newStore;
   }
 
-  const data = loadStoreData();
+  const data = loadLocalData();
   data.stores.push(newStore);
-  persistData(data);
+  persistLocalData(data);
   return newStore;
 }
 
@@ -363,89 +249,127 @@ export async function updateStore(id: string, updates: Partial<Store>): Promise<
 
   const supabase = getSupabaseClient();
   if (supabase) {
-    try {
-      await supabase.from("stores").update(mapStoreToRow(merged)).eq("id", id);
-    } catch {
-      // Fallback
+    const { error } = await supabase.from("stores").update(mapStoreToRow(merged)).eq("id", id);
+    if (error) {
+      throw new Error(`Failed to update store in Supabase: ${error.message}`);
     }
+    return merged;
   }
 
-  const data = loadStoreData();
+  const data = loadLocalData();
   const index = data.stores.findIndex((s) => s.id === id);
-  if (index !== -1) {
-    data.stores[index] = merged;
-    persistData(data);
-  }
-
+  if (index === -1) return null;
+  data.stores[index] = merged;
+  persistLocalData(data);
   return merged;
 }
 
 export async function deleteStore(id: string): Promise<boolean> {
   const supabase = getSupabaseClient();
   if (supabase) {
-    try {
-      await supabase.from("stores").delete().eq("id", id);
-    } catch {
-      // Fallback
+    const { data, error } = await supabase.from("stores").delete().eq("id", id).select("id");
+    if (error) {
+      throw new Error(`Failed to delete store from Supabase: ${error.message}`);
     }
+    // Related feedbacks and scan events are removed by ON DELETE CASCADE.
+    return (data ?? []).length > 0;
   }
 
-  const data = loadStoreData();
+  const data = loadLocalData();
   const initialLen = data.stores.length;
   data.stores = data.stores.filter((s) => s.id !== id);
-  if (data.stores.length !== initialLen) {
-    persistData(data);
-    return true;
+  if (data.stores.length === initialLen) {
+    return false;
   }
-  return false;
+
+  data.feedbacks = data.feedbacks.filter((f) => f.storeId !== id);
+  data.events = data.events.filter((e) => e.storeId !== id);
+  persistLocalData(data);
+  return true;
+}
+
+// Best-effort review counter update for a confirmed Google hand-off.
+async function incrementSupabaseReviewCount(storeId: string) {
+  const supabase = getSupabaseClient();
+  if (!supabase) return;
+
+  const { data, error } = await supabase
+    .from("stores")
+    .select("review_count")
+    .eq("id", storeId)
+    .maybeSingle();
+  if (error || !data) return;
+
+  await supabase
+    .from("stores")
+    .update({ review_count: (data.review_count ?? 0) + 1 })
+    .eq("id", storeId);
 }
 
 export async function logScanEvent(event: Omit<ScanEvent, "id" | "timestamp">): Promise<ScanEvent> {
   const newEvent: ScanEvent = {
     ...event,
-    id: `ev_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+    id: id("ev"),
     timestamp: new Date().toISOString(),
   };
 
   const supabase = getSupabaseClient();
   if (supabase) {
-    try {
-      await supabase.from("scan_events").insert([
-        {
-          id: newEvent.id,
-          store_id: newEvent.storeId,
-          type: newEvent.type,
-          rating: newEvent.rating,
-          chips: newEvent.chips,
-          review_text: newEvent.reviewText,
-          user_agent: newEvent.userAgent,
-          timestamp: newEvent.timestamp,
-        },
-      ]);
-    } catch {
-      // Fallback
+    const { error } = await supabase.from("scan_events").insert([
+      {
+        id: newEvent.id,
+        store_id: newEvent.storeId,
+        type: newEvent.type,
+        rating: newEvent.rating,
+        chips: newEvent.chips,
+        review_text: newEvent.reviewText ?? null,
+        user_agent: newEvent.userAgent ?? null,
+        timestamp: newEvent.timestamp,
+      },
+    ]);
+
+    // Telemetry is best-effort: never block (or fail) the diner's review flow.
+    if (error) {
+      console.error("Failed to persist scan event in Supabase:", error.message);
+      return newEvent;
     }
+
+    if (event.type === "copy_open") {
+      await incrementSupabaseReviewCount(event.storeId);
+    }
+    return newEvent;
   }
 
-  const data = loadStoreData();
+  const data = loadLocalData();
   data.events.push(newEvent);
 
   if (event.type === "copy_open") {
     const store = data.stores.find((s) => s.id === event.storeId);
     if (store) {
       store.reviewCount += 1;
-      if (supabase) {
-        try {
-          await supabase.from("stores").update({ review_count: store.reviewCount }).eq("id", store.id);
-        } catch {
-          // Ignored
-        }
-      }
     }
   }
 
-  persistData(data);
+  persistLocalData(data);
   return newEvent;
+}
+
+export async function getScanEvents(storeId?: string): Promise<ScanEvent[]> {
+  const supabase = getSupabaseClient();
+  if (supabase) {
+    let query = supabase.from("scan_events").select("*").order("timestamp", { ascending: true });
+    if (storeId) {
+      query = query.eq("store_id", storeId);
+    }
+    const { data, error } = await query;
+    if (error) {
+      throw new Error(`Failed to load scan events from Supabase: ${error.message}`);
+    }
+    return (data ?? []).map(mapRowToEvent);
+  }
+
+  const events = loadLocalData().events;
+  return storeId ? events.filter((e) => e.storeId === storeId) : [...events];
 }
 
 export async function submitPrivateFeedback(
@@ -453,61 +377,56 @@ export async function submitPrivateFeedback(
 ): Promise<FeedbackSubmission> {
   const newFeedback: FeedbackSubmission = {
     ...feedback,
-    id: `fb_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+    id: id("fb"),
     status: "new",
     createdAt: new Date().toISOString(),
   };
 
   const supabase = getSupabaseClient();
   if (supabase) {
-    try {
-      await supabase.from("feedbacks").insert([
-        {
-          id: newFeedback.id,
-          store_id: newFeedback.storeId,
-          store_name: newFeedback.storeName,
-          rating: newFeedback.rating,
-          table_number: newFeedback.tableNumber,
-          customer_name: newFeedback.customerName,
-          customer_contact: newFeedback.customerContact,
-          message: newFeedback.message,
-          status: newFeedback.status,
-          created_at: newFeedback.createdAt,
-        },
-      ]);
-    } catch {
-      // Ignored
+    const { error } = await supabase.from("feedbacks").insert([
+      {
+        id: newFeedback.id,
+        store_id: newFeedback.storeId,
+        store_name: newFeedback.storeName,
+        rating: newFeedback.rating,
+        table_number: newFeedback.tableNumber ?? null,
+        customer_name: newFeedback.customerName ?? null,
+        customer_contact: newFeedback.customerContact ?? null,
+        message: newFeedback.message,
+        status: newFeedback.status,
+        created_at: newFeedback.createdAt,
+      },
+    ]);
+    if (error) {
+      // The diner must know if their complaint was not delivered.
+      throw new Error(`Failed to save feedback in Supabase: ${error.message}`);
     }
+    return newFeedback;
   }
 
-  const data = loadStoreData();
+  const data = loadLocalData();
   data.feedbacks.unshift(newFeedback);
-  persistData(data);
+  persistLocalData(data);
   return newFeedback;
 }
 
 export async function getFeedbacks(storeId?: string): Promise<FeedbackSubmission[]> {
   const supabase = getSupabaseClient();
   if (supabase) {
-    try {
-      let query = supabase.from("feedbacks").select("*").order("created_at", { ascending: false });
-      if (storeId) {
-        query = query.eq("store_id", storeId);
-      }
-      const { data, error } = await query;
-      if (!error && data) {
-        return data.map(mapRowToFeedback);
-      }
-    } catch {
-      // Fallback
+    let query = supabase.from("feedbacks").select("*").order("created_at", { ascending: false });
+    if (storeId) {
+      query = query.eq("store_id", storeId);
     }
+    const { data, error } = await query;
+    if (error) {
+      throw new Error(`Failed to load feedbacks from Supabase: ${error.message}`);
+    }
+    return (data ?? []).map(mapRowToFeedback);
   }
 
-  const data = loadStoreData();
-  if (storeId) {
-    return data.feedbacks.filter((f) => f.storeId === storeId);
-  }
-  return [...data.feedbacks];
+  const feedbacks = loadLocalData().feedbacks;
+  return storeId ? feedbacks.filter((f) => f.storeId === storeId) : [...feedbacks];
 }
 
 export async function updateFeedbackStatus(
@@ -516,78 +435,112 @@ export async function updateFeedbackStatus(
 ): Promise<boolean> {
   const supabase = getSupabaseClient();
   if (supabase) {
-    try {
-      await supabase.from("feedbacks").update({ status }).eq("id", id);
-    } catch {
-      // Fallback
+    const { data, error } = await supabase
+      .from("feedbacks")
+      .update({ status })
+      .eq("id", id)
+      .select("id");
+    if (error) {
+      throw new Error(`Failed to update feedback in Supabase: ${error.message}`);
     }
+    return (data ?? []).length > 0;
   }
 
-  const data = loadStoreData();
+  const data = loadLocalData();
   const item = data.feedbacks.find((f) => f.id === id);
-  if (item) {
-    item.status = status;
-    persistData(data);
-    return true;
-  }
-  return false;
+  if (!item) return false;
+  item.status = status;
+  persistLocalData(data);
+  return true;
 }
 
-export async function getAnalytics(storeId?: string): Promise<AnalyticsSummary> {
-  const data = loadStoreData();
-  const events = storeId
-    ? data.events.filter((e) => e.storeId === storeId)
-    : data.events;
-  const feedbacks = storeId
-    ? data.feedbacks.filter((f) => f.storeId === storeId)
-    : data.feedbacks;
+/**
+ * Builds the analytics summary from real recorded events and feedbacks.
+ * Exposed separately so it can be unit tested without any data source.
+ */
+export function buildAnalytics(
+  events: ScanEvent[],
+  feedbacks: FeedbackSubmission[]
+): AnalyticsSummary {
+  const totalScans = events.filter((e) => e.type === "scan").length;
+  const chipToggles = events.filter((e) => e.type === "chip_toggle").length;
+  const positiveRedirections = events.filter((e) => e.type === "copy_open").length;
+  const firewallIntercepts = events.filter((e) => e.type === "firewall_intercept").length;
 
-  const totalScans = Math.max(events.length, 128);
-  const positiveRedirections = events.filter((e) => e.rating >= 4 || e.type === "copy_open").length;
-  const firewallIntercepts = feedbacks.length;
-  const redirectionRate = Math.round((positiveRedirections / (positiveRedirections + firewallIntercepts || 1)) * 100);
+  const redirectionRate =
+    totalScans > 0 ? Math.round((positiveRedirections / totalScans) * 100) : 0;
+
+  // Diner satisfaction is measured on terminal actions: a Google hand-off (4-5 stars)
+  // or a firewall intercept (1-3 stars).
+  const ratings = events
+    .filter((e) => e.type === "copy_open" || e.type === "firewall_intercept")
+    .map((e) => e.rating)
+    .filter((r) => r >= 1 && r <= 5);
+  const averageRating =
+    ratings.length > 0
+      ? Math.round((ratings.reduce((sum, r) => sum + r, 0) / ratings.length) * 10) / 10
+      : 0;
 
   const chipCounts: Record<string, number> = {};
   events.forEach((ev) => {
-    ev.chips.forEach((c) => {
-      chipCounts[c] = (chipCounts[c] || 0) + 1;
+    ev.chips.forEach((chip) => {
+      chipCounts[chip] = (chipCounts[chip] || 0) + 1;
     });
   });
+  const topChips = Object.entries(chipCounts)
+    .map(([chip, count]) => ({ chip, count }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 6);
 
-  const defaultChips = [
-    { chip: "Woodfired Crust", count: 48 },
-    { chip: "Marco (Host)", count: 39 },
-    { chip: "Truffle Tagliatelle", count: 34 },
-    { chip: "Friendly Baristas", count: 29 },
-    { chip: "Oat Milk Flat White", count: 26 },
-    { chip: "Romantic Patio", count: 22 },
-  ];
+  const dailyActivity: AnalyticsSummary["dailyActivity"] = [];
+  const buckets = new Map<string, AnalyticsSummary["dailyActivity"][number]>();
+  const today = new Date();
+  for (let i = 6; i >= 0; i--) {
+    const day = new Date(today.getFullYear(), today.getMonth(), today.getDate() - i);
+    const bucket = {
+      date: day.toLocaleDateString("en-US", { weekday: "short" }),
+      scans: 0,
+      reviews: 0,
+      intercepts: 0,
+    };
+    buckets.set(day.toDateString(), bucket);
+    dailyActivity.push(bucket);
+  }
 
-  const topChips = Object.entries(chipCounts).length > 0
-    ? Object.entries(chipCounts)
-        .map(([chip, count]) => ({ chip, count }))
-        .sort((a, b) => b.count - a.count)
-        .slice(0, 6)
-    : defaultChips;
-
-  const dailyActivity = [
-    { date: "Mon", scans: 18, reviews: 16, intercepts: 1 },
-    { date: "Tue", scans: 22, reviews: 20, intercepts: 1 },
-    { date: "Wed", scans: 31, reviews: 29, intercepts: 0 },
-    { date: "Thu", scans: 28, reviews: 26, intercepts: 2 },
-    { date: "Fri", scans: 45, reviews: 42, intercepts: 1 },
-    { date: "Sat", scans: 58, reviews: 55, intercepts: 2 },
-    { date: "Sun", scans: 52, reviews: 49, intercepts: 1 },
-  ];
+  events.forEach((ev) => {
+    const ts = new Date(ev.timestamp);
+    if (Number.isNaN(ts.getTime())) return;
+    const bucket = buckets.get(ts.toDateString());
+    if (!bucket) return;
+    if (ev.type === "scan") bucket.scans += 1;
+    if (ev.type === "copy_open") bucket.reviews += 1;
+    if (ev.type === "firewall_intercept") bucket.intercepts += 1;
+  });
 
   return {
     totalScans,
+    chipToggles,
     positiveRedirections,
     firewallIntercepts,
+    complaints: feedbacks.length,
     redirectionRate,
-    averageRating: 4.9,
+    averageRating,
     topChips,
     recentFeedbacks: feedbacks.slice(0, 10),
     dailyActivity,
   };
 }
+
+export async function getAnalytics(storeId?: string): Promise<AnalyticsSummary> {
+  const [events, feedbacks] = await Promise.all([getScanEvents(storeId), getFeedbacks(storeId)]);
+  return buildAnalytics(events, feedbacks);
+}
+
+export const SCAN_EVENT_TYPES: ScanEventType[] = [
+  "scan",
+  "chip_toggle",
+  "rating_change",
+  "firewall_intercept",
+  "copy_open",
+  "feedback_submit",
+];

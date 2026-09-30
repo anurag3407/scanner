@@ -1,4 +1,5 @@
 import React from "react";
+import { connection } from "next/server";
 import { getFeedbacks, getAllStores } from "@/lib/store";
 import FeedbackInboxClient from "@/components/FeedbackInboxClient";
 
@@ -8,6 +9,8 @@ export const metadata = {
 };
 
 export default async function FeedbackPage() {
+  await connection();
+
   const [feedbacks, stores] = await Promise.all([getFeedbacks(), getAllStores()]);
 
   return (

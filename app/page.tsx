@@ -1,5 +1,6 @@
 import React from "react";
 import Link from "next/link";
+import { connection } from "next/server";
 import { getAllStores } from "@/lib/store";
 import LandingPageClient from "@/components/LandingPageClient";
 import { Zap, ShieldCheck, ArrowRight } from "lucide-react";
@@ -10,23 +11,12 @@ export const metadata = {
 };
 
 export default async function HomePage() {
+  await connection();
+
   const stores = await getAllStores();
-  const sampleStore = stores[0] || {
-    id: "store_luigi_1",
-    slug: "luigis-trattoria",
-    name: "Luigi's Woodfired Trattoria",
-    tagline: "Authentic Neapolitan Pizza & Handmade Pasta",
-    category: "Italian Trattoria",
-    googlePlaceId: "ChIJN1t_tDeuEmsRUsoyG83frY4",
-    brandColor: "#E11D48",
-    chips: ["Woodfired Crust", "Truffle Tagliatelle", "Marco (Host)", "Burrata Salad", "Cannoli & Espresso"],
-    seoKeywords: [],
-    managerEmail: "",
-    managerPhone: "",
-    ratingScore: 4.9,
-    reviewCount: 348,
-    createdAt: "",
-  };
+  // The live demo widget always uses a real configured location. When none
+  // exist yet the landing page shows a setup prompt instead of fake data.
+  const sampleStore = stores[0] ?? null;
 
   return (
     <div className="min-h-screen bg-white text-zinc-900 flex flex-col font-sans selection:bg-amber-200 selection:text-zinc-900">
@@ -107,13 +97,15 @@ export default async function HomePage() {
                   Interactive /boost Simulator
                 </Link>
               </li>
+              {stores[0] && (
+                <li>
+                  <Link href={`/r/${stores[0].slug}`} target="_blank" className="hover:text-white transition-colors">
+                    Live Guest Scan Page
+                  </Link>
+                </li>
+              )}
               <li>
-                <Link href="/r/luigis-trattoria" target="_blank" className="hover:text-white transition-colors">
-                  Sample Guest Scan Page
-                </Link>
-              </li>
-              <li>
-                <Link href="/admin/stores/store_luigi_1/print" className="hover:text-white transition-colors">
+                <Link href="/admin/stores" className="hover:text-white transition-colors">
                   4x6&quot; Table Tent Generator
                 </Link>
               </li>

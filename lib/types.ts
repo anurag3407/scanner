@@ -19,10 +19,18 @@ export interface Store {
   createdAt: string;
 }
 
+export type ScanEventType =
+  | 'scan'
+  | 'chip_toggle'
+  | 'rating_change'
+  | 'firewall_intercept'
+  | 'copy_open'
+  | 'feedback_submit';
+
 export interface ScanEvent {
   id: string;
   storeId: string;
-  type: 'scan' | 'chip_toggle' | 'rating_change' | 'copy_open' | 'feedback_submit';
+  type: ScanEventType;
   rating: number;
   chips: string[];
   reviewText?: string;
@@ -45,8 +53,10 @@ export interface FeedbackSubmission {
 
 export interface AnalyticsSummary {
   totalScans: number;
+  chipToggles: number;
   positiveRedirections: number;
   firewallIntercepts: number;
+  complaints: number;
   redirectionRate: number;
   averageRating: number;
   topChips: { chip: string; count: number }[];

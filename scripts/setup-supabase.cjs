@@ -1,12 +1,67 @@
+/**
+ * Creates the ReviewBoost schema in a Supabase Postgres database.
+ *
+ * Usage:
+ *   DATABASE_URL="postgresql://postgres:<password>@db.<project-ref>.supabase.co:5432/postgres" \
+ *     node scripts/setup-supabase.cjs
+ *
+ * The connection string is read from the environment (or from .dev.vars / .env.local
+ * if present). Never commit database credentials to this repository.
+ *
+ * This script only creates/updates the schema. It does not insert any sample data —
+ * add real restaurant locations from /admin/stores.
+ */
+const fs = require("fs");
+const path = require("path");
 const { Client } = require("pg");
 
+function loadEnvFile(fileName) {
+  const filePath = path.join(process.cwd(), fileName);
+  if (!fs.existsSync(filePath)) return {};
+  const env = {};
+  for (const line of fs.readFileSync(filePath, "utf-8").split("\n")) {
+    const match = line.match(/^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)\s*$/);
+    if (!match) continue;
+    env[match[1]] = match[2].replace(/^["']|["']$/g, "");
+  }
+  return env;
+}
+
+const env = {
+  ...loadEnvFile(".env.local"),
+  ...loadEnvFile(".dev.vars"),
+  ...process.env,
+};
+
+const connectionString =
+  env.DATABASE_URL ||
+  env.SUPABASE_DB_URL ||
+  (env.SUPABASE_URL && env.SUPABASE_DB_PASSWORD
+    ? env.SUPABASE_URL.replace("https://", "postgresql://postgres:") +
+      `:${env.SUPABASE_DB_PASSWORD}@db.` +
+      env.SUPABASE_URL.replace("https://", "").replace(".supabase.co", "") +
+      ".supabase.co:5432/postgres"
+    : "");
+
+if (!connectionString) {
+  console.error(
+    [
+      "Missing database connection string.",
+      "",
+      "Set DATABASE_URL (Supabase Dashboard -> Project Settings -> Database -> Connection string)",
+      "in your shell or in .dev.vars, then run this script again.",
+      "",
+      "Example:",
+      '  DATABASE_URL="postgresql://postgres:<password>@db.<project-ref>.supabase.co:5432/postgres" \\',
+      "    node scripts/setup-supabase.cjs",
+    ].join("\n")
+  );
+  process.exit(1);
+}
+
 const client = new Client({
-  host: "aws-0-ap-northeast-1.pooler.supabase.com",
-  port: 5432,
-  user: "postgres.arhtyltkjaqptywopcux",
-  password: "Anurag@3407",
-  database: "postgres",
-  ssl: { rejectUnauthorized: false }
+  connectionString,
+  ssl: { rejectUnauthorized: false },
 });
 
 const sql = `
@@ -27,7 +82,7 @@ CREATE TABLE IF NOT EXISTS public.stores (
   manager_phone TEXT DEFAULT '',
   address TEXT DEFAULT '',
   table_count INTEGER DEFAULT 10,
-  rating_score NUMERIC(3, 2) DEFAULT 4.9,
+  rating_score NUMERIC(3, 2) DEFAULT 0,
   review_count INTEGER DEFAULT 0,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -37,7 +92,7 @@ CREATE TABLE IF NOT EXISTS public.feedbacks (
   id TEXT PRIMARY KEY,
   store_id TEXT REFERENCES public.stores(id) ON DELETE CASCADE,
   store_name TEXT NOT NULL,
-  rating INTEGER NOT NULL,
+  rating INTEGER NOT NULL CHECK (rating BETWEEN 1 AND 5),
   table_number TEXT,
   customer_name TEXT,
   customer_contact TEXT,
@@ -61,13 +116,15 @@ CREATE TABLE IF NOT EXISTS public.scan_events (
 CREATE INDEX IF NOT EXISTS idx_stores_slug ON public.stores(slug);
 CREATE INDEX IF NOT EXISTS idx_feedbacks_store_id ON public.feedbacks(store_id);
 CREATE INDEX IF NOT EXISTS idx_scan_events_store_id ON public.scan_events(store_id);
+CREATE INDEX IF NOT EXISTS idx_scan_events_timestamp ON public.scan_events(timestamp);
 
 -- Enable Row Level Security (RLS)
 ALTER TABLE public.stores ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.feedbacks ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.scan_events ENABLE ROW LEVEL SECURITY;
 
--- Allow public read/write access via policies
+-- The application talks to the database with the Supabase publishable/secret key
+-- through PostgREST, so these tables need policies for that role.
 DO $$
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Allow public read stores') THEN
@@ -87,89 +144,21 @@ $$;
 `;
 
 async function main() {
-  console.log("Connecting to Supabase PostgreSQL pooler...");
+  console.log("Connecting to Supabase PostgreSQL...");
   await client.connect();
-  console.log("Executing DDL Schema...");
+  console.log("Applying schema...");
   await client.query(sql);
-  console.log("Schema successfully created/verified!");
+  console.log("Schema successfully created/verified.");
 
-  // Check store count
   const countRes = await client.query("SELECT COUNT(*) FROM public.stores;");
-  const count = parseInt(countRes.rows[0].count, 10);
-  console.log(`Current stores in Supabase: ${count}`);
-
-  if (count === 0) {
-    console.log("Seeding sample stores into Supabase...");
-    const sampleStores = [
-      {
-        id: "store_luigi_1",
-        slug: "luigis-trattoria",
-        name: "Luigi's Woodfired Trattoria",
-        tagline: "Authentic Neapolitan Pizza & Handmade Pasta",
-        category: "Italian",
-        google_place_id: "ChIJN1t_tDeuEmsRUsoyG83frY4",
-        brand_color: "#f97316",
-        chips: JSON.stringify(["Wood-fired Margherita", "Truffle Tagliatelle", "Warm Hospitality", "Cozy Ambience", "Tiramisu", "Express Lunch"]),
-        seo_keywords: JSON.stringify(["best neapolitan pizza soho", "handmade truffle pasta", "authentic italian dining"]),
-        manager_email: "luigi@trattoria.example.com",
-        manager_phone: "+1 (555) 234-5678",
-        address: "142 Mercer Street, Soho, NY",
-        rating_score: 4.9,
-        review_count: 142
-      },
-      {
-        id: "store_sushi_2",
-        slug: "omakase-shangri-la",
-        name: "Kuro Shinjuku Omakase",
-        tagline: "Artisanal Edomae Sushi & Rare Sakes",
-        category: "Japanese",
-        google_place_id: "ChIJa96j5-hZwokRj8o5K2q_qYk",
-        brand_color: "#0ea5e9",
-        chips: JSON.stringify(["Otoro Nigiri", "A5 Wagyu Uni Roll", "Chef Kenji", "Matcha Soufflé", "Intimate Counter", "Impeccable Presentation"]),
-        seo_keywords: JSON.stringify(["best omakase downtown", "artisan edomae sushi", "rare sake tasting"]),
-        manager_email: "kenji@omakase.example.com",
-        manager_phone: "+1 (555) 876-5432",
-        address: "88 Franklin Street, Tribeca, NY",
-        rating_score: 5.0,
-        review_count: 98
-      },
-      {
-        id: "store_cafe_3",
-        slug: "botanical-brew-co",
-        name: "Botanical Brew & Bakehouse",
-        tagline: "Micro-Roastery, Natural Sourdough & Specialty Brunch",
-        category: "Cafe & Brunch",
-        google_place_id: "ChIJ73a7kXhZwokR79u3tU02X38",
-        brand_color: "#10b981",
-        chips: JSON.stringify(["Signature Cold Brew", "Pistachio Croissant", "Avocado Tartine", "Fast Wifi & Patio", "Friendly Baristas", "Artisan Sourdough"]),
-        seo_keywords: JSON.stringify(["specialty coffee brunch", "fresh bakery pastry", "patio cafe work"]),
-        manager_email: "hello@botanicalbrew.example.com",
-        manager_phone: "+1 (555) 345-6789",
-        address: "412 West Broadway, NY",
-        rating_score: 4.8,
-        review_count: 215
-      }
-    ];
-
-    for (const store of sampleStores) {
-      await client.query(`
-        INSERT INTO public.stores (id, slug, name, tagline, category, google_place_id, brand_color, chips, seo_keywords, manager_email, manager_phone, address, rating_score, review_count)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
-        ON CONFLICT (id) DO NOTHING;
-      `, [
-        store.id, store.slug, store.name, store.tagline, store.category, store.google_place_id,
-        store.brand_color, store.chips, store.seo_keywords, store.manager_email, store.manager_phone,
-        store.address, store.rating_score, store.review_count
-      ]);
-    }
-    console.log("Sample stores seeded successfully!");
-  }
+  console.log(`Current stores in Supabase: ${parseInt(countRes.rows[0].count, 10)}`);
+  console.log("No sample data is inserted. Add real locations from /admin/stores.");
 
   await client.end();
-  console.log("Migration complete!");
+  console.log("Migration complete.");
 }
 
-main().catch(err => {
+main().catch((err) => {
   console.error("Migration failed:", err);
   process.exit(1);
 });

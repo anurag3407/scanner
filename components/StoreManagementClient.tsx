@@ -29,15 +29,15 @@ export default function StoreManagementClient({ initialStores }: Props) {
   const [slug, setSlug] = useState<string>("");
   const [tagline, setTagline] = useState<string>("");
   const [category, setCategory] = useState<string>("Restaurant");
-  const [googlePlaceId, setGooglePlaceId] = useState<string>("ChIJN1t_tDeuEmsRUsoyG83frY4");
+  const [googlePlaceId, setGooglePlaceId] = useState<string>("");
   const [brandColor, setBrandColor] = useState<string>("#E11D48");
   const [managerEmail, setManagerEmail] = useState<string>("");
   const [managerPhone, setManagerPhone] = useState<string>("");
-  const [tableCount, setTableCount] = useState<number>(15);
+  const [tableCount, setTableCount] = useState<number>(1);
   const [address, setAddress] = useState<string>("");
 
   // Dynamic chips tag editor
-  const [chips, setChips] = useState<string[]>(["Fast Service", "Signature Dish", "Cozy Atmosphere"]);
+  const [chips, setChips] = useState<string[]>([]);
   const [newChipInput, setNewChipInput] = useState<string>("");
 
   const [isSaving, setIsSaving] = useState<boolean>(false);
@@ -48,14 +48,14 @@ export default function StoreManagementClient({ initialStores }: Props) {
     setName("");
     setSlug("");
     setTagline("");
-    setCategory("Restaurant & Bar");
-    setGooglePlaceId("ChIJN1t_tDeuEmsRUsoyG83frY4");
+    setCategory("Restaurant");
+    setGooglePlaceId("");
     setBrandColor("#E11D48");
-    setManagerEmail("manager@restaurant.com");
-    setManagerPhone("+1 (555) 123-4567");
-    setTableCount(20);
-    setAddress("123 Main Street");
-    setChips(["Crispy Crust", "Fast Service", "Alex (Server)", "Craft Cocktails"]);
+    setManagerEmail("");
+    setManagerPhone("");
+    setTableCount(1);
+    setAddress("");
+    setChips([]);
     setErrorMsg("");
     setIsModalOpen(true);
   };
@@ -139,7 +139,8 @@ export default function StoreManagementClient({ initialStores }: Props) {
           setStores(stores.map((s) => (s.id === editingStoreId ? data.store : s)));
           setIsModalOpen(false);
         } else {
-          setErrorMsg("Failed to update store");
+          const data = await res.json().catch(() => null);
+          setErrorMsg(data?.error || "Failed to update store");
         }
       } else {
         // Create
@@ -154,7 +155,8 @@ export default function StoreManagementClient({ initialStores }: Props) {
           setStores([...stores, data.store]);
           setIsModalOpen(false);
         } else {
-          setErrorMsg("Failed to create store");
+          const data = await res.json().catch(() => null);
+          setErrorMsg(data?.error || "Failed to create store");
         }
       }
     } catch {

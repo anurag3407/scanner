@@ -1,4 +1,5 @@
 import React from "react";
+import { connection } from "next/server";
 import { getAllStores, getAnalytics, getFeedbacks } from "@/lib/store";
 import Link from "next/link";
 import {
@@ -12,14 +13,19 @@ import {
   ArrowUpRight,
   TrendingUp,
   Zap,
+  BarChart3,
 } from "lucide-react";
 
 export default async function AdminOverviewPage() {
-  const stores = await getAllStores();
-  const analytics = await getAnalytics();
-  const feedbacks = await getFeedbacks();
+  await connection();
 
-  const totalReviews = stores.reduce((acc, s) => acc + s.reviewCount, 0);
+  const [stores, analytics, feedbacks] = await Promise.all([
+    getAllStores(),
+    getAnalytics(),
+    getFeedbacks(),
+  ]);
+
+  const hasScans = analytics.totalScans > 0;
 
   return (
     <main className="p-6 sm:p-10 max-w-7xl mx-auto w-full space-y-8">
@@ -33,7 +39,7 @@ export default async function AdminOverviewPage() {
             Restaurant Growth &amp; Reputation Pulse
           </h1>
           <p className="text-xs text-zinc-500 mt-1">
-            Real-time table scan telemetry, 5-star Google review hand-offs, and reputation firewall intercepts.
+            Table scan telemetry, 5-star Google review hand-offs, and reputation firewall intercepts.
           </p>
         </div>
 
@@ -64,12 +70,18 @@ export default async function AdminOverviewPage() {
             </span>
           </div>
           <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-3xl font-black text-zinc-900">1,068</span>
-            <span className="text-xs font-semibold text-emerald-600 flex items-center">
-              <TrendingUp className="w-3 h-3 mr-0.5" /> +28% this mo
+            <span className="text-3xl font-black text-zinc-900">
+              {analytics.totalScans.toLocaleString()}
             </span>
+            {hasScans && (
+              <span className="text-xs font-semibold text-emerald-600 flex items-center">
+                <TrendingUp className="w-3 h-3 mr-0.5" /> {analytics.redirectionRate}% hand-off rate
+              </span>
+            )}
           </div>
-          <p className="text-[11px] text-zinc-400 mt-1">Across {stores.length} active dining locations</p>
+          <p className="text-[11px] text-zinc-400 mt-1">
+            Across {stores.length} active dining {stores.length === 1 ? "location" : "locations"}
+          </p>
         </div>
 
         {/* Metric 2 */}
@@ -81,10 +93,14 @@ export default async function AdminOverviewPage() {
             </span>
           </div>
           <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-3xl font-black text-zinc-900">{totalReviews || 1006}</span>
-            <span className="text-xs font-semibold text-emerald-600 flex items-center">
-              <ShieldCheck className="w-3 h-3 mr-0.5" /> 94.2% rate
+            <span className="text-3xl font-black text-zinc-900">
+              {analytics.positiveRedirections.toLocaleString()}
             </span>
+            {analytics.averageRating > 0 && (
+              <span className="text-xs font-semibold text-emerald-600 flex items-center">
+                <ShieldCheck className="w-3 h-3 mr-0.5" /> {analytics.averageRating.toFixed(1)} avg rating
+              </span>
+            )}
           </div>
           <p className="text-[11px] text-zinc-400 mt-1">Copied directly to Google Reviews</p>
         </div>
@@ -98,29 +114,52 @@ export default async function AdminOverviewPage() {
             </span>
           </div>
           <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-3xl font-black text-zinc-900">{feedbacks.length}</span>
+            <span className="text-3xl font-black text-zinc-900">
+              {analytics.firewallIntercepts.toLocaleString()}
+            </span>
             <span className="text-xs font-semibold text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded-full">
-              Negative Saved
+              1–3 stars
             </span>
           </div>
-          <p className="text-[11px] text-zinc-400 mt-1">Private alerts sent to GM before Google</p>
+          <p className="text-[11px] text-zinc-400 mt-1">
+            {analytics.complaints} private {analytics.complaints === 1 ? "complaint" : "complaints"} sent to GM
+          </p>
         </div>
 
         {/* Metric 4 */}
         <div className="bg-white p-5 rounded-2xl border border-zinc-200 shadow-sm relative overflow-hidden">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Est. Revenue Boost</span>
+            <span className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Avg Diner Rating</span>
             <span className="p-2 rounded-xl bg-purple-50 text-purple-600">
-              <TrendingUp className="w-4 h-4" />
+              <BarChart3 className="w-4 h-4" />
             </span>
           </div>
           <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-3xl font-black text-zinc-900">+$4,820</span>
-            <span className="text-xs font-semibold text-purple-700">/mo</span>
+            <span className="text-3xl font-black text-zinc-900">
+              {analytics.averageRating > 0 ? analytics.averageRating.toFixed(1) : "—"}
+            </span>
+            <span className="text-xs font-semibold text-zinc-500">/ 5.0</span>
           </div>
-          <p className="text-[11px] text-zinc-400 mt-1">Calculated via Harvard Business Review metric</p>
+          <p className="text-[11px] text-zinc-400 mt-1">From completed hand-offs &amp; firewall ratings</p>
         </div>
       </div>
+
+      {stores.length === 0 && (
+        <div className="bg-white rounded-3xl p-10 border border-zinc-200 shadow-sm text-center">
+          <QrCode className="w-10 h-10 text-zinc-400 mx-auto mb-3" />
+          <h2 className="text-lg font-bold text-zinc-900">No restaurant locations yet</h2>
+          <p className="text-xs text-zinc-500 mt-1 max-w-md mx-auto">
+            Add your first location with its Google Place ID to generate table QR codes,
+            print standees, and start collecting real reviews and feedback.
+          </p>
+          <Link
+            href="/admin/stores"
+            className="inline-flex items-center gap-1.5 mt-5 px-4 py-2.5 rounded-xl bg-zinc-900 text-white font-semibold text-xs hover:bg-black transition-all"
+          >
+            <Plus className="w-3.5 h-3.5" /> Add your first location
+          </Link>
+        </div>
+      )}
 
       {/* Main Content Sections: Active Stores & Reputation Firewall Feed */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
@@ -162,11 +201,17 @@ export default async function AdminOverviewPage() {
                       </div>
                       <p className="text-xs text-zinc-500 mt-0.5 line-clamp-1">{store.address || store.tagline}</p>
                       <div className="flex items-center gap-3 mt-1.5 text-[11px] text-zinc-400">
-                        <span>⭐ {store.ratingScore.toFixed(1)} rating</span>
+                        {store.reviewCount > 0 ? (
+                          <>
+                            <span>⭐ {store.ratingScore.toFixed(1)} rating</span>
+                            <span>•</span>
+                            <span>{store.reviewCount} reviews</span>
+                          </>
+                        ) : (
+                          <span>New location — no reviews recorded yet</span>
+                        )}
                         <span>•</span>
-                        <span>{store.reviewCount} reviews</span>
-                        <span>•</span>
-                        <span>{store.tableCount || 15} tables</span>
+                        <span>{store.tableCount || 0} tables</span>
                       </div>
                     </div>
                   </div>
@@ -202,21 +247,28 @@ export default async function AdminOverviewPage() {
               What customers praise most in their pre-drafted Google reviews
             </p>
 
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-              {analytics.topChips.map((item, idx) => (
-                <div
-                  key={item.chip}
-                  className="p-3 rounded-xl bg-zinc-50 border border-zinc-100 flex items-center justify-between"
-                >
-                  <span className="text-xs font-semibold text-zinc-800 truncate mr-2">
-                    #{idx + 1} {item.chip}
-                  </span>
-                  <span className="text-xs font-mono font-bold text-zinc-500 bg-white px-2 py-0.5 rounded border border-zinc-200">
-                    {item.count}x
-                  </span>
-                </div>
-              ))}
-            </div>
+            {analytics.topChips.length === 0 ? (
+              <p className="text-xs text-zinc-500 bg-zinc-50 border border-zinc-100 rounded-xl p-4">
+                No chip activity recorded yet. Chips are counted as diners tap highlights on the
+                table QR page.
+              </p>
+            ) : (
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                {analytics.topChips.map((item, idx) => (
+                  <div
+                    key={item.chip}
+                    className="p-3 rounded-xl bg-zinc-50 border border-zinc-100 flex items-center justify-between"
+                  >
+                    <span className="text-xs font-semibold text-zinc-800 truncate mr-2">
+                      #{idx + 1} {item.chip}
+                    </span>
+                    <span className="text-xs font-mono font-bold text-zinc-500 bg-white px-2 py-0.5 rounded border border-zinc-200">
+                      {item.count}x
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
 
@@ -241,46 +293,59 @@ export default async function AdminOverviewPage() {
               </Link>
             </div>
 
-            <div className="space-y-3">
-              {feedbacks.slice(0, 3).map((fb) => (
-                <div
-                  key={fb.id}
-                  className="p-4 rounded-2xl bg-amber-50/60 border border-amber-200/70 text-xs space-y-2"
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-1.5 font-bold text-zinc-900">
-                      <span className="text-amber-500 font-mono">
-                        {"★".repeat(fb.rating)}{"☆".repeat(5 - fb.rating)}
-                      </span>
-                      <span>{fb.storeName}</span>
+            {feedbacks.length === 0 ? (
+              <p className="text-xs text-zinc-500 bg-zinc-50 border border-zinc-100 rounded-xl p-4">
+                No private complaints yet. When a diner rates 1–3 stars, their message lands here
+                instead of Google Maps.
+              </p>
+            ) : (
+              <div className="space-y-3">
+                {feedbacks.slice(0, 3).map((fb) => (
+                  <div
+                    key={fb.id}
+                    className="p-4 rounded-2xl bg-amber-50/60 border border-amber-200/70 text-xs space-y-2"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5 font-bold text-zinc-900">
+                        <span className="text-amber-500 font-mono">
+                          {"★".repeat(fb.rating)}
+                          {"☆".repeat(Math.max(0, 5 - fb.rating))}
+                        </span>
+                        <span>{fb.storeName}</span>
+                      </div>
+                      {fb.tableNumber && (
+                        <span className="px-2 py-0.5 rounded bg-amber-100 text-amber-800 font-mono text-[10px] font-bold">
+                          Table {fb.tableNumber}
+                        </span>
+                      )}
                     </div>
-                    {fb.tableNumber && (
-                      <span className="px-2 py-0.5 rounded bg-amber-100 text-amber-800 font-mono text-[10px] font-bold">
-                        Table {fb.tableNumber}
+
+                    <p className="text-zinc-700 leading-relaxed italic">
+                      &ldquo;{fb.message}&rdquo;
+                    </p>
+
+                    <div className="flex items-center justify-between pt-1 text-[11px] text-zinc-500 border-t border-amber-100">
+                      <span>
+                        From: {fb.customerName || "Anonymous"} ({fb.customerContact || "No contact"})
                       </span>
-                    )}
+                      <span
+                        className={`px-2 py-0.5 rounded-full font-semibold uppercase text-[9px] ${
+                          fb.status === "new" ? "bg-rose-100 text-rose-700" : "bg-emerald-100 text-emerald-800"
+                        }`}
+                      >
+                        {fb.status}
+                      </span>
+                    </div>
                   </div>
-
-                  <p className="text-zinc-700 leading-relaxed italic">
-                    &ldquo;{fb.message}&rdquo;
-                  </p>
-
-                  <div className="flex items-center justify-between pt-1 text-[11px] text-zinc-500 border-t border-amber-100">
-                    <span>From: {fb.customerName || "Anonymous"} ({fb.customerContact || "No contact"})</span>
-                    <span className={`px-2 py-0.5 rounded-full font-semibold uppercase text-[9px] ${
-                      fb.status === "new" ? "bg-rose-100 text-rose-700" : "bg-emerald-100 text-emerald-800"
-                    }`}>
-                      {fb.status}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
 
             <div className="mt-4 p-3 rounded-2xl bg-zinc-50 border border-zinc-200 text-xs text-zinc-600 flex items-start gap-2">
               <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
               <span>
-                <strong>0 Public Damage:</strong> None of these 1–3 star complaints were posted to Google Maps. General managers resolved them table-side.
+                <strong>0 Public Damage:</strong> 1–3 star complaints captured here are never posted
+                to Google Maps. They are routed to the manager for table-side resolution.
               </span>
             </div>
           </div>

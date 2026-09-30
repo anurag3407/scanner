@@ -1,4 +1,5 @@
 import React from "react";
+import { connection } from "next/server";
 import { getAllStores } from "@/lib/store";
 import BoostSimulator from "@/components/BoostSimulator";
 import Link from "next/link";
@@ -10,6 +11,8 @@ export const metadata = {
 };
 
 export default async function BoostPage() {
+  await connection();
+
   const stores = await getAllStores();
 
   return (

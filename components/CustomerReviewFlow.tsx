@@ -1,9 +1,9 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Star, Copy, Check, Sparkles, MessageSquare, ShieldCheck, HeartHandshake, ExternalLink } from "lucide-react";
 import confetti from "canvas-confetti";
-import { Store } from "@/lib/types";
+import { Store, ScanEventType } from "@/lib/types";
 import { generateOfflineReview } from "@/lib/ai";
 
 interface Props {
@@ -27,6 +27,8 @@ export default function CustomerReviewFlow({ store, initialTable = "", isSimulat
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
   const [copied, setCopied] = useState<boolean>(false);
   const [variationSeed, setVariationSeed] = useState<number>(0);
+  const scanLogged = useRef<boolean>(false);
+  const firewallWasActive = useRef<boolean>(false);
 
   // Reputation Firewall form state
   const [feedbackTable, setFeedbackTable] = useState<string>(initialTable);
@@ -36,8 +38,27 @@ export default function CustomerReviewFlow({ store, initialTable = "", isSimulat
   const [isSubmittingFeedback, setIsSubmittingFeedback] = useState<boolean>(false);
   const [feedbackSubmitted, setFeedbackSubmitted] = useState<boolean>(false);
 
-  // Log initial scan event
+  // Telemetry is only recorded for real diner sessions. The /boost simulator
+  // (and any other sandbox) must never pollute production analytics.
+  const logEvent = (type: ScanEventType, payload: { rating?: number; chips?: string[]; reviewText?: string } = {}) => {
+    if (isSimulator) return;
+    fetch("/api/events", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        storeId: store.id,
+        type,
+        rating: payload.rating ?? rating,
+        chips: payload.chips ?? selectedChips,
+        reviewText: payload.reviewText,
+      }),
+    }).catch(() => {});
+  };
+
+  // Log the initial table scan once per visit
   useEffect(() => {
+    if (isSimulator || scanLogged.current) return;
+    scanLogged.current = true;
     fetch("/api/events", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -45,10 +66,24 @@ export default function CustomerReviewFlow({ store, initialTable = "", isSimulat
         storeId: store.id,
         type: "scan",
         rating: 5,
-        chips: (store.chips || []).slice(0, 2),
+        chips: [],
       }),
     }).catch(() => {});
-  }, [store.id, store.chips]);
+  }, [isSimulator, store.id]);
+
+  // Record when a diner is routed into the Reputation Firewall (1-3 stars)
+  useEffect(() => {
+    if (isSimulator) return;
+    const active = rating <= 3;
+    if (active && !firewallWasActive.current) {
+      fetch("/api/events", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ storeId: store.id, type: "firewall_intercept", rating, chips: [] }),
+      }).catch(() => {});
+    }
+    firewallWasActive.current = active;
+  }, [rating, isSimulator, store.id]);
 
   // Handle toggling of chips
   const toggleChip = async (chip: string) => {
@@ -59,7 +94,14 @@ export default function CustomerReviewFlow({ store, initialTable = "", isSimulat
       next = [...selectedChips, chip];
     }
     setSelectedChips(next);
+    logEvent("chip_toggle", { chips: next });
     await updateReview(next, variationSeed);
+  };
+
+  const handleRatingSelect = (nextRating: number) => {
+    if (nextRating === rating) return;
+    setRating(nextRating);
+    logEvent("rating_change", { rating: nextRating, chips: [] });
   };
 
   // Re-generate or shuffle
@@ -153,18 +195,8 @@ export default function CustomerReviewFlow({ store, initialTable = "", isSimulat
       });
     } catch {}
 
-    // Log telemetry event
-    fetch("/api/events", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        storeId: store.id,
-        type: "copy_open",
-        rating,
-        chips: selectedChips,
-        reviewText,
-      }),
-    }).catch(() => {});
+    // Log telemetry event (real diner sessions only)
+    logEvent("copy_open", { chips: selectedChips, reviewText });
 
     const googleReviewUrl = `https://search.google.com/local/writereview?placeid=${encodeURIComponent(store.googlePlaceId)}`;
 
@@ -261,7 +293,7 @@ export default function CustomerReviewFlow({ store, initialTable = "", isSimulat
               <button
                 key={star}
                 type="button"
-                onClick={() => setRating(star)}
+                onClick={() => handleRatingSelect(star)}
                 className={`p-2 rounded-xl transition-all transform active:scale-90 ${
                   rating >= star
                     ? "text-amber-400 drop-shadow-sm scale-105"

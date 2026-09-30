@@ -1,5 +1,7 @@
 import React from "react";
 import Link from "next/link";
+import { UserButton } from "@clerk/nextjs";
+import { isClerkConfigured } from "@/lib/clerk";
 import {
   LayoutDashboard,
   Store as StoreIcon,
@@ -110,7 +112,7 @@ export default function AdminLayout({
                 <ExternalLink className="w-3 h-3 text-zinc-500 group-hover:text-zinc-300" />
               </Link>
               <Link
-                href="/admin/stores/store_luigi_1/print"
+                href="/admin/stores"
                 className="flex items-center justify-between text-zinc-300 hover:text-white group"
               >
                 <span className="flex items-center gap-1.5">
@@ -123,8 +125,16 @@ export default function AdminLayout({
           </div>
         </div>
 
-        {/* Bottom Link to Marketing site */}
-        <div className="p-4 border-t border-zinc-800 text-xs">
+        {/* Account & Marketing site links */}
+        <div className="p-4 border-t border-zinc-800 text-xs space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="text-zinc-400 font-medium">Signed in</span>
+            {isClerkConfigured() ? (
+              <UserButton />
+            ) : (
+              <span className="text-[10px] font-semibold text-amber-400">Auth not configured</span>
+            )}
+          </div>
           <Link
             href="/"
             className="flex items-center gap-2 text-zinc-400 hover:text-white transition-colors"

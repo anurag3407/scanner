@@ -17,7 +17,8 @@
    - Live mobile sandbox featuring interactive phone viewport, store switcher (Italian Trattoria, Specialty Cafe, Omakase Sushi Lounge), and real-time QR code generator to test with your actual smartphone camera.
 
 3. **Internal Admin Dashboard (`/admin`)**:
-   - **Pulse Overview (`/admin`)**: Scans, 5-star hand-offs, firewall intercepts, and top diner highlight chips.
+   - Requires a signed-in Clerk user (see below).
+   - **Pulse Overview (`/admin`)**: Real scan, hand-off, firewall intercept, and average diner rating metrics computed from recorded table activity.
    - **Store Manager (`/admin/stores`)**: Add/edit locations, configure slugs, Google Place IDs, brand colors, manager contacts, and custom 1-tap feature tags.
    - **Reputation Firewall Inbox (`/admin/feedback`)**: Real-time log of intercepted 1-3 star dining complaints with table numbers, customer contact, and resolution status toggles.
    - **Scan Telemetry (`/admin/analytics`)**: Conversion funnel metrics, daily activity heatmaps, and local Google SEO ranking impact.
@@ -39,7 +40,8 @@
 - **QR Engine**: `qrcode` data URI generation
 - **Micro-interactions**: `canvas-confetti`
 - **AI Engine**: Google Gemini 2.5 Flash / 1.5 Flash with instant 0ms deterministic heuristic engine fallback (100% free-tier and offline friendly).
-- **Data Store**: Persistent JSON storage in `.data/store-data.json` with memory fallback for serverless environments.
+- **Authentication**: Clerk (`@clerk/nextjs`). `/admin` pages and store-management APIs require a signed-in user; diner scan pages, review generation, and the private feedback form stay public.
+- **Data Store**: Supabase PostgreSQL is the source of truth (locations, firewall feedback, scan telemetry). When Supabase env vars are absent, the app falls back to a local JSON file at `.data/store-data.json` for development and tests. **No demo data is ever seeded** — dashboards compute only from real activity.
 
 ---
 
@@ -50,26 +52,41 @@
 npm install
 ```
 
-### 2. (Optional) Configure Gemini API
+### 2. Configure the Database (Supabase)
+Create a Supabase project and apply the schema:
+```bash
+DATABASE_URL="postgresql://postgres:<password>@db.<project-ref>.supabase.co:5432/postgres" \
+  node scripts/setup-supabase.cjs
+```
+Then copy the project URL and keys into `.dev.vars` (Cloudflare local runtime) or `.env.local` (Next.js dev server) — see `.env.example`. Without Supabase the app uses a local JSON file, which does not persist on Cloudflare Workers.
+
+### 3. Configure Admin Authentication (Clerk)
+Create a Clerk application at [dashboard.clerk.com](https://dashboard.clerk.com), then set `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` and `CLERK_SECRET_KEY`. Without keys the public review experience still works — `/admin` redirects to a setup notice and store-management APIs return `503` rather than exposing your data. Production deployments need both values as Worker secrets:
+```bash
+npx wrangler secret put NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
+npx wrangler secret put CLERK_SECRET_KEY
+```
+
+### 4. (Optional) Configure Gemini API
 Set your Gemini API key in `.env.local` to enable Gemini 2.5 Flash real-time generation:
 ```bash
 GEMINI_API_KEY="your-gemini-api-key"
 ```
 *Note: If no API key is set, the application automatically uses the instant 0ms deterministic review generator with full functionality.*
 
-### 3. Run Development Server
+### 5. Run Development Server
 ```bash
 npm run dev
 ```
-Open [http://localhost:3000](http://localhost:3000) in your browser.
+Open [http://localhost:3000](http://localhost:3000) in your browser. Add your first restaurant location from `/admin/stores` (you will be asked to sign in).
 
-### 4. Run Automated Tests
+### 6. Run Automated Tests
 ```bash
 npm test
 ```
-Runs 15 automated test cases testing AI generation, store CRUD, Reputation Firewall, and API routes.
+Runs 18 automated tests covering AI generation, store CRUD, the reputation firewall, analytics math, and API validation. Tests run against an isolated temp file and never touch your Supabase data.
 
-### 5. Production Build
+### 7. Production Build
 ```bash
 npm run build
 ```
@@ -83,6 +100,7 @@ Compiles static and dynamic routes with zero warnings.
 | `/boost` | Complete interactive table scan simulator, custom restaurant playground & real phone QR scanner |
 | `/prospectus` | Public institutional SaaS prospectus, interactive ARR financial model & printable PDF memorandum |
 | `/r/[slug]` | Customer mobile scan landing page with pre-drafted review & Reputation Firewall |
+| `/sign-in` | Clerk sign-in page for the admin console |
 | `/admin` | Main executive overview dashboard & scan telemetry |
 | `/admin/stores` | Store location management, custom chip tags, and direct links |
 | `/admin/stores/[id]/print` | 4x6" printable table tent & acrylic counter plaque generator |

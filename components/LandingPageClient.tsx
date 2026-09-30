@@ -19,13 +19,15 @@ import confetti from "canvas-confetti";
 import { Store } from "@/lib/types";
 
 interface Props {
-  sampleStore: Store;
+  sampleStore: Store | null;
 }
 
 export default function LandingPageClient({ sampleStore }: Props) {
   // Live Hero Widget State
   const [rating, setRating] = useState<number>(5);
-  const [selectedChips, setSelectedChips] = useState<string[]>([sampleStore.chips[0], sampleStore.chips[1]]);
+  const [selectedChips, setSelectedChips] = useState<string[]>(
+    sampleStore ? sampleStore.chips.slice(0, 2) : []
+  );
   const [copied, setCopied] = useState<boolean>(false);
 
   // ROI Calculator State
@@ -45,7 +47,33 @@ export default function LandingPageClient({ sampleStore }: Props) {
     }
   };
 
-  const handleTestCopy = () => {
+  const copyToClipboard = async (text: string): Promise<boolean> => {
+    if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+      try {
+        await navigator.clipboard.writeText(text);
+        return true;
+      } catch {
+        // Fall through to the legacy path below
+      }
+    }
+    try {
+      const textArea = document.createElement("textarea");
+      textArea.value = text;
+      textArea.style.position = "fixed";
+      textArea.style.left = "-999999px";
+      document.body.appendChild(textArea);
+      textArea.focus();
+      textArea.select();
+      const ok = document.execCommand("copy");
+      document.body.removeChild(textArea);
+      return ok;
+    } catch {
+      return false;
+    }
+  };
+
+  const handleTestCopy = async () => {
+    await copyToClipboard(getSimulatedReview());
     setCopied(true);
     try {
       confetti({
@@ -76,9 +104,9 @@ export default function LandingPageClient({ sampleStore }: Props) {
           {/* Trust Badge */}
           <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-zinc-900 text-white text-xs font-semibold mb-6 shadow-md hover:bg-black transition-all">
             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-            <span>⚡ Over 120,000+ 5-Star Reviews Generated</span>
+            <span>⚡ Zero-Friction Google Review Engine</span>
             <span className="text-zinc-400">•</span>
-            <span className="text-amber-300">0ms AI Friction</span>
+            <span className="text-amber-300">0ms first draft</span>
           </div>
 
           {/* Main Headline */}
@@ -137,6 +165,25 @@ export default function LandingPageClient({ sampleStore }: Props) {
               👇 Live Interactive Guest Scanner Demo
             </span>
           </div>
+
+          {!sampleStore ? (
+            <div className="bg-white rounded-3xl p-8 border-2 border-dashed border-zinc-300 text-center">
+              <Zap className="w-8 h-8 text-amber-500 mx-auto mb-2" />
+              <h3 className="font-bold text-zinc-900">
+                Add your first location to activate the live demo
+              </h3>
+              <p className="text-xs text-zinc-500 mt-1.5 max-w-sm mx-auto">
+                The interactive scanner runs on your real restaurant data — QR destination,
+                highlight chips, and Google Place ID.
+              </p>
+              <Link
+                href="/admin/stores"
+                className="inline-flex items-center gap-1.5 mt-4 px-4 py-2.5 rounded-xl bg-zinc-900 text-white font-bold text-xs hover:bg-black transition-all"
+              >
+                Add a restaurant location <ArrowRight className="w-3.5 h-3.5" />
+              </Link>
+            </div>
+          ) : (
 
           <div className="bg-white rounded-3xl p-6 border-2 border-zinc-900 shadow-2xl relative">
             <div className="flex items-center justify-between pb-4 border-b border-zinc-100">
@@ -254,6 +301,7 @@ export default function LandingPageClient({ sampleStore }: Props) {
               </div>
             )}
           </div>
+          )}
         </div>
       </section>
 
@@ -313,7 +361,7 @@ export default function LandingPageClient({ sampleStore }: Props) {
                 Guest clicks &ldquo;Copy &amp; Open Google&rdquo;. The review is copied to clipboard and deep-links directly into the official Google write review modal. Done!
               </p>
               <div className="pt-2 text-xs font-mono text-blue-400 flex items-center gap-1.5">
-                <ExternalLink className="w-3.5 h-3.5" /> 94.2% completed post rate
+                <ExternalLink className="w-3.5 h-3.5" /> Draft copied, Google review box opened
               </div>
             </div>
           </div>
@@ -356,22 +404,22 @@ export default function LandingPageClient({ sampleStore }: Props) {
             <div className="lg:col-span-5 bg-white p-6 rounded-3xl border border-zinc-200 shadow-xl space-y-4">
               <div className="flex items-center justify-between text-xs pb-3 border-b border-zinc-100">
                 <span className="font-bold text-zinc-900 flex items-center gap-1.5">
-                  <ShieldCheck className="w-4 h-4 text-emerald-600" /> Protection Report
+                  <ShieldCheck className="w-4 h-4 text-emerald-600" /> What the Firewall Does
                 </span>
-                <span className="text-zinc-400 font-mono">Last 30 Days</span>
+                <span className="text-zinc-400 font-mono">Every Table, Every Service</span>
               </div>
               <div className="space-y-3">
                 <div className="p-3 rounded-2xl bg-zinc-50 border border-zinc-100 flex items-center justify-between">
-                  <span className="text-xs font-semibold text-zinc-700">Negative Reviews Intercepted</span>
-                  <span className="text-base font-black text-amber-600">62 Diners</span>
+                  <span className="text-xs font-semibold text-zinc-700">1–3 star diners intercepted</span>
+                  <span className="text-base font-black text-amber-600">Routed Privately</span>
                 </div>
                 <div className="p-3 rounded-2xl bg-zinc-50 border border-zinc-100 flex items-center justify-between">
-                  <span className="text-xs font-semibold text-zinc-700">Google Public Rating Preserved</span>
-                  <span className="text-base font-black text-emerald-600">4.9 / 5.0 ⭐</span>
+                  <span className="text-xs font-semibold text-zinc-700">Complaints delivered to the GM</span>
+                  <span className="text-base font-black text-emerald-600">Before Google</span>
                 </div>
                 <div className="p-3 rounded-2xl bg-zinc-50 border border-zinc-100 flex items-center justify-between">
-                  <span className="text-xs font-semibold text-zinc-700">Estimated Rating Value Saved</span>
-                  <span className="text-base font-black text-zinc-900">+$12,400</span>
+                  <span className="text-xs font-semibold text-zinc-700">Table number attached</span>
+                  <span className="text-base font-black text-zinc-900">Table-Side Fix</span>
                 </div>
               </div>
             </div>
@@ -511,21 +559,24 @@ export default function LandingPageClient({ sampleStore }: Props) {
 
               <div className="pt-3">
                 <Link
-                  href="/admin/stores/store_luigi_1/print"
+                  href="/admin/stores"
                   className="inline-flex items-center gap-2 px-5 py-3 rounded-2xl bg-zinc-900 text-white font-bold text-xs hover:bg-black transition-all shadow-md"
                 >
                   <Printer className="w-4 h-4 text-emerald-400" />
-                  Preview Sample Printable Table Tent (4x6&quot;)
+                  Open the Printable Table Tent Generator
                 </Link>
               </div>
-            </div>
-
-            <div className="lg:col-span-6 flex justify-center">
-              <div className="bg-white p-6 rounded-3xl border-2 border-zinc-900 shadow-2xl max-w-sm w-full text-center space-y-3">
-                <div className="w-12 h-12 rounded-2xl bg-rose-600 text-white flex items-center justify-center font-bold text-xl mx-auto shadow-md">
-                  L
-                </div>
-                <h4 className="font-black text-xl text-zinc-900">Luigi&apos;s Woodfired Trattoria</h4>
+            </div>              <div className="lg:col-span-6 flex justify-center">
+                <div className="bg-white p-6 rounded-3xl border-2 border-zinc-900 shadow-2xl max-w-sm w-full text-center space-y-3">
+                  <div
+                    className="w-12 h-12 rounded-2xl text-white flex items-center justify-center font-bold text-xl mx-auto shadow-md"
+                    style={{ backgroundColor: sampleStore?.brandColor || "#E11D48" }}
+                  >
+                    {(sampleStore?.name || "Your Restaurant").charAt(0)}
+                  </div>
+                  <h4 className="font-black text-xl text-zinc-900">
+                    {sampleStore?.name || "Your Restaurant"}
+                  </h4>
                 <div className="flex items-center justify-center gap-1 text-amber-400">
                   {[...Array(5)].map((_, i) => (
                     <Star key={i} className="w-4 h-4 fill-current" />
