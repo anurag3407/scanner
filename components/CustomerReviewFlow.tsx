@@ -24,6 +24,7 @@ import {
 import confetti from "canvas-confetti";
 import { Store, ScanEventType, ReviewTone } from "@/lib/types";
 import { generateOfflineReview } from "@/lib/ai";
+import { getGoogleReviewUrl } from "@/lib/review-links";
 
 interface Props {
   store: Store;
@@ -333,9 +334,7 @@ export default function CustomerReviewFlow({ store, initialTable = "", isSimulat
     }
   };
 
-  const googleReviewUrl = store.googlePlaceId
-    ? `https://search.google.com/local/writereview?placeid=${encodeURIComponent(store.googlePlaceId)}`
-    : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${store.name} ${store.address || store.tagline || store.category}`.trim())}`;
+  const googleReviewUrl = getGoogleReviewUrl(store);
 
   // 1-Tap Hand-off to Google
   const handleHandoff = (e: React.MouseEvent<HTMLAnchorElement>) => {

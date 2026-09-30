@@ -887,7 +887,7 @@ async function main() {
         r.name,
         r.tagline,
         r.category,
-        r.googlePlaceId,
+        r.googleMapsUrl || r.googlePlaceId,
         r.brandColor,
         chipsJson,
         "anuragmishra3407@gmail.com", // owner/alert notifications go to Anurag's Gmail
