@@ -3,10 +3,16 @@ import { getFeedbacks, getStoreById, submitPrivateFeedback, updateFeedbackStatus
 import { FeedbackSubmission } from "@/lib/types";
 import { parseRating } from "@/lib/validation";
 import { sendLowRatingAlertEmail } from "@/lib/email";
+import { assertAdminAuth } from "@/lib/auth";
 
 const VALID_STATUSES: FeedbackSubmission["status"][] = ["new", "reviewed", "resolved"];
 
 export async function GET(req: Request) {
+  const auth = await assertAdminAuth();
+  if (!auth.authorized) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status || 401 });
+  }
+
   try {
     const { searchParams } = new URL(req.url);
     const storeId = searchParams.get("storeId") || undefined;
@@ -43,16 +49,20 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Store not found" }, { status: 404 });
     }
 
+    const tableNumber = typeof body.tableNumber === "string" ? body.tableNumber.trim().slice(0, 50) : undefined;
+    const customerName = typeof body.customerName === "string" ? body.customerName.trim().slice(0, 100) : undefined;
+    const customerContact = typeof body.customerContact === "string" ? body.customerContact.trim().slice(0, 150) : undefined;
+    const safeMessage = message.slice(0, 2000);
+
     const feedback = await submitPrivateFeedback({
       storeId,
       // Always attribute the complaint to the real store, never to client input.
       storeName: store.name,
       rating,
-      tableNumber: typeof body.tableNumber === "string" ? body.tableNumber.trim() : undefined,
-      customerName: typeof body.customerName === "string" ? body.customerName.trim() : undefined,
-      customerContact:
-        typeof body.customerContact === "string" ? body.customerContact.trim() : undefined,
-      message: message.slice(0, 2000),
+      tableNumber,
+      customerName,
+      customerContact,
+      message: safeMessage,
     });
 
     // Send email alert to store owner / manager via Resend for 1-3 star ratings
@@ -63,10 +73,10 @@ export async function POST(req: Request) {
           toEmail: targetEmail,
           storeName: store.name,
           rating,
-          tableNumber: typeof body.tableNumber === "string" ? body.tableNumber.trim() : undefined,
-          customerName: typeof body.customerName === "string" ? body.customerName.trim() : undefined,
-          customerContact: typeof body.customerContact === "string" ? body.customerContact.trim() : undefined,
-          message,
+          tableNumber,
+          customerName,
+          customerContact,
+          message: safeMessage,
         });
       } catch (emailErr) {
         console.error("Failed to dispatch Resend email alert:", emailErr);
@@ -81,6 +91,11 @@ export async function POST(req: Request) {
 }
 
 export async function PATCH(req: Request) {
+  const auth = await assertAdminAuth();
+  if (!auth.authorized) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status || 401 });
+  }
+
   let body: Record<string, unknown>;
   try {
     body = await req.json();

@@ -29,7 +29,7 @@ export default function LandingPageClient({ sampleStore }: Props) {
   // Live Demo Widget State
   const [rating, setRating] = useState<number>(5);
   const [selectedChips, setSelectedChips] = useState<string[]>(
-    sampleStore ? sampleStore.chips.slice(0, 2) : ["Woodfired Crust", "Marco (Host)"]
+    sampleStore ? sampleStore.chips.slice(0, 2) : ["Speciality Cold Brew", "Avocado Toast"]
   );
   const [copied, setCopied] = useState<boolean>(false);
 
@@ -237,13 +237,13 @@ export default function LandingPageClient({ sampleStore }: Props) {
                 <div className="flex items-center gap-2">
                   <div
                     className="w-8 h-8 rounded-lg text-white font-bold flex items-center justify-center text-xs shadow-sm"
-                    style={{ backgroundColor: sampleStore?.brandColor || "#B91C1C" }}
+                    style={{ backgroundColor: sampleStore?.brandColor || "#0F766E" }}
                   >
-                    {sampleStore?.name?.charAt(0) || "S"}
+                    {sampleStore?.name?.charAt(0) || "T"}
                   </div>
                   <div>
                     <h4 className="font-bold text-xs text-zinc-900 leading-tight">
-                      {sampleStore?.name || "Luigi's Italian Trattoria"}
+                      {sampleStore?.name || "Third Wave Coffee"}
                     </h4>
                     <span className="text-[10px] text-zinc-400">Table #7 • Verified Guest</span>
                   </div>
@@ -283,7 +283,7 @@ export default function LandingPageClient({ sampleStore }: Props) {
                       Tap highlights to personalize:
                     </span>
                     <div className="flex flex-wrap gap-1">
-                      {(sampleStore?.chips || ["Woodfired Crust", "Marco (Host)", "Truffle Pasta"]).map((chip) => {
+                      {(sampleStore?.chips || ["Speciality Cold Brew", "Avocado Toast", "Sea Salt Mocha"]).map((chip) => {
                         const active = selectedChips.includes(chip);
                         return (
                           <button
@@ -744,7 +744,7 @@ export default function LandingPageClient({ sampleStore }: Props) {
         {/* Copyright Bar */}
         <div className="pt-8 border-t border-white/5 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-zinc-500 text-center">
           <p>
-            Copyright © {new Date().getFullYear()} ReviewBoost • Designed for High-Growth Restaurants • Powered by FastQR
+            Copyright © {new Date().getFullYear()} ReviewBoost • Designed for High-Growth Restaurants • Powered by SayaLabs
           </p>
           <div className="flex items-center gap-3">
             <Link href="/boost" className="text-zinc-400 hover:text-white transition-colors">

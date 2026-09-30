@@ -11,6 +11,7 @@ import { GET as getFeedbackRoute, POST as submitFeedbackRoute, PATCH as patchFee
 import { GET as getAnalyticsRoute } from "../app/api/analytics/route";
 
 // Isolated file store — never the production Supabase database.
+process.env.NODE_ENV = "test";
 const TEST_DATA_FILE = path.join(os.tmpdir(), `reviewboost-api-test-${process.pid}.json`);
 process.env.STORE_DATA_FILE = TEST_DATA_FILE;
 delete process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -269,4 +270,19 @@ test("GET, PUT, and DELETE /api/stores/[id] lifecycle", async () => {
   // 6. Subsequent GET returns 404
   const afterDeleteRes = await getStoreByIdRoute(getReq, { params: Promise.resolve({ id: store.id }) });
   assert.equal(afterDeleteRes.status, 404);
+});
+
+test("Security: Admin endpoints reject requests when unauthenticated in production mode", async () => {
+  const originalEnv = process.env.NODE_ENV;
+  process.env.NODE_ENV = "production";
+
+  try {
+    const res = await getStores();
+    // In production without Clerk keys configured or session, must fail closed with 503 or 401
+    assert.ok(res.status === 503 || res.status === 401);
+    const body = await res.json();
+    assert.ok(body.error);
+  } finally {
+    process.env.NODE_ENV = originalEnv;
+  }
 });

@@ -32,18 +32,18 @@ interface Props {
 // works. This store lives purely in the browser and never records telemetry.
 const FALLBACK_DEMO_STORE: Store = {
   id: "sim_demo_location",
-  slug: "sample-smokehouse",
-  name: "Sample Smokehouse (Demo)",
-  tagline: "Interactive preview — switch to your own restaurant anytime",
-  category: "BBQ Smokehouse",
-  googlePlaceId: "ChIJN1t_tDeuEmsRUsoyG83frY4",
-  brandColor: "#B91C1C",
-  chips: ["14-Hour Smoked Brisket", "Truffle Mac & Cheese", "Bourbon Cocktails", "Friendly Pitmaster"],
-  seoKeywords: [],
-  managerEmail: "",
-  managerPhone: "",
-  ratingScore: 0,
-  reviewCount: 0,
+  slug: "third-wave-coffee-koramangala",
+  name: "Third Wave Coffee",
+  tagline: "Speciality Coffee & Artisan Bakery • Koramangala",
+  category: "Speciality Cafe",
+  googlePlaceId: "ChIJbU60y5EZrjsR55r3M_d8rTQ",
+  brandColor: "#0F766E",
+  chips: ["Speciality Cold Brew", "Avocado Toast", "Sea Salt Mocha", "Santosh (Barista)"],
+  seoKeywords: ["speciality coffee", "bengaluru", "koramangala"],
+  managerEmail: "anuragmishra3407@gmail.com",
+  managerPhone: "+91 98765 43210",
+  ratingScore: 4.8,
+  reviewCount: 1420,
   createdAt: "",
 };
 
@@ -61,14 +61,14 @@ export default function BoostSimulator({ initialStores }: Props) {
 
   // Custom restaurant playground state
   const [isCustomizing, setIsCustomizing] = useState<boolean>(false);
-  const [customName, setCustomName] = useState<string>("Smokey's Craft BBQ");
-  const [customCategory, setCustomCategory] = useState<string>("Artisan Smokehouse");
-  const [customColor, setCustomColor] = useState<string>("#B91C1C");
+  const [customName, setCustomName] = useState<string>("Third Wave Coffee");
+  const [customCategory, setCustomCategory] = useState<string>("Speciality Cafe");
+  const [customColor, setCustomColor] = useState<string>("#0F766E");
   const [customChips, setCustomChips] = useState<string[]>([
-    "14-Hour Smoked Brisket",
-    "Truffle Mac & Cheese",
-    "Bourbon Cocktails",
-    "Friendly Pitmaster",
+    "Speciality Cold Brew",
+    "Avocado Toast",
+    "Sea Salt Mocha",
+    "Santosh (Barista)",
   ]);
   const [newChipInput, setNewChipInput] = useState<string>("");
 
@@ -79,7 +79,7 @@ export default function BoostSimulator({ initialStores }: Props) {
   // Update QR Code on store, table, or custom playground changes
   useEffect(() => {
     if (!selectedStore.slug) return;
-    const origin = (typeof window !== "undefined" && window.location?.origin) || "https://fastqr.review";
+    const origin = (typeof window !== "undefined" && window.location?.origin) || "https://scanner.sayalabs.in";
     const targetUrl = `${origin}/r/${selectedStore.slug}?table=${encodeURIComponent(tableNumber)}`;
 
     QRCode.toDataURL(targetUrl, {
@@ -107,14 +107,14 @@ export default function BoostSimulator({ initialStores }: Props) {
       name: customName,
       tagline: `Finest ${customCategory} in Town`,
       category: customCategory,
-      googlePlaceId: "ChIJN1t_tDeuEmsRUsoyG83frY4",
+      googlePlaceId: "ChIJbU60y5EZrjsR55r3M_d8rTQ",
       brandColor: customColor,
       chips: customChips,
       seoKeywords: [customCategory.toLowerCase(), "dining"],
-      managerEmail: "gm@restaurant.com",
-      managerPhone: "+1 (555) 000-0000",
-      ratingScore: 0,
-      reviewCount: 0,
+      managerEmail: "anuragmishra3407@gmail.com",
+      managerPhone: "+91 98765 43210",
+      ratingScore: 4.8,
+      reviewCount: 120,
       createdAt: new Date().toISOString(),
     };
 
@@ -124,7 +124,7 @@ export default function BoostSimulator({ initialStores }: Props) {
   };
 
   const handleCopyLink = () => {
-    const origin = (typeof window !== "undefined" && window.location?.origin) || "https://fastqr.review";
+    const origin = (typeof window !== "undefined" && window.location?.origin) || "https://scanner.sayalabs.in";
     const targetUrl = `${origin}/r/${selectedStore.slug}?table=${encodeURIComponent(tableNumber)}`;
 
     const fallbackCopy = () => {

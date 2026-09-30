@@ -540,7 +540,7 @@ export default function StoreManagementClient({ initialStores }: Props) {
                         addChip();
                       }
                     }}
-                    placeholder="Add custom dish or server name (e.g. 'Butter Chicken', 'Alex (Server)')"
+                    placeholder="Add custom dish or server name (e.g. 'Butter Chicken', 'Santosh (Barista)', 'Filter Coffee')"
                     className="flex-1 text-xs p-2.5 rounded-xl border border-zinc-300 bg-white focus:outline-none focus:ring-2 focus:ring-zinc-900"
                   />
                   <button

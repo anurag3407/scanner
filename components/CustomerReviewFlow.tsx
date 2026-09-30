@@ -52,6 +52,15 @@ function getChipBadge(chip: string): { icon: string; category: "dish" | "service
     lower.includes("chef") ||
     lower.includes("pitmaster") ||
     lower.includes("barista") ||
+    lower.includes("santosh") ||
+    lower.includes("rahul") ||
+    lower.includes("priya") ||
+    lower.includes("vikram") ||
+    lower.includes("rohit") ||
+    lower.includes("deepak") ||
+    lower.includes("ananya") ||
+    lower.includes("team") ||
+    lower.includes("hospitality") ||
     lower.includes("alex") ||
     lower.includes("marco")
   ) {
@@ -327,7 +336,7 @@ export default function CustomerReviewFlow({ store, initialTable = "", isSimulat
 
   const googleReviewUrl = store.googlePlaceId
     ? `https://search.google.com/local/writereview?placeid=${encodeURIComponent(store.googlePlaceId)}`
-    : null;
+    : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${store.name} ${store.address || store.tagline || store.category}`.trim())}`;
 
   // 1-Tap Hand-off to Google
   const handleHandoff = (e: React.MouseEvent<HTMLAnchorElement>) => {

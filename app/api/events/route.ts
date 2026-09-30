@@ -10,7 +10,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
-  const storeId = typeof body.storeId === "string" ? body.storeId : "";
+  const storeId = typeof body.storeId === "string" ? body.storeId.trim().slice(0, 100) : "";
   const type = body.type;
 
   if (!storeId || typeof type !== "string" || !SCAN_EVENT_TYPES.includes(type as never)) {

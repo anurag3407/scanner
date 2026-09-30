@@ -2,11 +2,17 @@ import { NextResponse } from "next/server";
 import { getStoreById, getStoreBySlug, updateStore, deleteStore } from "@/lib/store";
 import { Store } from "@/lib/types";
 import { slugify, isValidHexColor, sanitizeStringArray } from "@/lib/validation";
+import { assertAdminAuth } from "@/lib/auth";
 
 export async function GET(
   _req: Request,
   context: { params: Promise<{ id: string }> }
 ) {
+  const auth = await assertAdminAuth();
+  if (!auth.authorized) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status || 401 });
+  }
+
   try {
     const { id } = await context.params;
     const store = await getStoreById(id);
@@ -24,6 +30,11 @@ export async function PUT(
   req: Request,
   context: { params: Promise<{ id: string }> }
 ) {
+  const auth = await assertAdminAuth();
+  if (!auth.authorized) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status || 401 });
+  }
+
   try {
     const { id } = await context.params;
 
@@ -103,6 +114,11 @@ export async function DELETE(
   _req: Request,
   context: { params: Promise<{ id: string }> }
 ) {
+  const auth = await assertAdminAuth();
+  if (!auth.authorized) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status || 401 });
+  }
+
   try {
     const { id } = await context.params;
     const store = await getStoreById(id);

@@ -1,8 +1,14 @@
 import { NextResponse } from "next/server";
 import { getAllStores, createStore, getStoreBySlug } from "@/lib/store";
 import { slugify, isValidHexColor, sanitizeStringArray } from "@/lib/validation";
+import { assertAdminAuth } from "@/lib/auth";
 
 export async function GET() {
+  const auth = await assertAdminAuth();
+  if (!auth.authorized) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status || 401 });
+  }
+
   try {
     const stores = await getAllStores();
     return NextResponse.json({ stores });
@@ -13,6 +19,11 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
+  const auth = await assertAdminAuth();
+  if (!auth.authorized) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status || 401 });
+  }
+
   let body: Record<string, unknown>;
   try {
     body = await req.json();
