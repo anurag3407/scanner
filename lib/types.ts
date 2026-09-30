@@ -19,6 +19,8 @@ export interface Store {
   createdAt: string;
 }
 
+export type ReviewTone = 'punchy' | 'foodie' | 'hospitality';
+
 export type ScanEventType =
   | 'scan'
   | 'chip_toggle'

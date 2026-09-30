@@ -57,3 +57,43 @@ test("generateSmartReview falls back to 0ms heuristic engine safely", async () =
   assert.ok(result.source === "instant_engine" || result.source === "gemini");
   assert.ok(typeof result.latencyMs === "number");
 });
+
+test("generateOfflineReview generates punchy tone review", () => {
+  const review = generateOfflineReview({
+    storeName: "Bella Pizza",
+    category: "Pizzeria",
+    chips: ["Truffle Pizza", "Crispy Crust"],
+    tone: "punchy",
+  });
+
+  assert.ok(review.includes("Bella Pizza"));
+  assert.ok(review.includes("Truffle Pizza"));
+  assert.ok(review.length > 40);
+});
+
+test("generateOfflineReview generates foodie tone review", () => {
+  const review = generateOfflineReview({
+    storeName: "Gourmet Bistro",
+    category: "French Bistro",
+    chips: ["Duck Confit", "Red Wine Sauce"],
+    tone: "foodie",
+  });
+
+  assert.ok(review.includes("Gourmet Bistro"));
+  assert.ok(review.includes("Duck Confit"));
+  assert.ok(review.length > 50);
+});
+
+test("generateOfflineReview generates hospitality tone review", () => {
+  const review = generateOfflineReview({
+    storeName: "The Cozy Tavern",
+    category: "Tavern",
+    chips: ["Sarah (Host)", "Warm Fireplace"],
+    tone: "hospitality",
+  });
+
+  assert.ok(review.includes("The Cozy Tavern"));
+  assert.ok(review.includes("Sarah (Host)"));
+  assert.ok(review.length > 50);
+});
+

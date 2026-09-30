@@ -13,7 +13,14 @@ export const metadata = {
 export default async function BoostPage() {
   await connection();
 
-  const stores = await getAllStores();
+  // The simulator falls back to its built-in demo location when no real
+  // stores are available (or the database is temporarily unreachable).
+  let stores: Awaited<ReturnType<typeof getAllStores>> = [];
+  try {
+    stores = await getAllStores();
+  } catch (err) {
+    console.error("Simulator could not load stores", err);
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-zinc-50 via-zinc-100 to-zinc-50 flex flex-col">

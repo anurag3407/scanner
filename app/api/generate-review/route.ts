@@ -4,7 +4,7 @@ import { generateSmartReview } from "@/lib/ai";
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { storeName, category, chips, rating, variationSeed } = body;
+    const { storeName, category, chips, rating, variationSeed, tone } = body;
 
     if (!storeName) {
       return NextResponse.json({ error: "Store name is required" }, { status: 400 });
@@ -16,6 +16,7 @@ export async function POST(req: Request) {
       chips: Array.isArray(chips) ? chips : [],
       rating: Number(rating) || 5,
       variationSeed: Number(variationSeed) || 0,
+      tone: tone === "punchy" || tone === "foodie" || tone === "hospitality" ? tone : undefined,
     });
 
     return NextResponse.json(result);

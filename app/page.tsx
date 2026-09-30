@@ -13,7 +13,14 @@ export const metadata = {
 export default async function HomePage() {
   await connection();
 
-  const stores = await getAllStores();
+  // The marketing site must stay up even if the database is unreachable —
+  // it simply renders without the live demo widget.
+  let stores: Awaited<ReturnType<typeof getAllStores>> = [];
+  try {
+    stores = await getAllStores();
+  } catch (err) {
+    console.error("Landing page could not load stores", err);
+  }
   // The live demo widget always uses a real configured location. When none
   // exist yet the landing page shows a setup prompt instead of fake data.
   const sampleStore = stores[0] ?? null;
