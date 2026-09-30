@@ -715,17 +715,17 @@ export default function LandingPageClient({ sampleStore }: Props) {
           {/* Card 4: Support */}
           <div className="bg-[#141418] border border-white/5 rounded-2xl p-6 text-left">
             <h4 className="font-display uppercase text-base tracking-tight text-white mb-4">
-              SUPPORT
+              SUPPORT &amp; SALES
             </h4>
             <ul className="space-y-2.5 text-xs text-zinc-400 font-medium">
               <li>
-                <span>Email: support@fastqr.review</span>
+                <span>Email: anuragmishra3407@gmail.com</span>
               </li>
               <li>
-                <span>Phone: (555) 123-4567</span>
+                <span>Domain: scanner.sayalabs.in</span>
               </li>
               <li>
-                <span>HQ: San Francisco, CA</span>
+                <span>Powered by SayaLabs</span>
               </li>
               <li className="text-[11px] text-emerald-400 pt-1">
                 <span>Google Verified Deep-Linking</span>

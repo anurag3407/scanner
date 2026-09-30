@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getFeedbacks, getStoreById, submitPrivateFeedback, updateFeedbackStatus } from "@/lib/store";
 import { FeedbackSubmission } from "@/lib/types";
 import { parseRating } from "@/lib/validation";
+import { sendLowRatingAlertEmail } from "@/lib/email";
 
 const VALID_STATUSES: FeedbackSubmission["status"][] = ["new", "reviewed", "resolved"];
 
@@ -53,6 +54,24 @@ export async function POST(req: Request) {
         typeof body.customerContact === "string" ? body.customerContact.trim() : undefined,
       message: message.slice(0, 2000),
     });
+
+    // Send email alert to store owner / manager via Resend for 1-3 star ratings
+    const targetEmail = store.managerEmail || process.env.ADMIN_ALLOWED_EMAIL || "anuragmishra3407@gmail.com";
+    if (rating <= 3 && targetEmail) {
+      try {
+        await sendLowRatingAlertEmail({
+          toEmail: targetEmail,
+          storeName: store.name,
+          rating,
+          tableNumber: typeof body.tableNumber === "string" ? body.tableNumber.trim() : undefined,
+          customerName: typeof body.customerName === "string" ? body.customerName.trim() : undefined,
+          customerContact: typeof body.customerContact === "string" ? body.customerContact.trim() : undefined,
+          message,
+        });
+      } catch (emailErr) {
+        console.error("Failed to dispatch Resend email alert:", emailErr);
+      }
+    }
 
     return NextResponse.json({ success: true, feedback }, { status: 201 });
   } catch (err) {

@@ -12,12 +12,32 @@ import {
   MapPin,
   Mail,
   Phone,
+  QrCode,
+  Sparkles,
+  HelpCircle,
 } from "lucide-react";
 import Link from "next/link";
 
 interface Props {
   initialStores: Store[];
 }
+
+const QUICK_CHIP_SUGGESTIONS = [
+  "Flat White",
+  "Butter Chicken",
+  "Cold Brew",
+  "Sourdough Toast",
+  "Truffle Pizza",
+  "Crispy Garlic Bread",
+  "OG Tiramisu",
+  "Great Ambience",
+  "Attentive Staff",
+  "Rahul (Barista)",
+  "Santosh (Server)",
+  "Fast Billing",
+  "Cozy Seating",
+  "Family Friendly",
+];
 
 export default function StoreManagementClient({ initialStores }: Props) {
   const [stores, setStores] = useState<Store[]>(initialStores);
@@ -28,9 +48,9 @@ export default function StoreManagementClient({ initialStores }: Props) {
   const [name, setName] = useState<string>("");
   const [slug, setSlug] = useState<string>("");
   const [tagline, setTagline] = useState<string>("");
-  const [category, setCategory] = useState<string>("Restaurant");
+  const [category, setCategory] = useState<string>("Cafe / Restaurant");
   const [googlePlaceId, setGooglePlaceId] = useState<string>("");
-  const [brandColor, setBrandColor] = useState<string>("#E11D48");
+  const [brandColor, setBrandColor] = useState<string>("#0d9488");
   const [managerEmail, setManagerEmail] = useState<string>("");
   const [managerPhone, setManagerPhone] = useState<string>("");
   const [tableCount, setTableCount] = useState<number>(1);
@@ -48,14 +68,14 @@ export default function StoreManagementClient({ initialStores }: Props) {
     setName("");
     setSlug("");
     setTagline("");
-    setCategory("Restaurant");
+    setCategory("Cafe / Restaurant");
     setGooglePlaceId("");
-    setBrandColor("#E11D48");
-    setManagerEmail("");
+    setBrandColor("#0d9488");
+    setManagerEmail("anuragmishra3407@gmail.com");
     setManagerPhone("");
     setTableCount(1);
     setAddress("");
-    setChips([]);
+    setChips(["Specialty Coffee", "Fresh Sourdough", "Friendly Staff", "Great Ambience"]);
     setErrorMsg("");
     setIsModalOpen(true);
   };
@@ -65,12 +85,12 @@ export default function StoreManagementClient({ initialStores }: Props) {
     setName(store.name);
     setSlug(store.slug);
     setTagline(store.tagline || "");
-    setCategory(store.category || "Restaurant");
+    setCategory(store.category || "Cafe / Restaurant");
     setGooglePlaceId(store.googlePlaceId);
-    setBrandColor(store.brandColor || "#E11D48");
+    setBrandColor(store.brandColor || "#0d9488");
     setManagerEmail(store.managerEmail || "");
     setManagerPhone(store.managerPhone || "");
-    setTableCount(store.tableCount || 15);
+    setTableCount(store.tableCount || 10);
     setAddress(store.address || "");
     setChips([...store.chips]);
     setErrorMsg("");
@@ -89,12 +109,15 @@ export default function StoreManagementClient({ initialStores }: Props) {
     }
   };
 
-  const addChip = () => {
-    if (!newChipInput.trim()) return;
-    if (!chips.includes(newChipInput.trim())) {
-      setChips([...chips, newChipInput.trim()]);
+  const addChip = (chipToAdd?: string) => {
+    const chipText = (chipToAdd || newChipInput).trim();
+    if (!chipText) return;
+    if (!chips.includes(chipText)) {
+      setChips([...chips, chipText]);
     }
-    setNewChipInput("");
+    if (!chipToAdd) {
+      setNewChipInput("");
+    }
   };
 
   const removeChip = (chipToRemove: string) => {
@@ -104,7 +127,7 @@ export default function StoreManagementClient({ initialStores }: Props) {
   const handleSaveStore = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim() || !slug.trim()) {
-      setErrorMsg("Name and slug are required");
+      setErrorMsg("Store name and URL slug are required");
       return;
     }
 
@@ -140,7 +163,7 @@ export default function StoreManagementClient({ initialStores }: Props) {
           setIsModalOpen(false);
         } else {
           const data = await res.json().catch(() => null);
-          setErrorMsg(data?.error || "Failed to update store");
+          setErrorMsg(data?.error || "Failed to update restaurant");
         }
       } else {
         // Create
@@ -156,11 +179,11 @@ export default function StoreManagementClient({ initialStores }: Props) {
           setIsModalOpen(false);
         } else {
           const data = await res.json().catch(() => null);
-          setErrorMsg(data?.error || "Failed to create store");
+          setErrorMsg(data?.error || "Failed to create restaurant");
         }
       }
     } catch {
-      setErrorMsg("Network error saving store");
+      setErrorMsg("Network error saving restaurant");
     } finally {
       setIsSaving(false);
     }
@@ -187,16 +210,16 @@ export default function StoreManagementClient({ initialStores }: Props) {
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-black text-zinc-900 tracking-tight">
-            Stores &amp; Table Standees
+            Client Restaurants &amp; Table Standees
           </h1>
           <p className="text-xs text-zinc-500 mt-0.5">
-            Configure locations, customize 1-tap highlight chips, and generate printable 4x6&quot; table tents.
+            Configure popular dishes, owner alert emails, and generate printable 1-year QR codes.
           </p>
         </div>
 
         <button
           onClick={openAddModal}
-          className="px-4 py-2.5 rounded-xl bg-zinc-900 text-white font-semibold text-xs hover:bg-black transition-all flex items-center gap-1.5 shadow-sm"
+          className="px-5 py-2.5 rounded-2xl bg-zinc-900 text-white font-semibold text-xs hover:bg-black transition-all flex items-center gap-1.5 shadow-md cursor-pointer"
         >
           <Plus className="w-4 h-4" /> Add Restaurant Location
         </button>
@@ -213,7 +236,7 @@ export default function StoreManagementClient({ initialStores }: Props) {
             <div className="flex items-start gap-4 flex-1">
               <div
                 className="w-14 h-14 rounded-2xl text-white flex items-center justify-center font-bold text-2xl shadow-sm shrink-0 mt-0.5"
-                style={{ backgroundColor: store.brandColor || "#E11D48" }}
+                style={{ backgroundColor: store.brandColor || "#0d9488" }}
               >
                 {store.name.charAt(0)}
               </div>
@@ -229,19 +252,19 @@ export default function StoreManagementClient({ initialStores }: Props) {
                   </span>
                 </div>
 
-                <p className="text-xs text-zinc-600">{store.tagline}</p>
+                <p className="text-xs text-zinc-600">{store.tagline || store.category}</p>
 
                 <div className="flex flex-wrap items-center gap-4 text-xs text-zinc-500">
+                  {store.managerEmail && (
+                    <span className="flex items-center gap-1 text-emerald-700 font-medium">
+                      <Mail className="w-3.5 h-3.5 text-emerald-600" />
+                      Alerts: {store.managerEmail}
+                    </span>
+                  )}
                   {store.address && (
                     <span className="flex items-center gap-1">
                       <MapPin className="w-3.5 h-3.5 text-zinc-400" />
                       {store.address}
-                    </span>
-                  )}
-                  {store.managerEmail && (
-                    <span className="flex items-center gap-1">
-                      <Mail className="w-3.5 h-3.5 text-zinc-400" />
-                      {store.managerEmail}
                     </span>
                   )}
                   {store.managerPhone && (
@@ -254,8 +277,8 @@ export default function StoreManagementClient({ initialStores }: Props) {
 
                 {/* Chips Preview */}
                 <div className="pt-1">
-                  <span className="text-[11px] font-semibold text-zinc-400 uppercase tracking-wider block mb-1.5">
-                    1-Tap Customer Highlight Chips ({store.chips.length}):
+                  <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block mb-1.5">
+                    Clickable Highlight Chips ({store.chips.length}):
                   </span>
                   <div className="flex flex-wrap gap-1.5">
                     {store.chips.map((chip) => (
@@ -275,16 +298,16 @@ export default function StoreManagementClient({ initialStores }: Props) {
             <div className="flex flex-wrap items-center gap-2.5 w-full lg:w-auto shrink-0 justify-end pt-3 lg:pt-0 border-t lg:border-t-0 border-zinc-100">
               <Link
                 href={`/admin/stores/${store.id}/print`}
-                className="px-3.5 py-2 rounded-xl bg-white border border-zinc-300 text-zinc-800 text-xs font-semibold hover:bg-zinc-50 transition-colors flex items-center gap-1.5 shadow-sm"
+                className="px-4 py-2.5 rounded-xl bg-zinc-900 text-white text-xs font-semibold hover:bg-black transition-colors flex items-center gap-1.5 shadow-sm"
               >
-                <Printer className="w-4 h-4 text-emerald-600" />
-                <span>Print Standee</span>
+                <Printer className="w-4 h-4 text-emerald-400" />
+                <span>Print Standee QR</span>
               </Link>
 
               <Link
                 href={`/r/${store.slug}`}
                 target="_blank"
-                className="px-3.5 py-2 rounded-xl bg-zinc-900 text-white text-xs font-semibold hover:bg-black transition-colors flex items-center gap-1.5 shadow-sm"
+                className="px-3.5 py-2.5 rounded-xl bg-zinc-100 text-zinc-800 text-xs font-semibold hover:bg-zinc-200 transition-colors flex items-center gap-1.5"
               >
                 <span>Live Scan</span>
                 <ExternalLink className="w-3.5 h-3.5 opacity-80" />
@@ -293,8 +316,8 @@ export default function StoreManagementClient({ initialStores }: Props) {
               <button
                 type="button"
                 onClick={() => openEditModal(store)}
-                className="p-2 rounded-xl bg-zinc-100 text-zinc-600 hover:text-zinc-900 hover:bg-zinc-200 transition-colors"
-                title="Edit Store"
+                className="p-2.5 rounded-xl bg-zinc-100 text-zinc-600 hover:text-zinc-900 hover:bg-zinc-200 transition-colors cursor-pointer"
+                title="Edit Restaurant"
               >
                 <Edit2 className="w-4 h-4" />
               </button>
@@ -302,8 +325,8 @@ export default function StoreManagementClient({ initialStores }: Props) {
               <button
                 type="button"
                 onClick={() => handleDelete(store.id, store.name)}
-                className="p-2 rounded-xl bg-zinc-100 text-rose-600 hover:text-rose-700 hover:bg-rose-50 transition-colors"
-                title="Delete Store"
+                className="p-2.5 rounded-xl bg-zinc-100 text-rose-600 hover:text-rose-700 hover:bg-rose-50 transition-colors cursor-pointer"
+                title="Delete Restaurant"
               >
                 <Trash2 className="w-4 h-4" />
               </button>
@@ -319,15 +342,15 @@ export default function StoreManagementClient({ initialStores }: Props) {
             <div className="flex items-center justify-between pb-4 border-b border-zinc-100">
               <div>
                 <h2 className="text-xl font-bold text-zinc-900">
-                  {editingStoreId ? "Edit Restaurant Location" : "Add New Restaurant Location"}
+                  {editingStoreId ? "Edit Restaurant & QR Settings" : "Add New Restaurant / Café"}
                 </h2>
                 <p className="text-xs text-zinc-500 mt-0.5">
-                  Configure the QR destination, Google Place ID, and custom chips.
+                  Configure popular dishes, Google Place ID, and owner notification email.
                 </p>
               </div>
               <button
                 onClick={() => setIsModalOpen(false)}
-                className="p-2 rounded-xl hover:bg-zinc-100 text-zinc-500 transition-colors"
+                className="p-2 rounded-xl hover:bg-zinc-100 text-zinc-500 transition-colors cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -343,21 +366,21 @@ export default function StoreManagementClient({ initialStores }: Props) {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-semibold text-zinc-700 mb-1">
-                    Store / Restaurant Name *
+                    Restaurant / Café Name *
                   </label>
                   <input
                     type="text"
                     required
                     value={name}
                     onChange={(e) => handleNameChange(e.target.value)}
-                    placeholder="e.g. Bella Napoli Pizzeria"
+                    placeholder="e.g. Third Wave Coffee, Brik Oven"
                     className="w-full text-xs p-3 rounded-xl border border-zinc-200 focus:outline-none focus:ring-2 focus:ring-zinc-900"
                   />
                 </div>
 
                 <div>
                   <label className="block text-xs font-semibold text-zinc-700 mb-1">
-                    URL Slug * (Unique customer URL)
+                    URL Slug * (Printed on Standee)
                   </label>
                   <div className="flex items-center">
                     <span className="text-xs bg-zinc-100 px-3 py-3 border border-r-0 border-zinc-200 rounded-l-xl text-zinc-500 font-mono">
@@ -368,7 +391,7 @@ export default function StoreManagementClient({ initialStores }: Props) {
                       required
                       value={slug}
                       onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-_]/g, "-"))}
-                      placeholder="bella-napoli"
+                      placeholder="brik-oven"
                       className="w-full text-xs p-3 rounded-r-xl border border-zinc-200 focus:outline-none focus:ring-2 focus:ring-zinc-900 font-mono"
                     />
                   </div>
@@ -384,7 +407,7 @@ export default function StoreManagementClient({ initialStores }: Props) {
                     type="text"
                     value={category}
                     onChange={(e) => setCategory(e.target.value)}
-                    placeholder="e.g. Italian Trattoria, Specialty Cafe"
+                    placeholder="e.g. Cafe, Restaurant, Pizzeria, Restobar"
                     className="w-full text-xs p-3 rounded-xl border border-zinc-200 focus:outline-none focus:ring-2 focus:ring-zinc-900"
                   />
                 </div>
@@ -412,14 +435,33 @@ export default function StoreManagementClient({ initialStores }: Props) {
 
               <div>
                 <label className="block text-xs font-semibold text-zinc-700 mb-1">
-                  Tagline / Subtitle
+                  Tagline / Speciality Subtitle
                 </label>
                 <input
                   type="text"
                   value={tagline}
                   onChange={(e) => setTagline(e.target.value)}
-                  placeholder="e.g. Authentic Woodfired Sourdough Pizza & Handcrafted Cocktails"
+                  placeholder="e.g. Artisan Coffee, Woodfired Pizzas & Fresh Bakes"
                   className="w-full text-xs p-3 rounded-xl border border-zinc-200 focus:outline-none focus:ring-2 focus:ring-zinc-900"
+                />
+              </div>
+
+              {/* Owner's Alert Gmail - Critical feature */}
+              <div className="p-4 rounded-2xl bg-amber-50/70 border border-amber-200 space-y-1.5">
+                <div className="flex items-center gap-1.5 font-bold text-xs text-amber-950">
+                  <Mail className="w-4 h-4 text-amber-700" />
+                  <span>Owner&apos;s Alert Gmail (for Low 1-3★ Review Intercepts) *</span>
+                </div>
+                <p className="text-[11px] text-amber-800 leading-relaxed">
+                  When a customer gives 1, 2, or 3 stars, they are blocked from Google Maps. Their complaint is immediately sent to this email address via Resend so the owner can fix it on-site!
+                </p>
+                <input
+                  type="email"
+                  required
+                  value={managerEmail}
+                  onChange={(e) => setManagerEmail(e.target.value)}
+                  placeholder="owner@restaurant.com or anuragmishra3407@gmail.com"
+                  className="w-full text-xs p-3 rounded-xl border border-amber-300 bg-white focus:outline-none focus:ring-2 focus:ring-amber-500"
                 />
               </div>
 
@@ -436,20 +478,20 @@ export default function StoreManagementClient({ initialStores }: Props) {
                   className="w-full text-xs p-3 rounded-xl border border-zinc-200 focus:outline-none focus:ring-2 focus:ring-zinc-900 font-mono"
                 />
                 <p className="text-[11px] text-zinc-400 mt-1">
-                  Found via Google Places Place ID Finder. Clicking &ldquo;Post Review&rdquo; opens:
-                  <code className="text-zinc-600 block mt-0.5">https://search.google.com/local/writereview?placeid={googlePlaceId}</code>
+                  Target Google URL: <code className="text-zinc-600">https://search.google.com/local/writereview?placeid={googlePlaceId || "&lt;PLACE_ID&gt;"}</code>
                 </p>
               </div>
 
-              {/* Dynamic Chips Customizer */}
+              {/* Dynamic Chips Customizer with Quick Add */}
               <div className="p-4 rounded-2xl bg-zinc-50 border border-zinc-200">
                 <label className="block text-xs font-bold text-zinc-900 mb-1">
-                  1-Tap Feature Chips (Dish names, Server names, Atmosphere highlights)
+                  Clickable Highlight Chips (Popular dishes, staff names, ambience)
                 </label>
                 <p className="text-[11px] text-zinc-500 mb-3">
-                  These chips appear as clickable pills on the customer scan screen. Tapping them dynamically seeds the AI review in under 400ms!
+                  Diners tap these chips to automatically compose unique, natural reviews without writer&apos;s block.
                 </p>
 
+                {/* Current Selected Chips */}
                 <div className="flex flex-wrap gap-2 mb-3">
                   {chips.map((chip) => (
                     <span
@@ -460,12 +502,31 @@ export default function StoreManagementClient({ initialStores }: Props) {
                       <button
                         type="button"
                         onClick={() => removeChip(chip)}
-                        className="hover:text-rose-600 text-zinc-400"
+                        className="hover:text-rose-600 text-zinc-400 cursor-pointer"
                       >
                         <X className="w-3.5 h-3.5" />
                       </button>
                     </span>
                   ))}
+                </div>
+
+                {/* Quick Add Suggestions */}
+                <div className="mb-3">
+                  <span className="text-[10px] font-semibold text-zinc-400 uppercase tracking-wider block mb-1">
+                    Quick suggestions (tap to add):
+                  </span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {QUICK_CHIP_SUGGESTIONS.filter((s) => !chips.includes(s)).slice(0, 8).map((suggestion) => (
+                      <button
+                        key={suggestion}
+                        type="button"
+                        onClick={() => addChip(suggestion)}
+                        className="text-[11px] px-2 py-1 rounded-lg bg-zinc-200/80 hover:bg-zinc-300 text-zinc-700 transition-colors cursor-pointer"
+                      >
+                        + {suggestion}
+                      </button>
+                    ))}
+                  </div>
                 </div>
 
                 <div className="flex gap-2">
@@ -479,68 +540,29 @@ export default function StoreManagementClient({ initialStores }: Props) {
                         addChip();
                       }
                     }}
-                    placeholder="Add custom chip (e.g. 'Crispy Margherita', 'Alex (Server)', 'Outdoor Garden')"
+                    placeholder="Add custom dish or server name (e.g. 'Butter Chicken', 'Alex (Server)')"
                     className="flex-1 text-xs p-2.5 rounded-xl border border-zinc-300 bg-white focus:outline-none focus:ring-2 focus:ring-zinc-900"
                   />
                   <button
                     type="button"
-                    onClick={addChip}
-                    className="px-4 py-2.5 rounded-xl bg-zinc-900 text-white text-xs font-semibold hover:bg-black transition-colors"
+                    onClick={() => addChip()}
+                    className="px-4 py-2.5 rounded-xl bg-zinc-900 text-white text-xs font-semibold hover:bg-black transition-colors cursor-pointer"
                   >
                     Add Chip
                   </button>
                 </div>
               </div>
 
-              {/* Contact info & tables */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-xs font-semibold text-zinc-700 mb-1">
-                    Manager Alert Email
-                  </label>
-                  <input
-                    type="email"
-                    value={managerEmail}
-                    onChange={(e) => setManagerEmail(e.target.value)}
-                    placeholder="gm@restaurant.com"
-                    className="w-full text-xs p-3 rounded-xl border border-zinc-200"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-zinc-700 mb-1">
-                    Manager Alert Phone
-                  </label>
-                  <input
-                    type="text"
-                    value={managerPhone}
-                    onChange={(e) => setManagerPhone(e.target.value)}
-                    placeholder="+1 (555) 000-0000"
-                    className="w-full text-xs p-3 rounded-xl border border-zinc-200"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-zinc-700 mb-1">
-                    Table / Stand Count
-                  </label>
-                  <input
-                    type="number"
-                    value={tableCount}
-                    onChange={(e) => setTableCount(Number(e.target.value))}
-                    min={1}
-                    className="w-full text-xs p-3 rounded-xl border border-zinc-200"
-                  />
-                </div>
-              </div>
-
+              {/* Location Address */}
               <div>
                 <label className="block text-xs font-semibold text-zinc-700 mb-1">
-                  Street Address
+                  Location / City / Address
                 </label>
                 <input
                   type="text"
                   value={address}
                   onChange={(e) => setAddress(e.target.value)}
-                  placeholder="e.g. 520 Main Street, Suite 4B"
+                  placeholder="e.g. Koramangala, Bengaluru or Bandra West, Mumbai"
                   className="w-full text-xs p-3 rounded-xl border border-zinc-200"
                 />
               </div>
@@ -549,16 +571,16 @@ export default function StoreManagementClient({ initialStores }: Props) {
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2.5 rounded-xl border border-zinc-300 text-zinc-700 text-xs font-semibold hover:bg-zinc-50 transition-colors"
+                  className="px-4 py-2.5 rounded-xl text-zinc-600 hover:text-zinc-900 text-xs font-medium cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={isSaving}
-                  className="px-5 py-2.5 rounded-xl bg-zinc-900 text-white text-xs font-semibold hover:bg-black transition-colors disabled:opacity-50"
+                  className="px-6 py-2.5 rounded-xl bg-zinc-900 text-white text-xs font-semibold hover:bg-black transition-all shadow-md disabled:opacity-50 cursor-pointer"
                 >
-                  {isSaving ? "Saving..." : editingStoreId ? "Save Changes" : "Create Store Location"}
+                  {isSaving ? "Saving..." : editingStoreId ? "Save Changes" : "Create Restaurant"}
                 </button>
               </div>
             </form>
