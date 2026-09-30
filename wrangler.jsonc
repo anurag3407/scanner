@@ -29,15 +29,5 @@
 			"pattern": "scanner.sayalabs.in",
 			"custom_domain": true
 		}
-	],
-	"vars": {
-		"NEXT_PUBLIC_SUPABASE_URL": "https://zbzafswcxdcwmgrfmgqe.supabase.co",
-		"NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY": "sb_publishable_VA0ZIfD_bJiPDyncnPz5Fw_a9BurXpj",
-		"SUPABASE_URL": "https://zbzafswcxdcwmgrfmgqe.supabase.co",
-		"SUPABASE_PUBLISHABLE_KEY": "sb_publishable_VA0ZIfD_bJiPDyncnPz5Fw_a9BurXpj",
-		"NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY": "pk_test_bWFpbi1ha2l0YS02NTI3LmNsZXJrLmFjY291bnRzLmRldiQ",
-		"ADMIN_ALLOWED_EMAIL": "anuragmishra3407@gmail.com",
-		"NEXT_PUBLIC_APP_URL": "https://scanner.sayalabs.in",
-		"OPEN_NEXT_ORIGIN": "https://scanner.sayalabs.in"
-	}
+	]
 }

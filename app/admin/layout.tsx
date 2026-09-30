@@ -1,7 +1,8 @@
 import React from "react";
 import Link from "next/link";
 import { UserButton, SignOutButton } from "@clerk/nextjs";
-import { currentUser } from "@clerk/nextjs/server";
+import { auth, currentUser, createClerkClient } from "@clerk/nextjs/server";
+import { redirect } from "next/navigation";
 import { isClerkConfigured } from "@/lib/clerk";
 import {
   Store as StoreIcon,
@@ -27,52 +28,69 @@ export default async function AdminLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const allowedEmail = (process.env.ADMIN_ALLOWED_EMAIL || "anuragmishra3407@gmail.com").toLowerCase();
-  let user = null;
-  let isAuthorized = true;
-  let currentEmail = "";
+  const allowedEmail = (process.env.ADMIN_ALLOWED_EMAIL || "anuragmishra3407@gmail.com").toLowerCase().trim();
 
+  // If Clerk is configured, enforce strict authentication & email authorization
   if (isClerkConfigured()) {
+    const { userId } = await auth();
+
+    // 1. Unauthenticated users are redirected to sign-in immediately
+    if (!userId) {
+      redirect("/sign-in");
+    }
+
+    // 2. Fetch user profile to verify email
+    let user = null;
     try {
       user = await currentUser();
-      if (user) {
-        const userEmails = user.emailAddresses?.map((e) => e.emailAddress.toLowerCase()) || [];
-        currentEmail = user.primaryEmailAddress?.emailAddress || userEmails[0] || "";
-        isAuthorized = userEmails.includes(allowedEmail);
-      }
     } catch (err) {
-      console.error("Error retrieving Clerk current user:", err);
+      console.error("currentUser() error, attempting fallback via clerkClient:", err);
     }
-  }
 
-  // Restrict access strictly to anuragmishra3407@gmail.com
-  if (isClerkConfigured() && user && !isAuthorized) {
-    return (
-      <div className="min-h-screen bg-zinc-950 flex items-center justify-center p-4">
-        <div className="max-w-md w-full bg-zinc-900 border border-zinc-800 rounded-3xl p-8 text-center text-white space-y-5 shadow-2xl">
-          <div className="w-14 h-14 bg-rose-500/10 border border-rose-500/20 text-rose-400 rounded-2xl flex items-center justify-center mx-auto text-2xl">
-            <Lock className="w-7 h-7" />
-          </div>
-          <div>
-            <h1 className="text-xl font-bold">Access Restricted</h1>
-            <p className="text-sm text-zinc-400 mt-2 leading-relaxed">
-              This ReviewBoost console is private and only accessible to{" "}
-              <strong className="text-white">{allowedEmail}</strong>.
-            </p>
-            <p className="text-xs text-zinc-500 mt-2 font-mono bg-zinc-950/60 py-1.5 px-3 rounded-lg border border-zinc-800">
-              Signed in as: {currentEmail}
-            </p>
-          </div>
-          <div className="pt-2 flex justify-center">
-            <SignOutButton>
-              <button className="px-5 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl text-xs font-semibold transition-all border border-zinc-700 shadow-sm cursor-pointer">
-                Sign Out / Switch Account
-              </button>
-            </SignOutButton>
+    // Fallback: If currentUser() failed on edge/serverless runtime, query Clerk directly
+    if (!user && userId && process.env.CLERK_SECRET_KEY) {
+      try {
+        const clerk = createClerkClient({ secretKey: process.env.CLERK_SECRET_KEY });
+        user = await clerk.users.getUser(userId);
+      } catch (err) {
+        console.error("clerkClient.users.getUser error:", err);
+      }
+    }
+
+    const userEmails = user?.emailAddresses?.map((e) => e.emailAddress.toLowerCase().trim()) || [];
+    const primaryEmail = (user?.primaryEmailAddress?.emailAddress || userEmails[0] || "").toLowerCase().trim();
+
+    // Strict authorization check: MUST be anuragmishra3407@gmail.com
+    const isAuthorized = userEmails.includes(allowedEmail) || primaryEmail === allowedEmail;
+
+    if (!isAuthorized) {
+      return (
+        <div className="min-h-screen bg-zinc-950 flex items-center justify-center p-4">
+          <div className="max-w-md w-full bg-zinc-900 border border-zinc-800 rounded-3xl p-8 text-center text-white space-y-5 shadow-2xl">
+            <div className="w-16 h-16 bg-rose-500/10 border border-rose-500/20 text-rose-500 rounded-2xl flex items-center justify-center mx-auto text-2xl">
+              <Lock className="w-8 h-8" />
+            </div>
+            <div>
+              <h1 className="text-xl font-bold tracking-tight">Access Restricted</h1>
+              <p className="text-sm text-zinc-400 mt-2 leading-relaxed">
+                This ReviewBoost console is private and only accessible to{" "}
+                <strong className="text-white font-semibold">{allowedEmail}</strong>.
+              </p>
+              <div className="mt-3 p-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-xs font-mono text-zinc-400">
+                Signed in as: <span className="text-rose-400 font-semibold">{primaryEmail || "Unauthorized Account"}</span>
+              </div>
+            </div>
+            <div className="pt-2 flex justify-center">
+              <SignOutButton>
+                <button className="px-5 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl text-xs font-semibold transition-all border border-zinc-700 shadow-sm cursor-pointer">
+                  Sign Out / Switch Account
+                </button>
+              </SignOutButton>
+            </div>
           </div>
         </div>
-      </div>
-    );
+      );
+    }
   }
 
   return (
@@ -168,8 +186,8 @@ export default async function AdminLayout({
         <div className="p-4 border-t border-zinc-800 text-xs space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex flex-col truncate pr-2">
-              <span className="text-zinc-200 font-medium truncate">{user?.fullName || "Anurag Mishra"}</span>
-              <span className="text-[11px] text-zinc-500 truncate">{currentEmail || allowedEmail}</span>
+              <span className="text-zinc-200 font-medium truncate">Anurag Mishra</span>
+              <span className="text-[11px] text-zinc-500 truncate">{allowedEmail}</span>
             </div>
             {isClerkConfigured() ? (
               <UserButton />
