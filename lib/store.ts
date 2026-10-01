@@ -468,7 +468,7 @@ export function buildAnalytics(
   const firewallIntercepts = events.filter((e) => e.type === "firewall_intercept").length;
 
   const redirectionRate =
-    totalScans > 0 ? Math.round((positiveRedirections / totalScans) * 100) : 0;
+    totalScans > 0 ? Math.min(100, Math.round((positiveRedirections / totalScans) * 100)) : 0;
 
   // Diner satisfaction is measured on terminal actions: a Google hand-off (4-5 stars)
   // or a firewall intercept (1-3 stars).
@@ -481,16 +481,27 @@ export function buildAnalytics(
       ? Math.round((ratings.reduce((sum, r) => sum + r, 0) / ratings.length) * 10) / 10
       : 0;
 
+  // Count dish / feature mentions across events
   const chipCounts: Record<string, number> = {};
   events.forEach((ev) => {
-    ev.chips.forEach((chip) => {
-      chipCounts[chip] = (chipCounts[chip] || 0) + 1;
-    });
+    if (ev.chips && ev.chips.length > 0) {
+      const uniqueChips = Array.from(new Set(ev.chips));
+      uniqueChips.forEach((chip) => {
+        chipCounts[chip] = (chipCounts[chip] || 0) + 1;
+      });
+    }
   });
   const topChips = Object.entries(chipCounts)
     .map(([chip, count]) => ({ chip, count }))
     .sort((a, b) => b.count - a.count)
-    .slice(0, 6);
+    .slice(0, 8);
+
+  const reviewsWithChips = events.filter((e) => e.type === "copy_open" && e.chips && e.chips.length > 0);
+  const totalChipsSelected = reviewsWithChips.reduce((sum, e) => sum + e.chips.length, 0);
+  const avgChipsPerReview =
+    reviewsWithChips.length > 0
+      ? Math.round((totalChipsSelected / reviewsWithChips.length) * 10) / 10
+      : 0;
 
   const dailyActivity: AnalyticsSummary["dailyActivity"] = [];
   const buckets = new Map<string, AnalyticsSummary["dailyActivity"][number]>();
@@ -517,6 +528,19 @@ export function buildAnalytics(
     if (ev.type === "firewall_intercept") bucket.intercepts += 1;
   });
 
+  const recentEvents = events
+    .slice(-15)
+    .reverse()
+    .map((e) => ({
+      id: e.id,
+      storeId: e.storeId,
+      type: e.type,
+      rating: e.rating,
+      chips: e.chips,
+      reviewText: e.reviewText,
+      timestamp: e.timestamp,
+    }));
+
   return {
     totalScans,
     chipToggles,
@@ -525,9 +549,11 @@ export function buildAnalytics(
     complaints: feedbacks.length,
     redirectionRate,
     averageRating,
+    avgChipsPerReview,
     topChips,
     recentFeedbacks: feedbacks.slice(0, 10),
     dailyActivity,
+    recentEvents,
   };
 }
 

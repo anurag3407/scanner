@@ -61,7 +61,18 @@ export interface AnalyticsSummary {
   complaints: number;
   redirectionRate: number;
   averageRating: number;
+  avgChipsPerReview: number;
   topChips: { chip: string; count: number }[];
   recentFeedbacks: FeedbackSubmission[];
   dailyActivity: { date: string; scans: number; reviews: number; intercepts: number }[];
+  recentEvents: {
+    id: string;
+    storeId: string;
+    storeName?: string;
+    type: ScanEventType;
+    rating: number;
+    chips: string[];
+    reviewText?: string;
+    timestamp: string;
+  }[];
 }
