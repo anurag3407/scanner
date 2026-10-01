@@ -1,21 +1,35 @@
 /**
  * Resolves the Google Review / Google Maps hand-off URL for any store.
  *
- * Requirements & Fail-safe guarantees:
- * 1. If the store has a direct URL (Google Review shortlink https://g.page/r/.../review,
- *    Google Maps link https://maps.google.com/?q=..., or https://maps.app.goo.gl/...),
- *    it is used directly without alteration.
- * 2. If the store has a raw Google Place ID (e.g. ChIJ...):
- *    We use Google's official Universal Maps Search scheme with query_place_id:
- *    https://www.google.com/maps/search/?api=1&query=<NAME+ADDRESS>&query_place_id=<PLACE_ID>
- *    - If Google recognizes the place ID, it opens that business card directly.
- *    - If Google cannot find the place ID (synthetic, outdated, or regional mismatch),
- *      Google Maps automatically falls back to searching for query text.
- *    - This GUARANTEES 0% 404 errors (unlike search.google.com/local/writereview?placeid=...
- *      which throws a hard Google 404 whenever a place ID is not recognized).
- * 3. If no place ID or link is provided, it falls back to:
- *    https://www.google.com/maps/search/?api=1&query=<NAME+ADDRESS>
+ * Requirements & Behavior:
+ * 1. If the store has a raw Google Place ID (e.g. ChIJ... or alphanumeric ID >= 15 chars):
+ *    We construct the official Google direct write-a-review dialog:
+ *    https://search.google.com/local/writereview?placeid=<PLACE_ID>
+ *    This immediately pops open the 5-star review modal with the cursor focused in
+ *    the review text box so the diner only has to tap stars and paste!
+ *
+ * 2. If the store provides a Google Business Profile shortlink (https://g.page/r/... or https://g.page/...):
+ *    We ensure it ends with /review so it launches the review dialog directly.
+ *
+ * 3. If the URL contains placeid= or query_place_id= (e.g. from Google Maps search URLs):
+ *    We extract the Place ID and route to search.google.com/local/writereview?placeid=<PLACE_ID>.
+ *
+ * 4. If the store has a legacy maps query link (https://maps.google.com/?q=...) or no Place ID:
+ *    We route to Google Search with review intent:
+ *    https://www.google.com/search?q=<NAME+ADDRESS>+reviews
+ *    On mobile and desktop, this opens Google's prominent Knowledge Card with
+ *    "Rate and review on Google" and 5 clickable stars right at the top of the screen,
+ *    bypassing the generic map navigation view.
  */
+export function isDirectReviewUrl(rawOrId?: string | null): boolean {
+  if (!rawOrId) return false;
+  const raw = rawOrId.trim();
+  if (raw.startsWith("ChIJ")) return true;
+  if (raw.includes("writereview")) return true;
+  if (raw.includes("g.page/") && raw.includes("/review")) return true;
+  return false;
+}
+
 export function getGoogleReviewUrl(store: {
   googlePlaceId?: string | null;
   name: string;
@@ -25,22 +39,55 @@ export function getGoogleReviewUrl(store: {
 }): string {
   const raw = (store.googlePlaceId || "").trim();
 
-  // If already a full URL, return it directly
-  if (raw.startsWith("http://") || raw.startsWith("https://")) {
-    return raw;
+  // 1. Raw Google Place ID (starts with ChIJ or looks like a Google Place ID without slashes/spaces)
+  if (raw && !raw.startsWith("http://") && !raw.startsWith("https://")) {
+    return `https://search.google.com/local/writereview?placeid=${encodeURIComponent(raw)}`;
   }
 
+  // 2. Full URL provided
+  if (raw.startsWith("http://") || raw.startsWith("https://")) {
+    try {
+      const parsed = new URL(raw);
+
+      // Extract placeid or query_place_id if present in URL query params
+      const placeId = parsed.searchParams.get("placeid") || parsed.searchParams.get("query_place_id");
+      if (placeId) {
+        return `https://search.google.com/local/writereview?placeid=${encodeURIComponent(placeId)}`;
+      }
+
+      // If g.page business shortlink, ensure /review suffix is present
+      if (parsed.hostname.includes("g.page")) {
+        let cleanPath = parsed.pathname.replace(/\/+$/, "");
+        if (!cleanPath.endsWith("/review")) {
+          cleanPath += "/review";
+        }
+        parsed.pathname = cleanPath;
+        return parsed.toString();
+      }
+
+      // If already an official Google write-review URL, preserve it
+      if (parsed.pathname.includes("writereview")) {
+        return raw;
+      }
+
+      // If legacy maps.google.com/?q=... or maps/search/?api=1&query=...
+      const queryParam = parsed.searchParams.get("q") || parsed.searchParams.get("query");
+      if (queryParam) {
+        const clean = queryParam.replace(/\b(reviews?|ratings?)\b/gi, "").trim();
+        return `https://www.google.com/search?q=${encodeURIComponent(clean + " reviews")}`;
+      }
+
+      return raw;
+    } catch {
+      return raw;
+    }
+  }
+
+  // 3. Fallback to Google Search Reviews with store name and address
   const queryText = [store.name, store.address || store.tagline || store.category || ""]
     .filter(Boolean)
     .join(" ")
     .trim();
-  const encodedQuery = encodeURIComponent(queryText || store.name);
-
-  // If a Google Place ID is provided
-  if (raw) {
-    return `https://www.google.com/maps/search/?api=1&query=${encodedQuery}&query_place_id=${encodeURIComponent(raw)}`;
-  }
-
-  // Fallback to name + location search
-  return `https://www.google.com/maps/search/?api=1&query=${encodedQuery}`;
+  const cleanQuery = queryText || store.name;
+  return `https://www.google.com/search?q=${encodeURIComponent(cleanQuery + " reviews")}`;
 }

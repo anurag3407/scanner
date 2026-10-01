@@ -17,7 +17,7 @@ import {
   HelpCircle,
 } from "lucide-react";
 import Link from "next/link";
-import { getGoogleReviewUrl } from "@/lib/review-links";
+import { getGoogleReviewUrl, isDirectReviewUrl } from "@/lib/review-links";
 
 interface Props {
   initialStores: Store[];
@@ -466,27 +466,63 @@ export default function StoreManagementClient({ initialStores }: Props) {
                 />
               </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-zinc-700 mb-1">
-                  Google Place ID or Google Maps Link *
-                </label>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-semibold text-zinc-900">
+                    Google Place ID or 1-Click Review Shortlink *
+                  </label>
+                  {isDirectReviewUrl(googlePlaceId) ? (
+                    <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                      🟢 1-Tap Write-Review Modal Enabled
+                    </span>
+                  ) : (
+                    <span className="text-[10px] font-medium text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200">
+                      🔵 Google Reviews Search
+                    </span>
+                  )}
+                </div>
+
+                <div className="p-3 rounded-xl bg-zinc-50 border border-zinc-200/80 text-[11px] text-zinc-600 leading-relaxed">
+                  <p className="font-semibold text-zinc-800 mb-0.5">
+                    💡 Pro-Tip for 1-Tap Customer Reviews:
+                  </p>
+                  Paste your Google Business Profile <strong>&quot;Ask for reviews&quot;</strong> link (e.g.{" "}
+                  <code className="text-zinc-800 font-mono bg-white px-1 py-0.5 rounded border border-zinc-200">
+                    https://g.page/r/.../review
+                  </code>
+                  ) or your Place ID (e.g.{" "}
+                  <code className="text-zinc-800 font-mono bg-white px-1 py-0.5 rounded border border-zinc-200">
+                    ChIJ...
+                  </code>
+                  ). This automatically triggers the 5-star write-review box directly on customer phones so they only need to tap Paste!
+                </div>
+
                 <input
                   type="text"
                   required
                   value={googlePlaceId}
                   onChange={(e) => setGooglePlaceId(e.target.value)}
-                  placeholder="e.g. ChIJ... or https://maps.google.com/?q=... or https://g.page/r/.../review"
+                  placeholder="e.g. https://g.page/r/.../review or ChIJ..."
                   className="w-full text-xs p-3 rounded-xl border border-zinc-200 focus:outline-none focus:ring-2 focus:ring-zinc-900 font-mono"
                 />
-                <p className="text-[11px] text-zinc-400 mt-1">
-                  Target Google URL:{" "}
-                  <code className="text-zinc-600 break-all font-mono text-[10px]">
-                    {getGoogleReviewUrl({ googlePlaceId, name: name || "Store Name", address, tagline, category })}
-                  </code>
-                </p>
-                <p className="text-[10px] text-emerald-600 mt-0.5">
-                  ✓ Universal fail-safe active: guaranteed zero 404 errors across all devices.
-                </p>
+
+                <div className="flex flex-wrap items-center justify-between gap-2 pt-1 text-[11px]">
+                  <p className="text-zinc-500 truncate max-w-md">
+                    Target:{" "}
+                    <code className="text-zinc-700 font-mono text-[10px]">
+                      {getGoogleReviewUrl({ googlePlaceId, name: name || "Store Name", address, tagline, category })}
+                    </code>
+                  </p>
+                  <a
+                    href={getGoogleReviewUrl({ googlePlaceId, name: name || "Store Name", address, tagline, category })}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-emerald-700 font-semibold hover:underline flex items-center gap-1 text-[10px]"
+                  >
+                    <span>Test Link</span>
+                    <ExternalLink className="w-3 h-3" />
+                  </a>
+                </div>
               </div>
 
               {/* Dynamic Chips Customizer with Quick Add */}

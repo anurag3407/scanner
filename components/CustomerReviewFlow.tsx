@@ -17,7 +17,7 @@ import {
 import confetti from "canvas-confetti";
 import { Store, ScanEventType } from "@/lib/types";
 import { generateOfflineReview } from "@/lib/ai";
-import { getGoogleReviewUrl } from "@/lib/review-links";
+import { getGoogleReviewUrl, isDirectReviewUrl } from "@/lib/review-links";
 
 interface Props {
   store: Store;
@@ -497,30 +497,42 @@ export default function CustomerReviewFlow({
                 {copied ? (
                   <>
                     <Check className="w-5 h-5 text-emerald-400 stroke-[3]" />
-                    <span>Copied! Opening Google Maps...</span>
+                    <span>Copied! Opening Google Reviews...</span>
                   </>
                 ) : (
                   <>
                     <Copy className="w-4 h-4 text-amber-300" />
-                    <span>Copy Review &amp; Open Google</span>
+                    <span>
+                      {isDirectReviewUrl(store.googlePlaceId)
+                        ? "Copy Review & Open 5★ Review Box"
+                        : "Copy Review & Open Google Reviews"}
+                    </span>
                     <ExternalLink className="w-4 h-4 ml-0.5 opacity-60" />
                   </>
                 )}
               </a>
 
-              {/* Simple 2-Step Paste Prompt */}
-              <div className="mt-3 p-3 rounded-xl bg-zinc-50 border border-zinc-200/60 text-center">
-                <p className="text-[11px] text-zinc-600 font-medium">
-                  {copied ? (
-                    <span className="text-emerald-700 font-semibold">
-                      ✓ Text copied to your clipboard! In Google Maps, tap 5 stars and paste.
-                    </span>
-                  ) : (
-                    <span>
-                      <strong>1 Tap:</strong> Copies your review &amp; opens Google Maps directly. Just paste!
-                    </span>
-                  )}
-                </p>
+              {/* 3-Step Clear Paste Guidance */}
+              <div className="mt-3">
+                {copied ? (
+                  <div className="p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200 text-left animate-in fade-in slide-in-from-top-1 duration-200">
+                    <div className="flex items-center gap-2 font-bold text-xs text-emerald-950">
+                      <Check className="w-4 h-4 text-emerald-600 stroke-[3]" />
+                      <span>Review copied to clipboard!</span>
+                    </div>
+                    <div className="mt-2 space-y-1 text-[11px] text-emerald-900 font-medium">
+                      <p>1. Tap the <strong>5th star ⭐</strong> on Google</p>
+                      <p>2. Tap in the review box &amp; tap <strong>Paste 📋</strong></p>
+                      <p>3. Tap <strong>Post 🚀</strong> — done in 3 seconds!</p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="p-2.5 rounded-xl bg-zinc-50 border border-zinc-200/60 text-center">
+                    <p className="text-[11px] text-zinc-600 font-medium">
+                      <strong>1 Tap:</strong> Copies your review &amp; opens Google Reviews. Just tap Paste!
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
           </div>
