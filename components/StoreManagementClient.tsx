@@ -15,6 +15,7 @@ import {
   QrCode,
   Sparkles,
   HelpCircle,
+  Search,
 } from "lucide-react";
 import Link from "next/link";
 import { getGoogleReviewUrl, isDirectReviewUrl } from "@/lib/review-links";
@@ -42,8 +43,20 @@ const QUICK_CHIP_SUGGESTIONS = [
 
 export default function StoreManagementClient({ initialStores }: Props) {
   const [stores, setStores] = useState<Store[]>(initialStores);
+  const [searchQuery, setSearchQuery] = useState<string>("");
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
   const [editingStoreId, setEditingStoreId] = useState<string | null>(null);
+
+  const filteredStores = stores.filter((s) => {
+    if (!searchQuery.trim()) return true;
+    const q = searchQuery.toLowerCase().trim();
+    return (
+      s.name.toLowerCase().includes(q) ||
+      s.slug.toLowerCase().includes(q) ||
+      s.category.toLowerCase().includes(q) ||
+      (s.address && s.address.toLowerCase().includes(q))
+    );
+  });
 
   // Form state
   const [name, setName] = useState<string>("");
@@ -220,15 +233,56 @@ export default function StoreManagementClient({ initialStores }: Props) {
 
         <button
           onClick={openAddModal}
-          className="px-5 py-2.5 rounded-2xl bg-zinc-900 text-white font-semibold text-xs hover:bg-black transition-all flex items-center gap-1.5 shadow-md cursor-pointer"
+          className="px-5 py-2.5 rounded-2xl bg-zinc-900 text-white font-semibold text-xs hover:bg-black transition-all flex items-center gap-1.5 shadow-md cursor-pointer shrink-0"
         >
           <Plus className="w-4 h-4" /> Add Restaurant Location
         </button>
       </div>
 
+      {/* Search & Filter Bar */}
+      <div className="bg-white p-3.5 rounded-2xl border border-zinc-200 shadow-2xs space-y-2">
+        <div className="relative">
+          <Search className="w-4 h-4 text-zinc-400 absolute left-3.5 top-3" />
+          <input
+            type="text"
+            placeholder="Search restaurants by name, slug, category, or address (e.g. Chai Sutta, Bihta, Cafe 13)..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full bg-zinc-50 text-xs pl-10 pr-9 py-2.5 rounded-xl border border-zinc-200 focus:outline-none focus:ring-2 focus:ring-zinc-900"
+          />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery("")}
+              className="absolute right-3 top-2.5 text-zinc-400 hover:text-zinc-700 text-xs font-bold"
+            >
+              ✕
+            </button>
+          )}
+        </div>
+        {searchQuery && (
+          <p className="text-[11px] text-zinc-500 font-medium px-1">
+            Showing {filteredStores.length} of {stores.length} restaurants matching &ldquo;{searchQuery}&rdquo;
+          </p>
+        )}
+      </div>
+
       {/* Stores List */}
       <div className="grid grid-cols-1 gap-4">
-        {stores.map((store) => (
+        {filteredStores.length === 0 ? (
+          <div className="bg-white rounded-3xl p-10 border border-zinc-200 text-center space-y-3">
+            <p className="text-sm font-bold text-zinc-700">No restaurants match your search</p>
+            <p className="text-xs text-zinc-500">
+              Try searching with another keyword or clear the search.
+            </p>
+            <button
+              onClick={() => setSearchQuery("")}
+              className="px-4 py-2 rounded-xl bg-zinc-900 text-white text-xs font-semibold hover:bg-black transition-colors"
+            >
+              Clear Search
+            </button>
+          </div>
+        ) : (
+          filteredStores.map((store) => (
           <div
             key={store.id}
             className="bg-white rounded-3xl p-6 border border-zinc-200 shadow-sm flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6"
@@ -333,7 +387,8 @@ export default function StoreManagementClient({ initialStores }: Props) {
               </button>
             </div>
           </div>
-        ))}
+        ))
+      )}
       </div>
 
       {/* Add / Edit Store Modal */}
