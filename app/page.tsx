@@ -3,6 +3,8 @@ import { connection } from "next/server";
 import { getAllStores } from "@/lib/store";
 import LandingPageClient from "@/components/LandingPageClient";
 
+export const dynamic = "force-dynamic";
+
 export const metadata = {
   title: "ReviewBoost | Turn Table Diners into 5-Star Google Reviews in 10s",
   description:
@@ -12,18 +14,25 @@ export const metadata = {
 export default async function HomePage() {
   await connection();
 
-  // The marketing site stays up even if the database is unreachable
   let stores: Awaited<ReturnType<typeof getAllStores>> = [];
   try {
     stores = await getAllStores();
   } catch (err) {
     console.error("Landing page could not load stores", err);
   }
-  const sampleStore = stores[0] ?? null;
+
+  // Feature CSB NIT Patna Bihta or first store
+  const sampleStore =
+    stores.find((s) => s.slug === "csb-nit-patna-bihta") ||
+    stores[0] ||
+    null;
 
   return (
     <main className="min-h-screen bg-[#0B0B0E] text-white">
-      <LandingPageClient sampleStore={sampleStore} />
+      <LandingPageClient
+        sampleStore={sampleStore}
+        totalStoresCount={stores.length || 103}
+      />
     </main>
   );
 }
