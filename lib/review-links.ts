@@ -24,7 +24,7 @@
 export function isDirectReviewUrl(rawOrId?: string | null): boolean {
   if (!rawOrId) return false;
   const raw = rawOrId.trim();
-  if (raw.startsWith("ChIJ")) return true;
+  if (/ChIJ[a-zA-Z0-9_-]{20,}/.test(raw)) return true;
   if (raw.includes("writereview")) return true;
   if (raw.includes("g.page/") && raw.includes("/review")) return true;
   return false;
@@ -39,12 +39,18 @@ export function getGoogleReviewUrl(store: {
 }): string {
   const raw = (store.googlePlaceId || "").trim();
 
-  // 1. Raw Google Place ID (starts with ChIJ or looks like a Google Place ID without slashes/spaces)
-  if (raw && !raw.startsWith("http://") && !raw.startsWith("https://")) {
+  // 1. Any input containing a Google Place ID (ChIJ...)
+  const chijMatch = raw.match(/ChIJ[a-zA-Z0-9_-]{20,}/);
+  if (chijMatch) {
+    return `https://search.google.com/local/writereview?placeid=${encodeURIComponent(chijMatch[0])}`;
+  }
+
+  // 2. Pure alphanumeric Place ID without ChIJ (legacy/custom ID)
+  if (raw && !raw.startsWith("http://") && !raw.startsWith("https://") && /^[a-zA-Z0-9_-]{15,100}$/.test(raw)) {
     return `https://search.google.com/local/writereview?placeid=${encodeURIComponent(raw)}`;
   }
 
-  // 2. Full URL provided
+  // 3. Full URL provided
   if (raw.startsWith("http://") || raw.startsWith("https://")) {
     try {
       const parsed = new URL(raw);

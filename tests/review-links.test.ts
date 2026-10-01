@@ -43,6 +43,14 @@ test("getGoogleReviewUrl extracts placeid from Google Maps search URLs", () => {
   assert.equal(url, "https://search.google.com/local/writereview?placeid=ChIJN1t_tDeuEmsRUsoyG83frY4");
 });
 
+test("getGoogleReviewUrl extracts ChIJ Place ID anywhere from text or URL", () => {
+  const url = getGoogleReviewUrl({
+    name: "Chai Sutta Bar NIT Patna Bihta",
+    googlePlaceId: "https://www.google.com/maps/place/data=!4m2!3m1!1sChIJl9kVulBXjTkR6rG5jedyed8",
+  });
+  assert.equal(url, "https://search.google.com/local/writereview?placeid=ChIJl9kVulBXjTkR6rG5jedyed8");
+});
+
 test("getGoogleReviewUrl routes legacy maps.google.com/?q=... links to Google Maps", () => {
   const url = getGoogleReviewUrl({
     name: "French Window Patisserie",
