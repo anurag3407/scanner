@@ -1,6 +1,8 @@
 import React from "react";
 import { connection } from "next/server";
-import { getAnalytics, getAllStores } from "@/lib/store";
+import { redirect } from "next/navigation";
+import { getAnalytics, getAllStores, getStoresByIds } from "@/lib/store";
+import { getSessionUser, hasStoreAccess, scopedStoreIds } from "@/lib/auth";
 import AnalyticsClient from "./AnalyticsClient";
 
 export const dynamic = "force-dynamic";
@@ -16,18 +18,31 @@ interface Props {
 
 export default async function AnalyticsPage({ searchParams }: Props) {
   await connection();
+
+  const user = await getSessionUser();
+  if (!user) {
+    redirect("/sign-in");
+  }
+
   const { storeId } = await searchParams;
+  // A store admin must never be able to view another location's numbers.
+  const selectedStoreId = storeId && hasStoreAccess(user, storeId) ? storeId : undefined;
+  const scope = scopedStoreIds(user);
 
   const [analytics, stores] = await Promise.all([
-    getAnalytics(storeId),
-    getAllStores(),
+    selectedStoreId
+      ? getAnalytics(selectedStoreId)
+      : scope === null
+        ? getAnalytics()
+        : getAnalytics(undefined, scope),
+    scope === null ? getAllStores() : getStoresByIds(scope),
   ]);
 
   return (
     <AnalyticsClient
       initialAnalytics={analytics}
       stores={stores}
-      selectedStoreId={storeId}
+      selectedStoreId={selectedStoreId}
     />
   );
 }

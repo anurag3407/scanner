@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { Store } from "@/lib/types";
+import { ReviewTemplateSet, Store } from "@/lib/types";
 import {
   Plus,
   Edit2,
@@ -16,12 +16,74 @@ import {
   Sparkles,
   HelpCircle,
   Search,
+  RefreshCw,
+  Save,
+  Check,
 } from "lucide-react";
 import Link from "next/link";
 import { getGoogleReviewUrl, isDirectReviewUrl } from "@/lib/review-links";
+import { generateOfflineReview, STARTER_TEMPLATES } from "@/lib/ai";
 
 interface Props {
   initialStores: Store[];
+  isSuperAdmin: boolean;
+}
+
+/** One editable list of sentence combinations (intros / highlights / closers). */
+function SentenceSection({
+  title,
+  hint,
+  value,
+  placeholder,
+  tokens,
+  onChange,
+  onInsert,
+}: {
+  title: string;
+  hint: string;
+  value: string;
+  placeholder: string;
+  tokens: string[];
+  onChange: (value: string) => void;
+  onInsert: (token: string) => void;
+}) {
+  const lineCount = value.split("\n").filter((line) => line.trim()).length;
+
+  return (
+    <div className="space-y-2">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <h3 className="text-xs font-bold text-zinc-900">{title}</h3>
+          <p className="text-[11px] text-zinc-500">{hint}</p>
+        </div>
+        <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-zinc-100 text-zinc-600">
+          {lineCount} line{lineCount === 1 ? "" : "s"}
+        </span>
+      </div>
+      <textarea
+        rows={4}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        className="w-full text-xs p-3 rounded-xl border border-zinc-200 focus:outline-none focus:ring-2 focus:ring-zinc-900 leading-relaxed resize-y font-mono"
+      />
+      <div className="flex flex-wrap items-center gap-1.5">
+        <span className="text-[10px] font-semibold text-zinc-400 uppercase tracking-wider">
+          Insert:
+        </span>
+        {tokens.map((token) => (
+          <button
+            key={token}
+            type="button"
+            onClick={() => onInsert(token)}
+            className="text-[11px] font-mono px-2 py-1 rounded-lg bg-zinc-100 hover:bg-zinc-200 text-zinc-700 transition-colors cursor-pointer"
+          >
+            {token}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 const QUICK_CHIP_SUGGESTIONS = [
@@ -41,7 +103,7 @@ const QUICK_CHIP_SUGGESTIONS = [
   "Family Friendly",
 ];
 
-export default function StoreManagementClient({ initialStores }: Props) {
+export default function StoreManagementClient({ initialStores, isSuperAdmin }: Props) {
   const [stores, setStores] = useState<Store[]>(initialStores);
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
@@ -77,6 +139,16 @@ export default function StoreManagementClient({ initialStores }: Props) {
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [errorMsg, setErrorMsg] = useState<string>("");
 
+  // ---- Review Studio: per-store sentence combinations ----
+  const [studioStoreId, setStudioStoreId] = useState<string | null>(null);
+  const [studioIntros, setStudioIntros] = useState<string>("");
+  const [studioHighlights, setStudioHighlights] = useState<string>("");
+  const [studioClosers, setStudioClosers] = useState<string>("");
+  const [previewSeed, setPreviewSeed] = useState<number>(0);
+  const [isSavingStudio, setIsSavingStudio] = useState<boolean>(false);
+  const [studioError, setStudioError] = useState<string>("");
+  const [studioSaved, setStudioSaved] = useState<boolean>(false);
+
   const openAddModal = () => {
     setEditingStoreId(null);
     setName("");
@@ -85,7 +157,8 @@ export default function StoreManagementClient({ initialStores }: Props) {
     setCategory("Cafe / Restaurant");
     setGooglePlaceId("");
     setBrandColor("#0d9488");
-    setManagerEmail("anuragmishra3407@gmail.com");
+    // Owner inboxes only — alerts never fall back to the platform account.
+    setManagerEmail("");
     setManagerPhone("");
     setTableCount(1);
     setAddress("");
@@ -203,6 +276,96 @@ export default function StoreManagementClient({ initialStores }: Props) {
     }
   };
 
+  /* ---------------------------------------------------------------------- */
+  /* Review Studio                                                          */
+  /* ---------------------------------------------------------------------- */
+
+  const studioStore = stores.find((s) => s.id === studioStoreId) || null;
+
+  const linesToArray = (value: string): string[] => {
+    const seen = new Set<string>();
+    const result: string[] = [];
+    for (const raw of value.split("\n")) {
+      const line = raw.replace(/\s+/g, " ").trim().slice(0, 280);
+      if (!line || seen.has(line)) continue;
+      seen.add(line);
+      result.push(line);
+      if (result.length >= 60) break;
+    }
+    return result;
+  };
+
+  const studioTemplates: ReviewTemplateSet = {
+    intros: linesToArray(studioIntros),
+    highlights: linesToArray(studioHighlights),
+    closers: linesToArray(studioClosers),
+  };
+  const hasStudioTemplates =
+    studioTemplates.intros.length + studioTemplates.highlights.length + studioTemplates.closers.length > 0;
+
+  // Pure client-side render — exactly what a diner would see on their phone.
+  const previewText = studioStore
+    ? generateOfflineReview({
+        storeName: studioStore.name,
+        category: studioStore.category,
+        chips: (studioStore.chips || []).slice(0, 2),
+        variationSeed: previewSeed,
+        tone: "punchy",
+        templates: hasStudioTemplates ? studioTemplates : undefined,
+      })
+    : "";
+
+  const openStudio = (store: Store) => {
+    setStudioStoreId(store.id);
+    setStudioIntros((store.reviewTemplates?.intros || []).join("\n"));
+    setStudioHighlights((store.reviewTemplates?.highlights || []).join("\n"));
+    setStudioClosers((store.reviewTemplates?.closers || []).join("\n"));
+    setPreviewSeed(0);
+    setStudioError("");
+    setStudioSaved(false);
+  };
+
+  const appendToSection = (section: "intros" | "highlights" | "closers", token: string) => {
+    const current = { intros: studioIntros, highlights: studioHighlights, closers: studioClosers }[section].trimEnd();
+    const next = current ? `${current}\n${token}` : token;
+    if (section === "intros") setStudioIntros(next);
+    if (section === "highlights") setStudioHighlights(next);
+    if (section === "closers") setStudioClosers(next);
+  };
+
+  const applyStarterTemplates = () => {
+    setStudioIntros(STARTER_TEMPLATES.intros.join("\n"));
+    setStudioHighlights(STARTER_TEMPLATES.highlights.join("\n"));
+    setStudioClosers(STARTER_TEMPLATES.closers.join("\n"));
+    setStudioSaved(false);
+  };
+
+  const handleSaveStudio = async () => {
+    if (!studioStoreId) return;
+    setIsSavingStudio(true);
+    setStudioError("");
+    setStudioSaved(false);
+    try {
+      const res = await fetch(`/api/stores/${studioStoreId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reviewTemplates: studioTemplates }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setStores((prev) => prev.map((s) => (s.id === studioStoreId ? data.store : s)));
+        setStudioSaved(true);
+      } else {
+        const data = await res.json().catch(() => null);
+        setStudioError(data?.error || "Failed to save sentence combinations");
+      }
+    } catch {
+      setStudioError("Network error saving sentence combinations");
+    } finally {
+      setIsSavingStudio(false);
+    }
+  };
+
   const handleDelete = async (id: string, storeName: string) => {
     if (!confirm(`Are you sure you want to delete ${storeName}?`)) return;
 
@@ -224,19 +387,21 @@ export default function StoreManagementClient({ initialStores }: Props) {
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-black text-zinc-900 tracking-tight">
-            Client Restaurants &amp; Table Standees
+            {isSuperAdmin ? "Client Restaurants & Table Standees" : "Your Restaurant Locations"}
           </h1>
           <p className="text-xs text-zinc-500 mt-0.5">
-            Configure popular dishes, owner alert emails, and generate printable 1-year QR codes.
+            Configure dishes, craft sentence combinations in the Review Studio, and print permanent QR codes.
           </p>
         </div>
 
-        <button
-          onClick={openAddModal}
-          className="px-5 py-2.5 rounded-2xl bg-zinc-900 text-white font-semibold text-xs hover:bg-black transition-all flex items-center gap-1.5 shadow-md cursor-pointer shrink-0"
-        >
-          <Plus className="w-4 h-4" /> Add Restaurant Location
-        </button>
+        {isSuperAdmin && (
+          <button
+            onClick={openAddModal}
+            className="px-5 py-2.5 rounded-2xl bg-zinc-900 text-white font-semibold text-xs hover:bg-black transition-all flex items-center gap-1.5 shadow-md cursor-pointer shrink-0"
+          >
+            <Plus className="w-4 h-4" /> Add Restaurant Location
+          </button>
+        )}
       </div>
 
       {/* Search & Filter Bar */}
@@ -351,6 +516,16 @@ export default function StoreManagementClient({ initialStores }: Props) {
 
             {/* Actions */}
             <div className="flex flex-wrap items-center gap-2.5 w-full lg:w-auto shrink-0 justify-end pt-3 lg:pt-0 border-t lg:border-t-0 border-zinc-100">
+              <button
+                type="button"
+                onClick={() => openStudio(store)}
+                className="px-3.5 py-2.5 rounded-xl bg-amber-50 text-amber-900 border border-amber-200 text-xs font-semibold hover:bg-amber-100 transition-colors flex items-center gap-1.5 cursor-pointer"
+                title="Edit dishes and sentence combinations"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+                <span>Review Studio</span>
+              </button>
+
               <Link
                 href={`/admin/stores/${store.id}/print`}
                 className="px-4 py-2.5 rounded-xl bg-zinc-900 text-white text-xs font-semibold hover:bg-black transition-colors flex items-center gap-1.5 shadow-sm"
@@ -359,8 +534,7 @@ export default function StoreManagementClient({ initialStores }: Props) {
                 <span>Print Standee QR</span>
               </Link>
 
-              <Link
-                href={`/r/${store.slug}`}
+              <Link                            href={`/r/${store.slug}`}
                 target="_blank"
                 className="px-3.5 py-2.5 rounded-xl bg-zinc-100 text-zinc-800 text-xs font-semibold hover:bg-zinc-200 transition-colors flex items-center gap-1.5"
               >
@@ -377,14 +551,16 @@ export default function StoreManagementClient({ initialStores }: Props) {
                 <Edit2 className="w-4 h-4" />
               </button>
 
-              <button
-                type="button"
-                onClick={() => handleDelete(store.id, store.name)}
-                className="p-2.5 rounded-xl bg-zinc-100 text-rose-600 hover:text-rose-700 hover:bg-rose-50 transition-colors cursor-pointer"
-                title="Delete Restaurant"
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
+              {isSuperAdmin && (
+                <button
+                  type="button"
+                  onClick={() => handleDelete(store.id, store.name)}
+                  className="p-2.5 rounded-xl bg-zinc-100 text-rose-600 hover:text-rose-700 hover:bg-rose-50 transition-colors cursor-pointer"
+                  title="Delete Restaurant"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              )}
             </div>
           </div>
         ))
@@ -682,6 +858,133 @@ export default function StoreManagementClient({ initialStores }: Props) {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Review Studio Modal */}
+      {studioStore && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm overflow-y-auto">
+          <div className="bg-white rounded-3xl max-w-3xl w-full shadow-2xl border border-zinc-200 max-h-[92vh] overflow-y-auto">
+            <div className="sticky top-0 z-10 bg-white flex items-start justify-between gap-4 px-6 sm:px-8 pt-6 pb-4 border-b border-zinc-100">
+              <div>
+                <h2 className="text-xl font-bold text-zinc-900 flex items-center gap-2">
+                  <Sparkles className="w-5 h-5 text-amber-500" />
+                  Review Studio
+                </h2>
+                <p className="text-xs text-zinc-500 mt-0.5">
+                  {studioStore.name} &bull; one sentence per line. Diners get a fresh mix every visit — the printed QR never changes.
+                </p>
+              </div>
+              <button
+                onClick={() => setStudioStoreId(null)}
+                className="p-2 rounded-xl hover:bg-zinc-100 text-zinc-500 transition-colors cursor-pointer shrink-0"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-6 sm:p-8 space-y-6">
+              {/* Live preview */}
+              <div className="p-4 rounded-2xl bg-zinc-900 text-white space-y-2">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-amber-300 flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5" /> Live diner preview
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setPreviewSeed((s) => s + 1)}
+                    className="text-[11px] font-semibold text-zinc-300 hover:text-white flex items-center gap-1 cursor-pointer"
+                  >
+                    <RefreshCw className="w-3 h-3" /> Different wording
+                  </button>
+                </div>
+                <p className="text-sm leading-relaxed italic text-zinc-100">&ldquo;{previewText}&rdquo;</p>
+                <p className="text-[10px] text-zinc-400">
+                  {hasStudioTemplates
+                    ? "Preview uses your sentence combinations plus this store's highlight chips."
+                    : "Built-in sentence library in use until you add your own lines."}
+                </p>
+              </div>
+
+              {/* Starter helper */}
+              <div className="flex flex-wrap items-center justify-between gap-3 p-3.5 rounded-2xl bg-amber-50/70 border border-amber-200">
+                <p className="text-[11px] text-amber-900 leading-relaxed max-w-lg">
+                  <strong>New here?</strong> Load starter sentences as a base, then rewrite them in your restaurant&apos;s voice.
+                </p>
+                <button
+                  type="button"
+                  onClick={applyStarterTemplates}
+                  className="px-3.5 py-2 rounded-xl bg-amber-600 text-white text-xs font-semibold hover:bg-amber-700 transition-colors cursor-pointer shrink-0"
+                >
+                  Load starter sentences
+                </button>
+              </div>
+
+              <SentenceSection
+                title="Opening lines (intros)"
+                hint="First sentence of every draft. Use {name} for the restaurant name."
+                value={studioIntros}
+                placeholder={"Had such a wonderful experience at {name} today!\nEvery visit to {name} feels like a treat."}
+                tokens={["{name}", "{store}", "{category}"]}
+                onChange={setStudioIntros}
+                onInsert={(token) => appendToSection("intros", token)}
+              />
+
+              <SentenceSection
+                title="Dish highlights"
+                hint="One line per dish or standout. {chip} is replaced with the highlights the diner tapped."
+                value={studioHighlights}
+                placeholder={"The {chip} was prepared to perfection.\nYou cannot leave without trying the {chip}."}
+                tokens={["{chip}", "{name}", "{store}"]}
+                onChange={setStudioHighlights}
+                onInsert={(token) => appendToSection("highlights", token)}
+              />
+
+              <SentenceSection
+                title="Closing lines (closers)"
+                hint="Last sentence of the draft. Keep it warm and inviting."
+                value={studioClosers}
+                placeholder="Will definitely be returning soon and bringing friends along. Highly recommended!"
+                tokens={["{name}", "{store}"]}
+                onChange={setStudioClosers}
+                onInsert={(token) => appendToSection("closers", token)}
+              />
+
+              <div className="p-3.5 rounded-2xl bg-zinc-50 border border-zinc-200 text-[11px] text-zinc-600 leading-relaxed">
+                <strong className="text-zinc-800">How it works:</strong> diners only ever see these sentences after tapping your dish chips. The printed standee keeps the same QR — changing dishes or sentences here never requires a reprint.
+              </div>
+
+              {studioError && (
+                <div className="p-3 rounded-xl bg-rose-50 text-rose-700 text-xs font-medium border border-rose-200">
+                  {studioError}
+                </div>
+              )}
+
+              <div className="pt-2 border-t border-zinc-100 flex flex-wrap items-center justify-end gap-3">
+                {studioSaved && (
+                  <span className="text-emerald-700 text-xs font-semibold flex items-center gap-1 mr-auto">
+                    <Check className="w-4 h-4 stroke-[3]" /> Saved — diners see the new mix immediately
+                  </span>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setStudioStoreId(null)}
+                  className="px-4 py-2.5 rounded-xl text-zinc-600 hover:text-zinc-900 text-xs font-medium cursor-pointer"
+                >
+                  Close
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveStudio}
+                  disabled={isSavingStudio}
+                  className="px-6 py-2.5 rounded-xl bg-zinc-900 text-white text-xs font-semibold hover:bg-black transition-all shadow-md disabled:opacity-50 cursor-pointer flex items-center gap-1.5"
+                >
+                  <Save className="w-3.5 h-3.5 text-emerald-400" />
+                  {isSavingStudio ? "Saving..." : "Save sentence combinations"}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

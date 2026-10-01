@@ -1,16 +1,18 @@
 import { NextResponse } from "next/server";
-import { getAllStores, createStore, getStoreBySlug } from "@/lib/store";
-import { slugify, isValidHexColor, sanitizeStringArray } from "@/lib/validation";
-import { assertAdminAuth } from "@/lib/auth";
+import { getAllStores, createStore, getStoreBySlug, getStoresByIds } from "@/lib/store";
+import { slugify, isValidHexColor, sanitizeStringArray, sanitizeTemplateSet } from "@/lib/validation";
+import { assertAdminAuth, assertSuperAdmin, scopedStoreIds } from "@/lib/auth";
 
 export async function GET() {
   const auth = await assertAdminAuth();
-  if (!auth.authorized) {
+  if (!auth.authorized || !auth.user) {
     return NextResponse.json({ error: auth.error }, { status: auth.status || 401 });
   }
 
   try {
-    const stores = await getAllStores();
+    // Store admins only ever see the locations assigned to them.
+    const scope = scopedStoreIds(auth.user);
+    const stores = scope === null ? await getAllStores() : await getStoresByIds(scope);
     return NextResponse.json({ stores });
   } catch (err) {
     console.error("Failed to fetch stores", err);
@@ -19,7 +21,8 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
-  const auth = await assertAdminAuth();
+  // Creating locations is platform-owner only.
+  const auth = await assertSuperAdmin();
   if (!auth.authorized) {
     return NextResponse.json({ error: auth.error }, { status: auth.status || 401 });
   }
@@ -80,6 +83,7 @@ export async function POST(req: Request) {
       managerPhone: typeof body.managerPhone === "string" ? body.managerPhone.trim() : "",
       address: typeof body.address === "string" ? body.address.trim() : "",
       tableCount: Number.isFinite(tableCount) && tableCount > 0 ? Math.floor(tableCount) : 1,
+      reviewTemplates: sanitizeTemplateSet(body.reviewTemplates),
     });
 
     return NextResponse.json({ store }, { status: 201 });

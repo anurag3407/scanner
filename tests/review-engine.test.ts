@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { generateOfflineReview, generateSmartReview } from "../lib/ai";
+import { generateOfflineReview, generateSmartReview, STARTER_TEMPLATES } from "../lib/ai";
+import { sanitizeTemplateSet } from "../lib/validation";
 
 test("generateOfflineReview generates review containing store name and category", () => {
   const review = generateOfflineReview({
@@ -95,5 +96,50 @@ test("generateOfflineReview generates hospitality tone review", () => {
   assert.ok(review.includes("The Cozy Tavern"));
   assert.ok(review.includes("Sarah (Host)"));
   assert.ok(review.length > 50);
+});
+
+test("generateOfflineReview uses a store's own sentence combinations", () => {
+  const review = generateOfflineReview({
+    storeName: "Nonna's Table",
+    category: "Italian",
+    chips: ["Woodfired Pizza"],
+    variationSeed: 0,
+    templates: STARTER_TEMPLATES,
+  });
+
+  assert.ok(review.includes("Nonna's Table"));
+  assert.ok(review.includes("Woodfired Pizza"));
+  assert.ok(!review.includes("{name}"), "Template tokens must be substituted");
+  assert.ok(!review.includes("{chip}"), "Template tokens must be substituted");
+});
+
+test("generateOfflineReview falls back to the built-in library when a section is empty", () => {
+  const review = generateOfflineReview({
+    storeName: "Fallback Kitchen",
+    category: "Cafe",
+    chips: ["Filter Coffee"],
+    variationSeed: 3,
+    // Highlights are custom; intros and closers fall back to the built-ins.
+    templates: { intros: [], highlights: ["The {chip} was sublime."], closers: [] },
+  });
+
+  assert.ok(review.includes("The Filter Coffee was sublime."));
+  assert.ok(review.includes("Fallback Kitchen"));
+  assert.ok(review.length > 50);
+});
+
+test("sanitizeTemplateSet trims, dedupes, and clears empty sets", () => {
+  const set = sanitizeTemplateSet({
+    intros: ["  Loved {name}!  ", "Loved {name}!", "   "],
+    highlights: ["The {chip} is a must."],
+    closers: [],
+  });
+
+  assert.deepEqual(set?.intros, ["Loved {name}!"]);
+  assert.deepEqual(set?.highlights, ["The {chip} is a must."]);
+  assert.equal(set?.closers.length, 0);
+
+  assert.equal(sanitizeTemplateSet({ intros: [], highlights: [], closers: [] }), undefined);
+  assert.equal(sanitizeTemplateSet(null), undefined);
 });
 

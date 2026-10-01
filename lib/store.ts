@@ -695,6 +695,25 @@ export async function getFeedbacks(storeId?: string, storeIds?: string[]): Promi
   return [...feedbacks];
 }
 
+export async function getFeedbackById(feedbackId: string): Promise<FeedbackSubmission | null> {
+  const supabase = getSupabaseClient();
+  if (supabase) {
+    const { data, error } = await supabase
+      .from("feedbacks")
+      .select("*")
+      .eq("id", feedbackId)
+      .limit(1)
+      .maybeSingle();
+    if (error) {
+      throw new Error(`Failed to load feedback from Supabase: ${error.message}`);
+    }
+    return data ? mapRowToFeedback(data) : null;
+  }
+
+  const found = loadLocalData().feedbacks.find((f) => f.id === feedbackId);
+  return found ? { ...found } : null;
+}
+
 export async function updateFeedbackStatus(
   id: string,
   status: FeedbackSubmission["status"]

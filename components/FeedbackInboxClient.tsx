@@ -216,6 +216,30 @@ export default function FeedbackInboxClient({ initialFeedbacks, stores }: Props)
                       {fb.customerContact}
                     </span>
                   )}
+                  {fb.alert?.status === "sent" && (
+                    <span
+                      className="flex items-center gap-1 text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded font-medium"
+                      title={`Alerted: ${fb.alert.recipients.join(", ")}`}
+                    >
+                      <Check className="w-3 h-3 stroke-[3]" /> Owners alerted
+                    </span>
+                  )}
+                  {fb.alert?.status === "failed" && (
+                    <span
+                      className="text-rose-700 bg-rose-50 border border-rose-200 px-2 py-0.5 rounded font-medium"
+                      title={fb.alert.error || "Email delivery failed"}
+                    >
+                      Alert failed
+                    </span>
+                  )}
+                  {fb.alert?.status === "skipped" && (
+                    <span
+                      className="text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded font-medium"
+                      title={fb.alert.error || "No owner email configured"}
+                    >
+                      No owner inbox
+                    </span>
+                  )}
                 </div>
 
                 {/* Status action toggles */}

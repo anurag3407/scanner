@@ -1,7 +1,7 @@
 import React from "react";
 import ProspectusClient from "@/components/ProspectusClient";
 import Link from "next/link";
-import { ArrowLeft, Zap } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 
 export const metadata = {
   title: "SaaS Investment & Pitch Prospectus | ReviewBoost",
@@ -27,13 +27,6 @@ export default function PublicProspectusPage() {
               className="text-xs font-semibold text-zinc-600 hover:text-zinc-900 transition-colors hidden sm:flex items-center gap-1"
             >
               <ArrowLeft className="w-3.5 h-3.5" /> Home
-            </Link>
-            <Link
-              href="/boost"
-              className="text-xs font-bold text-amber-600 hover:text-amber-700 transition-colors flex items-center gap-1"
-            >
-              <Zap className="w-3.5 h-3.5 fill-current" />
-              <span>Live /boost</span>
             </Link>
             <Link
               href="/admin"

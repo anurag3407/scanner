@@ -57,11 +57,11 @@ export default function ProspectusClient() {
             <span>Print PDF Memorandum</span>
           </button>
           <Link
-            href="/boost"
+            href="/admin/stores"
             className="px-4 py-2.5 rounded-xl bg-zinc-900 text-white text-xs font-semibold hover:bg-black transition-colors flex items-center gap-1.5 shadow-sm"
           >
             <Zap className="w-4 h-4 text-amber-400" />
-            <span>Live /boost Simulator</span>
+            <span>Store &amp; Review Studio</span>
           </Link>
         </div>
       </div>
@@ -542,11 +542,11 @@ export default function ProspectusClient() {
       {/* ========================================================================= */}
       <div className="pt-6 flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-zinc-200 print:hidden">
         <Link
-          href="/boost"
+          href="/admin/team"
           className="text-xs font-bold text-zinc-700 hover:text-black flex items-center gap-1.5"
         >
           <Sparkles className="w-4 h-4 text-amber-500" />
-          Test Interactive Live Simulator (/boost)
+          Role-Based Team &amp; Store Access
         </Link>
 
         <div className="flex items-center gap-3">

@@ -1,20 +1,21 @@
 import { NextResponse } from "next/server";
 import { getStoreById, getStoreBySlug, updateStore, deleteStore } from "@/lib/store";
 import { Store } from "@/lib/types";
-import { slugify, isValidHexColor, sanitizeStringArray } from "@/lib/validation";
-import { assertAdminAuth } from "@/lib/auth";
+import { slugify, isValidHexColor, sanitizeStringArray, sanitizeTemplateSet } from "@/lib/validation";
+import { assertStoreAccess, assertSuperAdmin } from "@/lib/auth";
 
 export async function GET(
   _req: Request,
   context: { params: Promise<{ id: string }> }
 ) {
-  const auth = await assertAdminAuth();
-  if (!auth.authorized) {
-    return NextResponse.json({ error: auth.error }, { status: auth.status || 401 });
-  }
-
   try {
     const { id } = await context.params;
+
+    const auth = await assertStoreAccess(id);
+    if (!auth.authorized) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status || 401 });
+    }
+
     const store = await getStoreById(id);
     if (!store) {
       return NextResponse.json({ error: "Store not found" }, { status: 404 });
@@ -30,13 +31,13 @@ export async function PUT(
   req: Request,
   context: { params: Promise<{ id: string }> }
 ) {
-  const auth = await assertAdminAuth();
-  if (!auth.authorized) {
-    return NextResponse.json({ error: auth.error }, { status: auth.status || 401 });
-  }
-
   try {
     const { id } = await context.params;
+
+    const auth = await assertStoreAccess(id);
+    if (!auth.authorized) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status || 401 });
+    }
 
     let body: Record<string, unknown>;
     try {
@@ -96,6 +97,12 @@ export async function PUT(
     if (typeof body.managerPhone === "string") updates.managerPhone = body.managerPhone.trim();
     if (typeof body.address === "string") updates.address = body.address.trim();
 
+    // Sentence combinations may be replaced from the Review Studio. An empty
+    // set clears the store override and falls back to the built-in library.
+    if (body.reviewTemplates !== undefined) {
+      updates.reviewTemplates = sanitizeTemplateSet(body.reviewTemplates);
+    }
+
     const tableCount = Number(body.tableCount);
     if (Number.isFinite(tableCount) && tableCount > 0) updates.tableCount = Math.floor(tableCount);
 
@@ -114,7 +121,8 @@ export async function DELETE(
   _req: Request,
   context: { params: Promise<{ id: string }> }
 ) {
-  const auth = await assertAdminAuth();
+  // Deleting a location is platform-owner only.
+  const auth = await assertSuperAdmin();
   if (!auth.authorized) {
     return NextResponse.json({ error: auth.error }, { status: auth.status || 401 });
   }

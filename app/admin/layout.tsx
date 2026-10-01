@@ -1,19 +1,17 @@
 import React from "react";
 import Link from "next/link";
 import { UserButton, SignOutButton } from "@clerk/nextjs";
-import { auth, currentUser, createClerkClient } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import { isClerkConfigured } from "@/lib/clerk";
+import { assertAdminAuth } from "@/lib/auth";
 import {
   Store as StoreIcon,
   ShieldAlert,
   BarChart3,
-  ExternalLink,
-  Plus,
   Lock,
   Globe,
-  Sparkles,
-  QrCode,
+  Plus,
+  Users,
 } from "lucide-react";
 
 export const dynamic = "force-dynamic";
@@ -23,75 +21,55 @@ export const metadata = {
   description: "Manage restaurant QR standees, customize chips, and intercept negative reviews.",
 };
 
+function RestrictedScreen({ email }: { email: string }) {
+  return (
+    <div className="min-h-screen bg-zinc-950 flex items-center justify-center p-4">
+      <div className="max-w-md w-full bg-zinc-900 border border-zinc-800 rounded-3xl p-8 text-center text-white space-y-5 shadow-2xl">
+        <div className="w-16 h-16 bg-rose-500/10 border border-rose-500/20 text-rose-500 rounded-2xl flex items-center justify-center mx-auto text-2xl">
+          <Lock className="w-8 h-8" />
+        </div>
+        <div>
+          <h1 className="text-xl font-bold tracking-tight">Access Restricted</h1>
+          <p className="text-sm text-zinc-400 mt-2 leading-relaxed">
+            This console is private. Ask your platform administrator to invite{" "}
+            <strong className="text-white font-semibold">{email || "this email"}</strong> to a
+            store before signing in.
+          </p>
+          <div className="mt-3 p-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-xs font-mono text-zinc-400">
+            Signed in as:{" "}
+            <span className="text-rose-400 font-semibold">{email || "Unauthorized Account"}</span>
+          </div>
+        </div>
+        <div className="pt-2 flex justify-center">
+          <SignOutButton>
+            <button className="px-5 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl text-xs font-semibold transition-all border border-zinc-700 shadow-sm cursor-pointer">
+              Sign Out / Switch Account
+            </button>
+          </SignOutButton>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default async function AdminLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const allowedEmail = (process.env.ADMIN_ALLOWED_EMAIL || "anuragmishra3407@gmail.com").toLowerCase().trim();
+  const auth = await assertAdminAuth();
 
-  // If Clerk is configured, enforce strict authentication & email authorization
-  if (isClerkConfigured()) {
-    const { userId } = await auth();
-
-    // 1. Unauthenticated users are redirected to sign-in immediately
-    if (!userId) {
+  // Unauthenticated (and Clerk-less) visitors are sent to sign-in; signed-in
+  // users who are not in the team directory see the restricted screen.
+  if (!auth.authorized || !auth.user) {
+    if (!isClerkConfigured() || auth.status === 401 || auth.status === 503) {
       redirect("/sign-in");
     }
-
-    // 2. Fetch user profile to verify email
-    let user = null;
-    try {
-      user = await currentUser();
-    } catch (err) {
-      console.error("currentUser() error, attempting fallback via clerkClient:", err);
-    }
-
-    // Fallback: If currentUser() failed on edge/serverless runtime, query Clerk directly
-    if (!user && userId && process.env.CLERK_SECRET_KEY) {
-      try {
-        const clerk = createClerkClient({ secretKey: process.env.CLERK_SECRET_KEY });
-        user = await clerk.users.getUser(userId);
-      } catch (err) {
-        console.error("clerkClient.users.getUser error:", err);
-      }
-    }
-
-    const userEmails = user?.emailAddresses?.map((e) => e.emailAddress.toLowerCase().trim()) || [];
-    const primaryEmail = (user?.primaryEmailAddress?.emailAddress || userEmails[0] || "").toLowerCase().trim();
-
-    // Strict authorization check: MUST be anuragmishra3407@gmail.com
-    const isAuthorized = userEmails.includes(allowedEmail) || primaryEmail === allowedEmail;
-
-    if (!isAuthorized) {
-      return (
-        <div className="min-h-screen bg-zinc-950 flex items-center justify-center p-4">
-          <div className="max-w-md w-full bg-zinc-900 border border-zinc-800 rounded-3xl p-8 text-center text-white space-y-5 shadow-2xl">
-            <div className="w-16 h-16 bg-rose-500/10 border border-rose-500/20 text-rose-500 rounded-2xl flex items-center justify-center mx-auto text-2xl">
-              <Lock className="w-8 h-8" />
-            </div>
-            <div>
-              <h1 className="text-xl font-bold tracking-tight">Access Restricted</h1>
-              <p className="text-sm text-zinc-400 mt-2 leading-relaxed">
-                This ReviewBoost console is private and only accessible to{" "}
-                <strong className="text-white font-semibold">{allowedEmail}</strong>.
-              </p>
-              <div className="mt-3 p-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-xs font-mono text-zinc-400">
-                Signed in as: <span className="text-rose-400 font-semibold">{primaryEmail || "Unauthorized Account"}</span>
-              </div>
-            </div>
-            <div className="pt-2 flex justify-center">
-              <SignOutButton>
-                <button className="px-5 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl text-xs font-semibold transition-all border border-zinc-700 shadow-sm cursor-pointer">
-                  Sign Out / Switch Account
-                </button>
-              </SignOutButton>
-            </div>
-          </div>
-        </div>
-      );
-    }
+    return <RestrictedScreen email={auth.email || ""} />;
   }
+
+  const user = auth.user;
+  const isSuperAdmin = user.isSuperAdmin;
 
   return (
     <div className="min-h-screen bg-zinc-50 flex flex-col md:flex-row text-zinc-900 print:bg-white print:block print:min-h-0">
@@ -106,7 +84,7 @@ export default async function AdminLayout({
               </span>
               <div>
                 <span className="block leading-none">ReviewBoost</span>
-                <span className="text-[10px] text-zinc-400 font-normal leading-none">Offline QR Agency</span>
+                <span className="text-[10px] text-zinc-400 font-normal leading-none">Review Console</span>
               </div>
             </Link>
             <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 font-mono text-[10px] font-semibold">
@@ -114,10 +92,13 @@ export default async function AdminLayout({
             </span>
           </div>
 
-          {/* Active Admin Pill */}
+          {/* Active User Pill */}
           <div className="px-4 py-3 bg-zinc-950/40 border-b border-zinc-800/80 flex items-center gap-2 text-[11px] text-zinc-400">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-            <span className="truncate">Admin: <strong className="text-zinc-200">Anurag Mishra</strong></span>
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0"></span>
+            <span className="truncate">
+              {isSuperAdmin ? "Platform Owner" : "Store Admin"}:{" "}
+              <strong className="text-zinc-200">{user.email}</strong>
+            </span>
           </div>
 
           {/* Navigation Links */}
@@ -127,7 +108,7 @@ export default async function AdminLayout({
               className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-zinc-300 hover:text-white hover:bg-zinc-800 transition-colors"
             >
               <StoreIcon className="w-4 h-4 text-amber-400" />
-              <span>Restaurants &amp; QRs</span>
+              <span>{isSuperAdmin ? "Restaurants & QRs" : "My Restaurants"}</span>
             </Link>
 
             <Link
@@ -139,7 +120,7 @@ export default async function AdminLayout({
                 <span>Firewall Inbox</span>
               </div>
               <span className="px-1.5 py-0.5 rounded-full bg-rose-500/20 text-rose-300 text-[10px] font-mono">
-                1-3★ Alerts
+                1-3★
               </span>
             </Link>
 
@@ -150,44 +131,52 @@ export default async function AdminLayout({
               <BarChart3 className="w-4 h-4 text-blue-400" />
               <span>Scan Analytics</span>
             </Link>
+
+            {isSuperAdmin && (
+              <Link
+                href="/admin/team"
+                className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-zinc-300 hover:text-white hover:bg-zinc-800 transition-colors"
+              >
+                <Users className="w-4 h-4 text-emerald-400" />
+                <span>Team &amp; Access</span>
+              </Link>
+            )}
           </nav>
 
-          {/* Quick Action */}
-          <div className="px-3 pt-3">
-            <Link
-              href="/admin/stores"
-              className="flex items-center justify-center gap-2 w-full py-2.5 px-3 rounded-xl bg-white text-zinc-950 font-bold text-xs hover:bg-zinc-100 transition-colors shadow-sm"
-            >
-              <Plus className="w-3.5 h-3.5" /> Add New Restaurant
-            </Link>
-          </div>
-
-          {/* Client Demo Preview */}
-          <div className="px-3 pt-4">
-            <div className="p-3 rounded-2xl bg-zinc-800/60 border border-zinc-700/60 text-xs space-y-2">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 block">
-                Offline Demo Tool
-              </span>
+          {/* Quick Action — creating locations is platform-owner only */}
+          {isSuperAdmin && (
+            <div className="px-3 pt-3">
               <Link
-                href="/boost"
-                className="flex items-center justify-between text-zinc-300 hover:text-white group"
+                href="/admin/stores"
+                className="flex items-center justify-center gap-2 w-full py-2.5 px-3 rounded-xl bg-white text-zinc-950 font-bold text-xs hover:bg-zinc-100 transition-colors shadow-sm"
               >
-                <span className="flex items-center gap-1.5">
-                  <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                  Live Phone Simulator
-                </span>
-                <ExternalLink className="w-3 h-3 text-zinc-500 group-hover:text-zinc-300" />
+                <Plus className="w-3.5 h-3.5" /> Add New Restaurant
               </Link>
             </div>
-          </div>
+          )}
+
+          {/* Store-admin context note */}
+          {!isSuperAdmin && (
+            <div className="px-3 pt-3">
+              <div className="p-3 rounded-2xl bg-zinc-800/60 border border-zinc-700/60 text-[11px] text-zinc-400 leading-relaxed">
+                You can manage the reviews, dishes and standees for{" "}
+                <strong className="text-zinc-200">
+                  {user.storeIds.length} location{user.storeIds.length === 1 ? "" : "s"}
+                </strong>{" "}
+                assigned to you.
+              </div>
+            </div>
+          )}
         </div>
 
         {/* User profile & Clerk control */}
         <div className="p-4 border-t border-zinc-800 text-xs space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex flex-col truncate pr-2">
-              <span className="text-zinc-200 font-medium truncate">Anurag Mishra</span>
-              <span className="text-[11px] text-zinc-500 truncate">{allowedEmail}</span>
+              <span className="text-zinc-200 font-medium truncate">
+                {isSuperAdmin ? "Platform Owner" : "Store Admin"}
+              </span>
+              <span className="text-[11px] text-zinc-500 truncate">{user.email}</span>
             </div>
             {isClerkConfigured() ? (
               <UserButton />

@@ -19,7 +19,9 @@ export default function PrintableStandee({ store }: Props) {
   const [copiedLink, setCopiedLink] = useState<boolean>(false);
 
   const origin = typeof window !== "undefined" ? window.location.origin : (process.env.NEXT_PUBLIC_APP_URL || "https://scanner.sayalabs.in");
-  const targetUrl = `${origin}/r/${store.slug}${tableNumber.trim() ? `?table=${encodeURIComponent(tableNumber.trim())}` : ""}`;
+  // The QR encodes the immutable store id — never the slug. Printed standees
+  // keep working even if the restaurant is renamed or its slug changes.
+  const targetUrl = `${origin}/r/${store.id}${tableNumber.trim() ? `?table=${encodeURIComponent(tableNumber.trim())}` : ""}`;
 
   useEffect(() => {
     QRCode.toDataURL(targetUrl, {
@@ -78,7 +80,7 @@ export default function PrintableStandee({ store }: Props) {
                   {store.name} &bull; Standee &amp; QR
                 </h1>
                 <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-zinc-100 text-zinc-700">
-                  /r/{store.slug}
+                  Permanent QR
                 </span>
               </div>
               <p className="text-xs text-zinc-500 mt-0.5">

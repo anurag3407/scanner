@@ -14,7 +14,8 @@ function getResendClient(): Resend | null {
 }
 
 export interface LowRatingEmailParams {
-  toEmail: string;
+  /** Owner inboxes that should be alerted. At least one address is required. */
+  toEmails: string[];
   storeName: string;
   rating: number;
   tableNumber?: string;
@@ -24,10 +25,11 @@ export interface LowRatingEmailParams {
 }
 
 export async function sendLowRatingAlertEmail(params: LowRatingEmailParams): Promise<{ success: boolean; error?: string }> {
-  const { toEmail, storeName, rating, tableNumber, customerName, customerContact, message } = params;
+  const { toEmails, storeName, rating, tableNumber, customerName, customerContact, message } = params;
+  const recipients = (toEmails || []).filter(Boolean);
 
-  if (!toEmail) {
-    console.warn("No manager/owner email provided. Email notification skipped.");
+  if (recipients.length === 0) {
+    console.warn("No owner email configured for this store. Email notification skipped.");
     return { success: false, error: "Missing recipient email" };
   }
 
@@ -114,7 +116,7 @@ export async function sendLowRatingAlertEmail(params: LowRatingEmailParams): Pro
     </div>
     <div class="footer">
       Powered by <strong>ReviewBoost Scanner</strong> &bull; Reputation Protection System<br>
-      Automated alert sent to ${toEmail}
+      Automated alert sent to ${recipients.join(", ")}
     </div>
   </div>
 </body>
@@ -124,7 +126,7 @@ export async function sendLowRatingAlertEmail(params: LowRatingEmailParams): Pro
   try {
     const response = await resend.emails.send({
       from: fromEmail,
-      to: [toEmail],
+      to: recipients,
       subject: `🚨 [Urgent] ${rating}★ Alert at ${storeName} (${tableLabel})`,
       html,
     });
@@ -134,7 +136,7 @@ export async function sendLowRatingAlertEmail(params: LowRatingEmailParams): Pro
       return { success: false, error: response.error.message };
     }
 
-    console.log(`Alert email sent successfully to ${toEmail} (ID: ${response.data?.id})`);
+    console.log(`Alert email sent successfully to ${recipients.join(", ")} (ID: ${response.data?.id})`);
     return { success: true };
   } catch (err: unknown) {
     const errorMsg = err instanceof Error ? err.message : String(err);

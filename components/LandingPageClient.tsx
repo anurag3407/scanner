@@ -13,12 +13,12 @@ import {
   ArrowRight,
   Printer,
   Smartphone,
-  Zap,
   TrendingUp,
   QrCode,
   UtensilsCrossed,
   CheckCircle2,
   Lock,
+  Users,
 } from "lucide-react";
 import confetti from "canvas-confetti";
 import { Store } from "@/lib/types";
@@ -98,9 +98,8 @@ export default function LandingPageClient({ sampleStore, totalStoresCount = 103 
             <Link href="#benefits" className="hover:text-white transition-colors">
               Why It Converts
             </Link>
-            <Link href="/boost" className="hover:text-[#FF5400] transition-colors flex items-center gap-1 text-[#FF5400]">
-              <Zap className="w-3.5 h-3.5 fill-current" />
-              <span>Simulator</span>
+            <Link href="#roles" className="hover:text-white transition-colors">
+              Team &amp; Roles
             </Link>
             <Link href="/admin" className="hover:text-white transition-colors">
               Admin Portal
@@ -110,10 +109,10 @@ export default function LandingPageClient({ sampleStore, totalStoresCount = 103 
           {/* Right Action Button */}
           <div className="flex items-center gap-2.5">
             <Link
-              href="/boost"
+              href="/admin"
               className="bg-[#FF5400] hover:bg-[#E04B00] text-white font-display text-xs uppercase tracking-wider px-4 sm:px-5 py-2.5 rounded-xl transition-all shadow-lg shadow-orange-600/30 active:scale-95 flex items-center gap-1.5"
             >
-              <span>Try Demo</span>
+              <span>Console Login</span>
               <ArrowRight className="w-3.5 h-3.5" />
             </Link>
           </div>
@@ -150,29 +149,31 @@ export default function LandingPageClient({ sampleStore, totalStoresCount = 103 
             Eliminate customer writer&apos;s block. Diners tap what they ate, our 0ms engine pre-drafts the review, and Google&apos;s 5-star box opens directly. Negative feedback is intercepted privately.
           </p>
 
-          {/* CTA Buttons */}
+          {/* CTA Buttons — one clear primary action, secondary links to a live standee */}
           <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3.5">
             <Link
-              href="/boost"
+              href="#how-it-works"
               className="w-full sm:w-auto bg-[#FF5400] hover:bg-[#E04B00] text-white font-display text-sm uppercase tracking-wider px-8 py-4 rounded-xl shadow-2xl shadow-orange-600/35 transition-all active:scale-95 flex items-center justify-center gap-2"
             >
-              <span>Test Live Simulator</span>
+              <span>See How It Works</span>
               <ArrowRight className="w-4 h-4" />
             </Link>
 
-            <Link
-              href="/r/csb-nit-patna-bihta"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="w-full sm:w-auto bg-[#141418] hover:bg-zinc-800 text-zinc-200 border border-white/10 font-display text-sm uppercase tracking-wider px-6 py-4 rounded-xl transition-all flex items-center justify-center gap-2"
-            >
-              <span>View CSB Table Standee</span>
-              <ExternalLink className="w-3.5 h-3.5 text-zinc-400" />
-            </Link>
+            {sampleStore && (
+              <Link
+                href={`/r/${sampleStore.id}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full sm:w-auto bg-[#141418] hover:bg-zinc-800 text-zinc-200 border border-white/10 font-display text-sm uppercase tracking-wider px-6 py-4 rounded-xl transition-all flex items-center justify-center gap-2"
+              >
+                <span>{sampleStore.name} Table Standee</span>
+                <ExternalLink className="w-3.5 h-3.5 text-zinc-400" />
+              </Link>
+            )}
           </div>
 
           {/* Quick Trust Highlights */}
-          <div className="pt-3 flex flex-wrap items-center justify-center gap-4 sm:gap-8 text-xs text-zinc-400 font-semibold uppercase tracking-wider">
+          <div className="pt-3 flex flex-wrap items-center justify-center gap-x-8 gap-y-3 text-xs text-zinc-400 font-semibold uppercase tracking-wider">
             <span className="flex items-center gap-1.5">
               <CheckCircle2 className="w-4 h-4 text-emerald-400" />
               0ms First Draft
@@ -398,7 +399,7 @@ export default function LandingPageClient({ sampleStore, totalStoresCount = 103 
       {/* 4. THE TWO CORE PILLARS (Why It Converts & Protects) */}
       {/* ========================================================================= */}
       <section id="benefits" className="py-20 px-4 sm:px-6 lg:px-8 max-w-6xl mx-auto border-t border-white/5">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Pillar 1: Growth Engine */}
           <div className="bg-[#141418] border border-white/10 rounded-3xl p-8 sm:p-10 space-y-5 relative overflow-hidden">
             <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center">
@@ -458,6 +459,36 @@ export default function LandingPageClient({ sampleStore, totalStoresCount = 103 
               </li>
             </ul>
           </div>
+
+          {/* Pillar 3: Role-Based Team Access */}
+          <div id="roles" className="bg-[#141418] border border-white/10 rounded-3xl p-8 sm:p-10 space-y-5 relative overflow-hidden scroll-mt-28">
+            <div className="w-12 h-12 rounded-2xl bg-blue-500/10 border border-blue-500/20 text-blue-400 flex items-center justify-center">
+              <Users className="w-6 h-6" />
+            </div>
+
+            <h3 className="font-display uppercase text-3xl sm:text-4xl text-white tracking-tight">
+              TEAM ACCESS, DONE RIGHT
+            </h3>
+
+            <p className="text-xs sm:text-sm text-zinc-300 leading-relaxed">
+              One platform account, many restaurants. Give every location its own admin without ever exposing the others.
+            </p>
+
+            <ul className="space-y-3 text-xs text-zinc-400 pt-2">
+              <li className="flex items-start gap-2.5">
+                <Check className="w-4 h-4 text-blue-400 shrink-0 mt-0.5" />
+                <span><strong>Store Admins:</strong> each owner sees only the locations you assign — their own dishes, sentence combinations, analytics and firewall inbox.</span>
+              </li>
+              <li className="flex items-start gap-2.5">
+                <Check className="w-4 h-4 text-blue-400 shrink-0 mt-0.5" />
+                <span><strong>Owner-first alerts:</strong> low-rating emails go straight to each store&apos;s owner inbox, with delivery status tracked in the console.</span>
+              </li>
+              <li className="flex items-start gap-2.5">
+                <Check className="w-4 h-4 text-blue-400 shrink-0 mt-0.5" />
+                <span><strong>Permanent QR codes:</strong>  one printed standee per location — rename the café, change the menu, and the code still works.</span>
+              </li>
+            </ul>
+          </div>
         </div>
       </section>
 
@@ -505,23 +536,23 @@ export default function LandingPageClient({ sampleStore, totalStoresCount = 103 
           </h2>
 
           <p className="text-xs sm:text-sm text-zinc-400 max-w-xl mx-auto leading-relaxed">
-            Test the live diner experience on the simulator, or jump into the admin portal to generate print-ready table standees for your locations.
+            Explore the 10-second diner flow, or jump into the console to generate print-ready table standees and invite each store&apos;s team.
           </p>
 
           <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-4">
             <Link
-              href="/boost"
+              href="/admin"
               className="w-full sm:w-auto bg-[#FF5400] hover:bg-[#E04B00] text-white font-display text-sm uppercase tracking-wider px-9 py-4 rounded-xl shadow-2xl shadow-orange-600/35 transition-all active:scale-95 flex items-center justify-center gap-2"
             >
-              <span>Launch Live Simulator</span>
+              <span>Open Admin Console</span>
               <ArrowRight className="w-4 h-4" />
             </Link>
 
             <Link
-              href="/admin"
+              href="#how-it-works"
               className="w-full sm:w-auto bg-white/10 hover:bg-white/15 text-white font-display text-sm uppercase tracking-wider px-7 py-4 rounded-xl transition-all border border-white/10 flex items-center justify-center gap-2"
             >
-              <span>Admin Console</span>
+              <span>See How It Works</span>
             </Link>
           </div>
         </div>
@@ -549,8 +580,8 @@ export default function LandingPageClient({ sampleStore, totalStoresCount = 103 
 
           {/* Quick Links */}
           <div className="flex flex-wrap items-center justify-center gap-6 text-xs text-zinc-400 font-semibold">
-            <Link href="/boost" className="hover:text-white transition-colors">
-              Live Simulator
+            <Link href="#how-it-works" className="hover:text-white transition-colors">
+              How It Works
             </Link>
             <Link href="/admin/stores" className="hover:text-white transition-colors">
               Table Standees

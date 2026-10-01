@@ -7,6 +7,8 @@ import {
   getAllStores,
   getStoreBySlug,
   getStoreById,
+  getStoreByScanKey,
+  getStoresByIds,
   createStore,
   updateStore,
   deleteStore,
@@ -14,9 +16,15 @@ import {
   getScanEvents,
   submitPrivateFeedback,
   getFeedbacks,
+  getFeedbackById,
   updateFeedbackStatus,
+  updateFeedbackAlert,
   getAnalytics,
   buildAnalytics,
+  createTeamMember,
+  getTeamMemberByEmail,
+  updateTeamMember,
+  deleteTeamMember,
 } from "../lib/store";
 import { ScanEvent } from "../lib/types";
 
@@ -185,4 +193,92 @@ test("getAnalytics returns zeroed metrics (not fabrications) when there is no ac
   assert.deepEqual(analytics.topChips, []);
   assert.equal(analytics.dailyActivity.length, 7);
   assert.ok(analytics.dailyActivity.every((d) => d.scans === 0 && d.reviews === 0));
+});
+
+test("getStoreByScanKey resolves the permanent store id first, slug only as an alias", async () => {
+  const created = await createStore({ ...baseStore, slug: "scan-key-test", name: "Scan Key Test" });
+
+  // Printed standees encode the immutable id.
+  const byId = await getStoreByScanKey(created.id);
+  assert.equal(byId?.id, created.id);
+
+  // Hand-shared slugs keep working as an alias.
+  const bySlug = await getStoreByScanKey("SCAN-KEY-TEST");
+  assert.equal(bySlug?.id, created.id);
+
+  assert.equal(await getStoreByScanKey("not-a-real-key"), null);
+
+  await deleteStore(created.id);
+});
+
+test("getStoresByIds returns only the assigned locations", async () => {
+  const storeA = await createStore({ ...baseStore, slug: "scope-store-a", name: "Scope Store A" });
+  const storeB = await createStore({ ...baseStore, slug: "scope-store-b", name: "Scope Store B" });
+
+  const scoped = await getStoresByIds([storeA.id]);
+  assert.equal(scoped.length, 1);
+  assert.equal(scoped[0].id, storeA.id);
+
+  assert.deepEqual(await getStoresByIds([]), []);
+
+  await deleteStore(storeA.id);
+  await deleteStore(storeB.id);
+});
+
+test("team members can be invited, reassigned, suspended, and removed", async () => {
+  const store = await createStore({ ...baseStore, slug: "team-store", name: "Team Store" });
+
+  const member = await createTeamMember({
+    email: "Owner@Bistro.com",
+    name: "Bistro Owner",
+    role: "store_admin",
+    storeIds: [store.id],
+  });
+
+  assert.ok(member.id);
+  assert.equal(member.email, "owner@bistro.com", "Emails are normalized to lowercase");
+  assert.equal(member.status, "active");
+  assert.deepEqual(member.storeIds, [store.id]);
+
+  const fetched = await getTeamMemberByEmail("OWNER@bistro.com");
+  assert.equal(fetched?.id, member.id);
+
+  const suspended = await updateTeamMember(member.id, { status: "suspended", storeIds: [] });
+  assert.equal(suspended?.status, "suspended");
+  assert.deepEqual(suspended?.storeIds, []);
+  assert.equal((await getTeamMemberByEmail("owner@bistro.com"))?.status, "suspended");
+
+  const removed = await deleteTeamMember(member.id);
+  assert.equal(removed, true);
+  assert.equal(await getTeamMemberByEmail("owner@bistro.com"), null);
+
+  await deleteStore(store.id);
+});
+
+test("feedback alert delivery is recorded for the firewall inbox", async () => {
+  const store = await createStore({ ...baseStore, slug: "alert-store", name: "Alert Store" });
+
+  const feedback = await submitPrivateFeedback({
+    storeId: store.id,
+    storeName: store.name,
+    rating: 1,
+    message: "Waited 40 minutes for the main course",
+  });
+
+  // Nothing has been dispatched yet.
+  assert.equal(feedback.alert, undefined);
+
+  const sentAt = new Date().toISOString();
+  await updateFeedbackAlert(feedback.id, {
+    status: "sent",
+    recipients: ["owner@bistro.com"],
+    sentAt,
+  });
+
+  const reloaded = await getFeedbackById(feedback.id);
+  assert.equal(reloaded?.alert?.status, "sent");
+  assert.deepEqual(reloaded?.alert?.recipients, ["owner@bistro.com"]);
+  assert.equal(reloaded?.alert?.sentAt, sentAt);
+
+  await deleteStore(store.id);
 });

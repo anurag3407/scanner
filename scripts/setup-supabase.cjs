@@ -82,6 +82,7 @@ CREATE TABLE IF NOT EXISTS public.stores (
   manager_phone TEXT DEFAULT '',
   address TEXT DEFAULT '',
   table_count INTEGER DEFAULT 10,
+  review_templates JSONB DEFAULT NULL,
   rating_score NUMERIC(3, 2) DEFAULT 0,
   review_count INTEGER DEFAULT 0,
   created_at TIMESTAMPTZ DEFAULT NOW()
@@ -98,6 +99,18 @@ CREATE TABLE IF NOT EXISTS public.feedbacks (
   customer_contact TEXT,
   message TEXT NOT NULL,
   status TEXT DEFAULT 'new',
+  alert JSONB DEFAULT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Team Members Table (super admin -> store admin role-based access)
+CREATE TABLE IF NOT EXISTS public.team_members (
+  id TEXT PRIMARY KEY,
+  email TEXT UNIQUE NOT NULL,
+  name TEXT DEFAULT '',
+  role TEXT DEFAULT 'store_admin',
+  store_ids JSONB DEFAULT '[]'::jsonb,
+  status TEXT DEFAULT 'active',
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -117,11 +130,17 @@ CREATE INDEX IF NOT EXISTS idx_stores_slug ON public.stores(slug);
 CREATE INDEX IF NOT EXISTS idx_feedbacks_store_id ON public.feedbacks(store_id);
 CREATE INDEX IF NOT EXISTS idx_scan_events_store_id ON public.scan_events(store_id);
 CREATE INDEX IF NOT EXISTS idx_scan_events_timestamp ON public.scan_events(timestamp);
+CREATE INDEX IF NOT EXISTS idx_team_members_email ON public.team_members(email);
+
+-- Upgrade existing databases created before these additions
+ALTER TABLE public.stores ADD COLUMN IF NOT EXISTS review_templates JSONB DEFAULT NULL;
+ALTER TABLE public.feedbacks ADD COLUMN IF NOT EXISTS alert JSONB DEFAULT NULL;
 
 -- Enable Row Level Security (RLS)
 ALTER TABLE public.stores ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.feedbacks ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.scan_events ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.team_members ENABLE ROW LEVEL SECURITY;
 
 -- The application talks to the database with the Supabase publishable/secret key
 -- through PostgREST, so these tables need policies for that role.
@@ -138,6 +157,9 @@ BEGIN
   END IF;
   IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Allow public scan_events') THEN
     CREATE POLICY "Allow public scan_events" ON public.scan_events FOR ALL USING (true);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Allow public team_members') THEN
+    CREATE POLICY "Allow public team_members" ON public.team_members FOR ALL USING (true);
   END IF;
 END
 $$;

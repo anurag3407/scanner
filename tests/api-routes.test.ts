@@ -9,6 +9,8 @@ import { POST as generateReviewRoute } from "../app/api/generate-review/route";
 import { POST as logEventRoute } from "../app/api/events/route";
 import { GET as getFeedbackRoute, POST as submitFeedbackRoute, PATCH as patchFeedbackRoute } from "../app/api/feedback/route";
 import { GET as getAnalyticsRoute } from "../app/api/analytics/route";
+import { GET as getTeamRoute, POST as createTeamMemberRoute } from "../app/api/team/route";
+import { PUT as updateTeamMemberRoute, DELETE as deleteTeamMemberRoute } from "../app/api/team/[id]/route";
 
 // Isolated file store — never the production Supabase database.
 process.env.NODE_ENV = "test";
@@ -270,6 +272,176 @@ test("GET, PUT, and DELETE /api/stores/[id] lifecycle", async () => {
   // 6. Subsequent GET returns 404
   const afterDeleteRes = await getStoreByIdRoute(getReq, { params: Promise.resolve({ id: store.id }) });
   assert.equal(afterDeleteRes.status, 404);
+});
+
+test("RBAC: team directory invites, reassigns, suspends, and removes store admins", async () => {
+  const store = await createTestStore({ ...validStorePayload, slug: "rbac-team-store", name: "RBAC Team Store" });
+
+  const payload = {
+    email: "Owner@Cafe.com",
+    name: "Cafe Owner",
+    role: "store_admin",
+    // "missing-store" must be filtered out so assignments can never dangle.
+    storeIds: [store.id, "missing-store"],
+  };
+
+  const postRes = await createTeamMemberRoute(
+    new Request("http://localhost/api/team", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    })
+  );
+  assert.equal(postRes.status, 201);
+  const member = (await postRes.json()).member;
+  assert.equal(member.email, "owner@cafe.com");
+  assert.deepEqual(member.storeIds, [store.id]);
+
+  // Duplicate invitations are rejected
+  const duplicateRes = await createTeamMemberRoute(
+    new Request("http://localhost/api/team", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    })
+  );
+  assert.equal(duplicateRes.status, 409);
+
+  // The platform owner email can never be invited as a member
+  const ownerEmailRes = await createTeamMemberRoute(
+    new Request("http://localhost/api/team", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: process.env.ADMIN_ALLOWED_EMAIL || "anuragmishra3407@gmail.com" }),
+    })
+  );
+  assert.equal(ownerEmailRes.status, 409);
+
+  // Directory listing includes the invited admin
+  const listRes = await getTeamRoute();
+  assert.equal(listRes.status, 200);
+  const members = (await listRes.json()).members;
+  assert.ok(members.some((m: { id: string }) => m.id === member.id));
+
+  // Suspend access
+  const suspendRes = await updateTeamMemberRoute(
+    new Request(`http://localhost/api/team/${member.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: "suspended" }),
+    }),
+    { params: Promise.resolve({ id: member.id }) }
+  );
+  assert.equal(suspendRes.status, 200);
+  assert.equal((await suspendRes.json()).member.status, "suspended");
+
+  // Remove from the team
+  const deleteRes = await deleteTeamMemberRoute(
+    new Request(`http://localhost/api/team/${member.id}`, { method: "DELETE" }),
+    { params: Promise.resolve({ id: member.id }) }
+  );
+  assert.equal(deleteRes.status, 200);
+
+  await deleteStoreRoute(new Request("http://localhost/api/stores/" + store.id), {
+    params: Promise.resolve({ id: store.id }),
+  });
+});
+
+test("PUT /api/stores/[id] saves and clears Review Studio sentence combinations", async () => {
+  const store = await createTestStore({ ...validStorePayload, slug: "studio-test-store", name: "Studio Test Store" });
+
+  const templates = {
+    intros: ["Big love for {name}!"],
+    highlights: ["The {chip} was unreal."],
+    closers: ["Back again next week for sure."],
+  };
+
+  const putRes = await updateStoreRoute(
+    new Request(`http://localhost/api/stores/${store.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ reviewTemplates: templates }),
+    }),
+    { params: Promise.resolve({ id: store.id }) }
+  );
+  assert.equal(putRes.status, 200);
+  const saved = (await putRes.json()).store;
+  assert.deepEqual(saved.reviewTemplates, templates);
+
+  // An empty set clears the override so the built-in library is used again
+  const clearRes = await updateStoreRoute(
+    new Request(`http://localhost/api/stores/${store.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ reviewTemplates: { intros: [], highlights: [], closers: [] } }),
+    }),
+    { params: Promise.resolve({ id: store.id }) }
+  );
+  assert.equal(clearRes.status, 200);
+  assert.equal((await clearRes.json()).store.reviewTemplates, undefined);
+
+  await deleteStoreRoute(new Request("http://localhost/api/stores/" + store.id), {
+    params: Promise.resolve({ id: store.id }),
+  });
+});
+
+test("Low-rating alerts go to the store's own owners and are recorded on the feedback", async () => {
+  const store = await createTestStore({
+    ...validStorePayload,
+    slug: "owner-alert-store",
+    name: "Owner Alert Store",
+    managerEmail: "owner1@cafe.com, owner2@cafe.com",
+  });
+
+  const postRes = await submitFeedbackRoute(
+    new Request("http://localhost/api/feedback", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ storeId: store.id, rating: 2, message: "Service was slow tonight" }),
+    })
+  );
+  assert.equal(postRes.status, 201);
+  const feedback = (await postRes.json()).feedback;
+
+  assert.ok(feedback.alert, "Alert delivery should be recorded");
+  assert.deepEqual(feedback.alert.recipients, ["owner1@cafe.com", "owner2@cafe.com"]);
+  assert.ok(["sent", "failed"].includes(feedback.alert.status), "An attempt must be recorded as sent or failed");
+
+  // The delivery record is persisted for the firewall inbox
+  const listRes = await getFeedbackRoute(new Request(`http://localhost/api/feedback?storeId=${store.id}`));
+  const stored = (await listRes.json()).feedbacks.find((f: { id: string }) => f.id === feedback.id);
+  assert.equal(stored.alert.status, feedback.alert.status);
+  assert.deepEqual(stored.alert.recipients, ["owner1@cafe.com", "owner2@cafe.com"]);
+
+  await deleteStoreRoute(new Request("http://localhost/api/stores/" + store.id), {
+    params: Promise.resolve({ id: store.id }),
+  });
+});
+
+test("A store with no owner inbox records a skipped alert instead of emailing the platform", async () => {
+  const store = await createTestStore({
+    ...validStorePayload,
+    slug: "no-owner-store",
+    name: "No Owner Store",
+    managerEmail: "",
+  });
+
+  const postRes = await submitFeedbackRoute(
+    new Request("http://localhost/api/feedback", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ storeId: store.id, rating: 1, message: "Wrong order twice" }),
+    })
+  );
+  assert.equal(postRes.status, 201);
+  const feedback = (await postRes.json()).feedback;
+
+  assert.equal(feedback.alert.status, "skipped");
+  assert.deepEqual(feedback.alert.recipients, [], "No platform fallback recipient is used");
+
+  await deleteStoreRoute(new Request("http://localhost/api/stores/" + store.id), {
+    params: Promise.resolve({ id: store.id }),
+  });
 });
 
 test("Security: Admin endpoints reject requests when unauthenticated in production mode", async () => {

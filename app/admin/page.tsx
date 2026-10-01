@@ -1,9 +1,10 @@
 import React from "react";
 import { connection } from "next/server";
-import { getAllStores, getAnalytics, getFeedbacks } from "@/lib/store";
+import { redirect } from "next/navigation";
+import { getAllStores, getStoresByIds, getAnalytics, getFeedbacks } from "@/lib/store";
+import { getSessionUser, scopedStoreIds } from "@/lib/auth";
 import Link from "next/link";
 import {
-  ShieldCheck,
   ShieldAlert,
   Star,
   Printer,
@@ -20,13 +21,22 @@ import {
 export default async function AdminOverviewPage() {
   await connection();
 
+  const user = await getSessionUser();
+  if (!user) {
+    redirect("/sign-in");
+  }
+
+  // Super admins see the whole platform; store admins only their locations.
+  const scope = scopedStoreIds(user);
+
   const [stores, analytics, feedbacks] = await Promise.all([
-    getAllStores(),
-    getAnalytics(),
-    getFeedbacks(),
+    scope === null ? getAllStores() : getStoresByIds(scope),
+    scope === null ? getAnalytics() : getAnalytics(undefined, scope),
+    scope === null ? getFeedbacks() : getFeedbacks(undefined, scope),
   ]);
 
   const recentFeedbacks = feedbacks.slice(0, 5);
+  const isSuperAdmin = user.isSuperAdmin;
 
   return (
     <main className="p-6 sm:p-10 max-w-7xl mx-auto w-full space-y-8">
@@ -34,13 +44,13 @@ export default async function AdminOverviewPage() {
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-gradient-to-r from-zinc-900 via-zinc-800 to-zinc-900 p-6 sm:p-8 rounded-3xl text-white shadow-md border border-zinc-700/50">
         <div className="space-y-1">
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-white/10 text-amber-300 backdrop-blur-sm border border-white/10">
-            <Sparkles className="w-3.5 h-3.5" /> Offline QR Agency Operations
+            <Sparkles className="w-3.5 h-3.5" /> {isSuperAdmin ? "Platform Operations" : "Your Locations"}
           </div>
           <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-white mt-1">
-            Restaurant Standees &amp; Reviews
+            {isSuperAdmin ? "Restaurant Standees & Reviews" : `Welcome back`}
           </h1>
           <p className="text-xs text-zinc-300 max-w-2xl leading-relaxed">
-            Configure restaurant dishes, generate single 1-year QR table standees, and protect client reputations with instant Resend email alerts on low ratings.
+            Configure dishes and sentence combinations, generate permanent QR table standees, and keep owners in the loop with instant email alerts on low ratings.
           </p>
         </div>
 
@@ -49,13 +59,15 @@ export default async function AdminOverviewPage() {
             href="/admin/stores"
             className="px-5 py-3 rounded-2xl bg-white text-zinc-950 font-bold text-xs hover:bg-zinc-100 transition-all flex items-center gap-2 shadow-lg"
           >
-            <Plus className="w-4 h-4" /> Add Restaurant
-          </Link>
-          <Link
-            href="/boost"
-            className="px-4 py-3 rounded-2xl bg-zinc-800/80 border border-zinc-700 text-zinc-200 font-semibold text-xs hover:bg-zinc-800 transition-all flex items-center gap-2"
-          >
-            <QrCode className="w-4 h-4 text-amber-400" /> Interactive Demo
+            {isSuperAdmin ? (
+              <>
+                <Plus className="w-4 h-4" /> Add Restaurant
+              </>
+            ) : (
+              <>
+                <QrCode className="w-4 h-4" /> Manage Locations
+              </>
+            )}
           </Link>
         </div>
       </div>
@@ -129,7 +141,7 @@ export default async function AdminOverviewPage() {
           <div>
             <h2 className="text-xl font-bold text-zinc-900">Your Active Restaurants &amp; Cafes</h2>
             <p className="text-xs text-zinc-500">
-              Each store has a single permanent QR code you can print and sell offline.
+              Every location has one permanent QR code — print it once, and updated dishes or sentence combinations never require a reprint.
             </p>
           </div>
           <Link
@@ -302,9 +314,32 @@ export default async function AdminOverviewPage() {
                   </div>
                 </div>
 
-                <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 shrink-0">
-                  Resend Alert Emailed
-                </span>
+                {fb.alert?.status === "sent" && (
+                  <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 shrink-0">
+                    Owners Alerted
+                  </span>
+                )}
+                {fb.alert?.status === "failed" && (
+                  <span
+                    className="text-[11px] font-semibold px-2.5 py-1 rounded-full bg-rose-50 text-rose-700 border border-rose-200 shrink-0"
+                    title={fb.alert.error}
+                  >
+                    Email Failed
+                  </span>
+                )}
+                {fb.alert?.status === "skipped" && (
+                  <span
+                    className="text-[11px] font-semibold px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-200 shrink-0"
+                    title={fb.alert.error}
+                  >
+                    No Owner Email
+                  </span>
+                )}
+                {!fb.alert && (
+                  <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full bg-zinc-100 text-zinc-600 border border-zinc-200 shrink-0">
+                    Alert Pending
+                  </span>
+                )}
               </div>
             ))}
           </div>

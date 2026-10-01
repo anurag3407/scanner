@@ -1,6 +1,6 @@
 import React from "react";
 import { notFound } from "next/navigation";
-import { getStoreById, getAllStores } from "@/lib/store";
+import { getStoreByScanKey } from "@/lib/store";
 import PrintableStandee from "@/components/PrintableStandee";
 
 interface Props {
@@ -9,13 +9,8 @@ interface Props {
 
 export default async function AdminPrintPage({ params }: Props) {
   const { id } = await params;
-  let store = await getStoreById(id);
-
-  // If not found by ID, attempt match by slug as well
-  if (!store) {
-    const stores = await getAllStores();
-    store = stores.find((s) => s.slug === id || s.id === id) || null;
-  }
+  // Accepts either the permanent store id (preferred, what the QR encodes) or a slug.
+  const store = await getStoreByScanKey(id);
 
   if (!store) {
     notFound();

@@ -1,5 +1,5 @@
 import React from "react";
-import { getStoreBySlug } from "@/lib/store";
+import { getStoreByScanKey } from "@/lib/store";
 import CustomerReviewFlow from "@/components/CustomerReviewFlow";
 import Link from "next/link";
 import { ArrowLeft, RefreshCw, Store as StoreIcon } from "lucide-react";
@@ -17,7 +17,7 @@ export default async function CustomerScanPage({ params, searchParams }: Props) 
   // calm "try again" screen instead (never to stale or fake review content).
   let store = null;
   try {
-    store = await getStoreBySlug(slug);
+    store = await getStoreByScanKey(slug);
   } catch (err) {
     console.error("Failed to load store for scan page", err);
 
@@ -53,15 +53,9 @@ export default async function CustomerScanPage({ params, searchParams }: Props) 
           </div>
           <h1 className="text-xl font-bold text-zinc-900">Restaurant Not Found</h1>
           <p className="text-sm text-zinc-500 mt-2">
-            The QR code you scanned for &ldquo;{slug}&rdquo; is not active or has moved.
+            This review QR is not active or has moved. Please ask our staff for a fresh code.
           </p>
-          <div className="mt-6 space-y-2">
-            <Link
-              href="/boost"
-              className="block w-full py-2.5 px-4 bg-zinc-900 text-white rounded-xl text-sm font-medium hover:bg-black transition-colors"
-            >
-              Try Demo Simulator
-            </Link>
+          <div className="mt-6">
             <Link
               href="/"
               className="inline-flex items-center gap-1.5 text-xs text-zinc-500 hover:text-zinc-800 pt-2 font-medium"

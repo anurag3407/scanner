@@ -22,7 +22,6 @@ import { getGoogleReviewUrl, isDirectReviewUrl } from "@/lib/review-links";
 interface Props {
   store: Store;
   initialTable?: string;
-  isSimulator?: boolean;
 }
 
 const COMMON_ISSUES = [
@@ -34,11 +33,7 @@ const COMMON_ISSUES = [
   "💬 Other feedback",
 ];
 
-export default function CustomerReviewFlow({
-  store,
-  initialTable = "",
-  isSimulator = false,
-}: Props) {
+export default function CustomerReviewFlow({ store, initialTable = "" }: Props) {
   // Pre-selected 5 stars by default
   const [rating, setRating] = useState<number>(5);
 
@@ -57,12 +52,12 @@ export default function CustomerReviewFlow({
       chips: defaultSelectedChips,
       variationSeed: seed,
       tone: "punchy",
+      templates: store.reviewTemplates,
     })
   );
 
   const [isEditing, setIsEditing] = useState<boolean>(false);
   const [copied, setCopied] = useState<boolean>(false);
-  const [hasOpenedGoogle, setHasOpenedGoogle] = useState<boolean>(false);
   const scanLogged = useRef<boolean>(false);
 
   // Private feedback state for 1-3 stars
@@ -85,7 +80,7 @@ export default function CustomerReviewFlow({
 
   // Log scan event once per visit
   useEffect(() => {
-    if (isSimulator || scanLogged.current) return;
+    if (scanLogged.current) return;
     scanLogged.current = true;
     fetch("/api/events", {
       method: "POST",
@@ -97,10 +92,9 @@ export default function CustomerReviewFlow({
         chips: [],
       }),
     }).catch(() => {});
-  }, [isSimulator, store.id]);
+  }, [store.id]);
 
   const logEvent = (type: ScanEventType, payload: { rating?: number; chips?: string[]; reviewText?: string } = {}) => {
-    if (isSimulator) return;
     fetch("/api/events", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -128,6 +122,7 @@ export default function CustomerReviewFlow({
       chips: updated,
       variationSeed: seed,
       tone: "punchy",
+      templates: store.reviewTemplates,
     });
     setReviewText(newText);
     logEvent("chip_toggle", { chips: updated, reviewText: newText });
@@ -144,6 +139,7 @@ export default function CustomerReviewFlow({
       chips: selectedChips,
       variationSeed: nextSeed,
       tone: "punchy",
+      templates: store.reviewTemplates,
     });
     setReviewText(newText);
     logEvent("chip_toggle", { chips: selectedChips, reviewText: newText });
@@ -178,7 +174,7 @@ export default function CustomerReviewFlow({
   const googleReviewUrl = getGoogleReviewUrl(store);
 
   // 1-Tap Copy & Open Google
-  const handleOpenGoogle = async (e: React.MouseEvent<HTMLAnchorElement>) => {
+  const handleOpenGoogle = async () => {
     triggerHaptic([25, 45, 25]);
     const ok = await copyToClipboard(reviewText);
     setCopied(ok);
@@ -193,14 +189,6 @@ export default function CustomerReviewFlow({
     } catch {}
 
     logEvent("copy_open", { chips: selectedChips, reviewText });
-    setHasOpenedGoogle(true);
-
-    if (isSimulator) {
-      e.preventDefault();
-      setTimeout(() => setCopied(false), 4000);
-      return;
-    }
-
     setTimeout(() => setCopied(false), 8000);
   };
 
@@ -273,12 +261,6 @@ export default function CustomerReviewFlow({
           </div>
         </div>
 
-        {isSimulator && (
-          <div className="mt-3 py-1 px-2.5 rounded-lg bg-black/25 text-[11px] font-mono flex items-center justify-between text-white/90">
-            <span>⚡ Interactive Preview</span>
-            <span className="text-emerald-300 font-semibold">0ms AI</span>
-          </div>
-        )}
       </div>
 
       <div className="p-6">
