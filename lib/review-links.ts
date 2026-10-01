@@ -73,8 +73,8 @@ export function getGoogleReviewUrl(store: {
       // If legacy maps.google.com/?q=... or maps/search/?api=1&query=...
       const queryParam = parsed.searchParams.get("q") || parsed.searchParams.get("query");
       if (queryParam) {
-        const clean = queryParam.replace(/\b(reviews?|ratings?)\b/gi, "").trim();
-        return `https://www.google.com/search?q=${encodeURIComponent(clean + " reviews")}`;
+        const clean = queryParam.trim();
+        return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(clean)}`;
       }
 
       return raw;
@@ -83,11 +83,11 @@ export function getGoogleReviewUrl(store: {
     }
   }
 
-  // 3. Fallback to Google Search Reviews with store name and address
+  // 3. Fallback to Google Maps Search with store name and address (never Google Search page)
   const queryText = [store.name, store.address || store.tagline || store.category || ""]
     .filter(Boolean)
     .join(" ")
     .trim();
   const cleanQuery = queryText || store.name;
-  return `https://www.google.com/search?q=${encodeURIComponent(cleanQuery + " reviews")}`;
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(cleanQuery)}`;
 }

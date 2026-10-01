@@ -43,15 +43,15 @@ test("getGoogleReviewUrl extracts placeid from Google Maps search URLs", () => {
   assert.equal(url, "https://search.google.com/local/writereview?placeid=ChIJN1t_tDeuEmsRUsoyG83frY4");
 });
 
-test("getGoogleReviewUrl routes legacy maps.google.com/?q=... links to Google Search Reviews", () => {
+test("getGoogleReviewUrl routes legacy maps.google.com/?q=... links to Google Maps", () => {
   const url = getGoogleReviewUrl({
     name: "French Window Patisserie",
     googlePlaceId: "https://maps.google.com/?q=French+Window+Patisserie+Koregaon+Park+Pune",
   });
-  assert.equal(url, "https://www.google.com/search?q=French%20Window%20Patisserie%20Koregaon%20Park%20Pune%20reviews");
+  assert.equal(url, "https://www.google.com/maps/search/?api=1&query=French%20Window%20Patisserie%20Koregaon%20Park%20Pune");
 });
 
-test("getGoogleReviewUrl falls back gracefully to Google Search Reviews if googlePlaceId is empty", () => {
+test("getGoogleReviewUrl falls back gracefully to Google Maps if googlePlaceId is empty", () => {
   const url = getGoogleReviewUrl({
     name: "Third Wave Coffee",
     address: "Koramangala 4th Block, Bengaluru",
@@ -60,6 +60,6 @@ test("getGoogleReviewUrl falls back gracefully to Google Search Reviews if googl
 
   assert.equal(
     url,
-    "https://www.google.com/search?q=Third%20Wave%20Coffee%20Koramangala%204th%20Block%2C%20Bengaluru%20reviews"
+    "https://www.google.com/maps/search/?api=1&query=Third%20Wave%20Coffee%20Koramangala%204th%20Block%2C%20Bengaluru"
   );
 });
