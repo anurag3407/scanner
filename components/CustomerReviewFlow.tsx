@@ -408,6 +408,19 @@ export default function CustomerReviewFlow({
                 {feedbackError && (
                   <p className="text-[11px] text-rose-600 text-center font-medium">{feedbackError}</p>
                 )}
+
+                {/* Google Policy Compliance: Unrestricted access to Google Reviews */}
+                <div className="pt-2 text-center border-t border-amber-200/60">
+                  <a
+                    href={googleReviewUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[11px] text-zinc-500 hover:text-zinc-800 underline inline-flex items-center gap-1 transition-colors"
+                  >
+                    <span>Prefer to leave a public review on Google Maps instead?</span>
+                    <ExternalLink className="w-3 h-3 opacity-60" />
+                  </a>
+                </div>
               </form>
             )}
           </div>
