@@ -1,6 +1,8 @@
 // Fast & Natural Review Generation Engine
 // 100% deterministic, zero external AI latency, rich variations to prevent Google review duplication/blacklisting.
 
+import { ReviewTemplateSet } from "./types";
+
 export interface GenerateReviewOptions {
   storeName: string;
   category: string;
@@ -8,6 +10,8 @@ export interface GenerateReviewOptions {
   rating?: number;
   variationSeed?: number;
   tone?: "punchy" | "foodie" | "hospitality";
+  /** Store-owned sentence combinations. Empty lists fall back to the built-in library. */
+  templates?: ReviewTemplateSet;
 }
 
 const INTROS = [
@@ -134,10 +138,52 @@ const PUNCHY_OUTROS = [
   "Already planning our next trip back!"
 ];
 
+/** Sentence sets a store admin can load into the Review Studio as a starting point. */
+export const STARTER_TEMPLATES: ReviewTemplateSet = {
+  intros: [
+    "Had such a wonderful experience at {name} today!",
+    "Hands down one of my favorite spots in town—{name} always delivers.",
+    "Visited {name} today and it immediately earned a spot on our regular favorites list.",
+  ],
+  highlights: [
+    "The {chip} was prepared to perfection—bursting with flavor and impeccably fresh.",
+    "You simply cannot leave without trying the {chip}; easily a standout highlight.",
+    "Loved the {chip}, and the team behind it clearly cares about every detail.",
+  ],
+  closers: [
+    "Will definitely be returning soon and bringing friends along. Highly recommended!",
+    "Easily a 5/5 spot. If you haven't visited yet, you are truly missing out!",
+    "Consistently delivers exceptional quality. Already planning my next visit!",
+  ],
+};
+
+function pickFrom(list: string[], seed: number, salt: number): string {
+  if (list.length === 0) return "";
+  return list[Math.abs(seed * (13 + salt) + salt * 29 + salt) % list.length];
+}
+
+function renderTemplate(
+  line: string,
+  vars: { name: string; chip?: string; category?: string }
+): string {
+  return line
+    .replace(/\{name\}/gi, vars.name)
+    .replace(/\{store\}/gi, vars.name)
+    .replace(/\{chip\}/gi, vars.chip ?? "")
+    .replace(/\{item\}/gi, vars.chip ?? "")
+    .replace(/\{dish\}/gi, vars.chip ?? "")
+    .replace(/\{category\}/gi, vars.category ?? "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 /**
  * Instant 0ms deterministic review generator.
  * Produces thousands of unique, natural sentence combinations to ensure
- * Google BERT/spam filters never flag reviews as duplicated.
+ * Google BERT/spam filters never flag reviews as duplicated. When a store has
+ * published its own sentence combinations, those take priority over the
+ * built-in library — which is also how a store refreshes its review text
+ * without ever reprinting a QR code.
  */
 export function generateOfflineReview({
   storeName,
@@ -145,7 +191,12 @@ export function generateOfflineReview({
   chips,
   variationSeed = 0,
   tone,
+  templates,
 }: GenerateReviewOptions): string {
+  const customIntros = templates?.intros?.length ? templates.intros : null;
+  const customHighlights = templates?.highlights?.length ? templates.highlights : null;
+  const customClosers = templates?.closers?.length ? templates.closers : null;
+
   let introList = INTROS;
   let outroList = OUTROS;
 
@@ -164,14 +215,37 @@ export function generateOfflineReview({
   const introIndex = Math.abs(variationSeed * 17 + chips.length * 7) % introList.length;
   const outroIndex = Math.abs(variationSeed * 31 + chips.length * 11 + 3) % outroList.length;
 
-  const intro = introList[introIndex].replace(/{name}/g, storeName);
-  const outro = outroList[outroIndex].replace(/{name}/g, storeName);
+  const intro = customIntros
+    ? renderTemplate(pickFrom(customIntros, variationSeed, 3), { name: storeName, category })
+    : introList[introIndex].replace(/{name}/g, storeName);
+  const outro = customClosers
+    ? renderTemplate(pickFrom(customClosers, variationSeed, 7), { name: storeName, category })
+    : outroList[outroIndex].replace(/{name}/g, storeName);
 
   if (!chips || chips.length === 0) {
     if (tone === "punchy") {
       return `${intro} The food and service at this ${category.toLowerCase()} were top-tier. ${outro}`;
     }
     return `${intro} The food, atmosphere, and service at this ${category.toLowerCase()} were exceptional from start to finish. ${outro}`;
+  }
+
+  // Store-authored sentence combinations take priority over the built-in library.
+  if (customHighlights) {
+    const customBody = [...chips]
+      .slice(0, tone === "punchy" ? 2 : 3)
+      .map((chip, idx) =>
+        renderTemplate(pickFrom(customHighlights, variationSeed + idx, 11 + idx * 5), {
+          name: storeName,
+          chip,
+          category,
+        })
+      )
+      .filter((line) => line.length > 0)
+      .join(" ");
+
+    if (customBody) {
+      return `${intro} ${customBody} ${outro}`;
+    }
   }
 
   const highlights: string[] = [];

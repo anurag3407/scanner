@@ -1,12 +1,23 @@
 import fs from "fs";
 import path from "path";
-import { Store, ScanEvent, ScanEventType, FeedbackSubmission, AnalyticsSummary } from "./types";
+import {
+  Store,
+  ScanEvent,
+  ScanEventType,
+  FeedbackSubmission,
+  AnalyticsSummary,
+  TeamMember,
+  AlertDelivery,
+  ReviewTemplateSet,
+} from "./types";
 import { getSupabaseClient } from "./supabase";
+import { sanitizeTemplateSet } from "./validation";
 
 interface DataStoreSchema {
   stores: Store[];
   feedbacks: FeedbackSubmission[];
   events: ScanEvent[];
+  members: TeamMember[];
 }
 
 let memoryCache: DataStoreSchema | null = null;
@@ -17,7 +28,7 @@ function getDataFile(): string {
 }
 
 function emptyData(): DataStoreSchema {
-  return { stores: [], feedbacks: [], events: [] };
+  return { stores: [], feedbacks: [], events: [], members: [] };
 }
 
 function loadLocalData(): DataStoreSchema {
@@ -32,6 +43,7 @@ function loadLocalData(): DataStoreSchema {
       stores: Array.isArray(parsed?.stores) ? parsed.stores : [],
       feedbacks: Array.isArray(parsed?.feedbacks) ? parsed.feedbacks : [],
       events: Array.isArray(parsed?.events) ? parsed.events : [],
+      members: Array.isArray(parsed?.members) ? parsed.members : [],
     };
     memoryCacheFile = file;
     return memoryCache;
@@ -76,6 +88,24 @@ function parseJsonArray(val: unknown): string[] {
   return [];
 }
 
+function parseJsonObject<T>(val: unknown): T | undefined {
+  if (!val) return undefined;
+  if (typeof val === "object") return val as T;
+  if (typeof val === "string") {
+    try {
+      const parsed = JSON.parse(val);
+      if (parsed && typeof parsed === "object") return parsed as T;
+    } catch {
+      return undefined;
+    }
+  }
+  return undefined;
+}
+
+function parseTemplateSet(val: unknown): ReviewTemplateSet | undefined {
+  return sanitizeTemplateSet(parseJsonObject(val));
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function mapRowToStore(r: any): Store {
   return {
@@ -94,6 +124,7 @@ function mapRowToStore(r: any): Store {
     managerPhone: r.manager_phone || r.managerPhone || "",
     address: r.address || "",
     tableCount: Number(r.table_count ?? r.tableCount) || 0,
+    reviewTemplates: parseTemplateSet(r.review_templates ?? r.reviewTemplates),
     ratingScore: Number(r.rating_score ?? r.ratingScore) || 0,
     reviewCount: Number(r.review_count ?? r.reviewCount) || 0,
     createdAt: r.created_at || r.createdAt || new Date().toISOString(),
@@ -118,6 +149,7 @@ function mapStoreToRow(s: Store): any {
     manager_phone: s.managerPhone || "",
     address: s.address || "",
     table_count: s.tableCount || 0,
+    review_templates: s.reviewTemplates || null,
     rating_score: s.ratingScore || 0,
     review_count: s.reviewCount || 0,
     created_at: s.createdAt,
@@ -136,7 +168,34 @@ function mapRowToFeedback(r: any): FeedbackSubmission {
     customerContact: r.customer_contact || r.customerContact || undefined,
     message: r.message,
     status: r.status,
+    alert: parseJsonObject<AlertDelivery>(r.alert),
     createdAt: r.created_at || r.createdAt,
+  };
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function mapRowToMember(r: any): TeamMember {
+  return {
+    id: r.id,
+    email: String(r.email || "").toLowerCase().trim(),
+    name: r.name || "",
+    role: r.role === "super_admin" ? "super_admin" : "store_admin",
+    storeIds: parseJsonArray(r.store_ids || r.storeIds),
+    status: r.status === "suspended" ? "suspended" : "active",
+    createdAt: r.created_at || r.createdAt || new Date().toISOString(),
+  };
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function mapMemberToRow(m: TeamMember): any {
+  return {
+    id: m.id,
+    email: m.email,
+    name: m.name,
+    role: m.role,
+    store_ids: m.storeIds || [],
+    status: m.status,
+    created_at: m.createdAt,
   };
 }
 
@@ -168,6 +227,27 @@ export async function getAllStores(): Promise<Store[]> {
   }
 
   return [...loadLocalData().stores];
+}
+
+/** Loads only the locations a store admin is assigned to. Super admins use getAllStores(). */
+export async function getStoresByIds(storeIds: string[]): Promise<Store[]> {
+  if (storeIds.length === 0) return [];
+
+  const supabase = getSupabaseClient();
+  if (supabase) {
+    const { data, error } = await supabase
+      .from("stores")
+      .select("*")
+      .in("id", storeIds)
+      .order("created_at", { ascending: false });
+    if (error) {
+      throw new Error(`Failed to load stores from Supabase: ${error.message}`);
+    }
+    return (data ?? []).map(mapRowToStore);
+  }
+
+  const wanted = new Set(storeIds);
+  return loadLocalData().stores.filter((s) => wanted.has(s.id));
 }
 
 export async function getStoreBySlug(slug: string): Promise<Store | null> {
@@ -209,6 +289,21 @@ export async function getStoreById(id: string): Promise<Store | null> {
 
   const found = loadLocalData().stores.find((s) => s.id === id);
   return found ? { ...found } : null;
+}
+
+/**
+ * Resolves the permanent QR target. Printed standees encode the immutable store
+ * id, so items, dishes, staff names and sentence combinations can all change
+ * later without ever invalidating a printed QR. Slugs remain supported as a
+ * friendly alias for links shared by hand.
+ */
+export async function getStoreByScanKey(key: string): Promise<Store | null> {
+  const trimmed = (key || "").trim();
+  if (!trimmed) return null;
+
+  const byId = await getStoreById(trimmed);
+  if (byId) return byId;
+  return getStoreBySlug(trimmed);
 }
 
 export async function createStore(
@@ -288,6 +383,142 @@ export async function deleteStore(id: string): Promise<boolean> {
   return true;
 }
 
+/* -------------------------------------------------------------------------- */
+/* Team members (super admin → store admin hierarchy)                         */
+/* -------------------------------------------------------------------------- */
+
+export async function getTeamMembers(): Promise<TeamMember[]> {
+  const supabase = getSupabaseClient();
+  if (supabase) {
+    const { data, error } = await supabase
+      .from("team_members")
+      .select("*")
+      .order("created_at", { ascending: true });
+    if (error) {
+      throw new Error(`Failed to load team members from Supabase: ${error.message}`);
+    }
+    return (data ?? []).map(mapRowToMember);
+  }
+
+  return [...loadLocalData().members];
+}
+
+export async function getTeamMemberByEmail(email: string): Promise<TeamMember | null> {
+  const normalized = email.toLowerCase().trim();
+  if (!normalized) return null;
+
+  const supabase = getSupabaseClient();
+  if (supabase) {
+    const { data, error } = await supabase
+      .from("team_members")
+      .select("*")
+      .eq("email", normalized)
+      .limit(1)
+      .maybeSingle();
+    if (error) {
+      throw new Error(`Failed to load team member from Supabase: ${error.message}`);
+    }
+    return data ? mapRowToMember(data) : null;
+  }
+
+  const found = loadLocalData().members.find((m) => m.email === normalized);
+  return found ? { ...found } : null;
+}
+
+export async function createTeamMember(
+  input: Omit<TeamMember, "id" | "createdAt" | "status"> & { status?: TeamMember["status"] }
+): Promise<TeamMember> {
+  const member: TeamMember = {
+    ...input,
+    email: input.email.toLowerCase().trim(),
+    status: input.status || "active",
+    id: id("member"),
+    createdAt: new Date().toISOString(),
+  };
+
+  const supabase = getSupabaseClient();
+  if (supabase) {
+    const { error } = await supabase.from("team_members").insert([mapMemberToRow(member)]);
+    if (error) {
+      throw new Error(`Failed to create team member in Supabase: ${error.message}`);
+    }
+    return member;
+  }
+
+  const data = loadLocalData();
+  data.members.push(member);
+  persistLocalData(data);
+  return member;
+}
+
+export async function updateTeamMember(
+  memberId: string,
+  updates: Partial<Omit<TeamMember, "id" | "createdAt">>
+): Promise<TeamMember | null> {
+  const supabase = getSupabaseClient();
+  if (supabase) {
+    const { data, error } = await supabase
+      .from("team_members")
+      .select("*")
+      .eq("id", memberId)
+      .limit(1)
+      .maybeSingle();
+    if (error) {
+      throw new Error(`Failed to load team member from Supabase: ${error.message}`);
+    }
+    if (!data) return null;
+
+    const merged: TeamMember = {
+      ...mapRowToMember(data),
+      ...updates,
+      id: memberId,
+      email: (updates.email || mapRowToMember(data).email).toLowerCase().trim(),
+    };
+    const { error: updateError } = await supabase
+      .from("team_members")
+      .update(mapMemberToRow(merged))
+      .eq("id", memberId);
+    if (updateError) {
+      throw new Error(`Failed to update team member in Supabase: ${updateError.message}`);
+    }
+    return merged;
+  }
+
+  const data = loadLocalData();
+  const index = data.members.findIndex((m) => m.id === memberId);
+  if (index === -1) return null;
+  data.members[index] = {
+    ...data.members[index],
+    ...updates,
+    id: memberId,
+    email: (updates.email || data.members[index].email).toLowerCase().trim(),
+  };
+  persistLocalData(data);
+  return data.members[index];
+}
+
+export async function deleteTeamMember(memberId: string): Promise<boolean> {
+  const supabase = getSupabaseClient();
+  if (supabase) {
+    const { data, error } = await supabase
+      .from("team_members")
+      .delete()
+      .eq("id", memberId)
+      .select("id");
+    if (error) {
+      throw new Error(`Failed to delete team member from Supabase: ${error.message}`);
+    }
+    return (data ?? []).length > 0;
+  }
+
+  const data = loadLocalData();
+  const initialLen = data.members.length;
+  data.members = data.members.filter((m) => m.id !== memberId);
+  if (data.members.length === initialLen) return false;
+  persistLocalData(data);
+  return true;
+}
+
 // Best-effort review counter update for a confirmed Google hand-off.
 async function incrementSupabaseReviewCount(storeId: string) {
   const supabase = getSupabaseClient();
@@ -354,12 +585,15 @@ export async function logScanEvent(event: Omit<ScanEvent, "id" | "timestamp">): 
   return newEvent;
 }
 
-export async function getScanEvents(storeId?: string): Promise<ScanEvent[]> {
+export async function getScanEvents(storeId?: string, storeIds?: string[]): Promise<ScanEvent[]> {
   const supabase = getSupabaseClient();
   if (supabase) {
+    if (storeIds && storeIds.length === 0 && !storeId) return [];
     let query = supabase.from("scan_events").select("*").order("timestamp", { ascending: true });
     if (storeId) {
       query = query.eq("store_id", storeId);
+    } else if (storeIds && storeIds.length > 0) {
+      query = query.in("store_id", storeIds);
     }
     const { data, error } = await query;
     if (error) {
@@ -369,7 +603,12 @@ export async function getScanEvents(storeId?: string): Promise<ScanEvent[]> {
   }
 
   const events = loadLocalData().events;
-  return storeId ? events.filter((e) => e.storeId === storeId) : [...events];
+  if (storeId) return events.filter((e) => e.storeId === storeId);
+  if (storeIds) {
+    const allowed = new Set(storeIds);
+    return events.filter((e) => allowed.has(e.storeId));
+  }
+  return [...events];
 }
 
 export async function submitPrivateFeedback(
@@ -395,6 +634,7 @@ export async function submitPrivateFeedback(
         customer_contact: newFeedback.customerContact ?? null,
         message: newFeedback.message,
         status: newFeedback.status,
+        alert: newFeedback.alert ?? null,
         created_at: newFeedback.createdAt,
       },
     ]);
@@ -411,12 +651,33 @@ export async function submitPrivateFeedback(
   return newFeedback;
 }
 
-export async function getFeedbacks(storeId?: string): Promise<FeedbackSubmission[]> {
+/** Records whether the owner alert email actually went out (shown in the inbox). */
+export async function updateFeedbackAlert(feedbackId: string, alert: AlertDelivery): Promise<void> {
   const supabase = getSupabaseClient();
   if (supabase) {
+    const { error } = await supabase.from("feedbacks").update({ alert }).eq("id", feedbackId);
+    if (error) {
+      console.error("Failed to record alert delivery in Supabase:", error.message);
+    }
+    return;
+  }
+
+  const data = loadLocalData();
+  const item = data.feedbacks.find((f) => f.id === feedbackId);
+  if (!item) return;
+  item.alert = alert;
+  persistLocalData(data);
+}
+
+export async function getFeedbacks(storeId?: string, storeIds?: string[]): Promise<FeedbackSubmission[]> {
+  const supabase = getSupabaseClient();
+  if (supabase) {
+    if (storeIds && storeIds.length === 0 && !storeId) return [];
     let query = supabase.from("feedbacks").select("*").order("created_at", { ascending: false });
     if (storeId) {
       query = query.eq("store_id", storeId);
+    } else if (storeIds && storeIds.length > 0) {
+      query = query.in("store_id", storeIds);
     }
     const { data, error } = await query;
     if (error) {
@@ -426,7 +687,12 @@ export async function getFeedbacks(storeId?: string): Promise<FeedbackSubmission
   }
 
   const feedbacks = loadLocalData().feedbacks;
-  return storeId ? feedbacks.filter((f) => f.storeId === storeId) : [...feedbacks];
+  if (storeId) return feedbacks.filter((f) => f.storeId === storeId);
+  if (storeIds) {
+    const allowed = new Set(storeIds);
+    return feedbacks.filter((f) => allowed.has(f.storeId));
+  }
+  return [...feedbacks];
 }
 
 export async function updateFeedbackStatus(
@@ -557,8 +823,11 @@ export function buildAnalytics(
   };
 }
 
-export async function getAnalytics(storeId?: string): Promise<AnalyticsSummary> {
-  const [events, feedbacks] = await Promise.all([getScanEvents(storeId), getFeedbacks(storeId)]);
+export async function getAnalytics(storeId?: string, storeIds?: string[]): Promise<AnalyticsSummary> {
+  const [events, feedbacks] = await Promise.all([
+    getScanEvents(storeId, storeIds),
+    getFeedbacks(storeId, storeIds),
+  ]);
   return buildAnalytics(events, feedbacks);
 }
 
