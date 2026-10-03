@@ -96,7 +96,7 @@ const params = (id) => ({ params: Promise.resolve({ id }) });
 const body = async (res) => await res.json();
 
 before(async () => {
-  const { createStore, createTeamMember, submitPrivateFeedback } = await import("@/lib/store");
+  const { createStore, createTeamMember, submitPrivateFeedback } = await import("../lib/store");
   VICTIM = await createStore({
     name: "Victim Bistro", slug: "victim-bistro", tagline: "P", category: "Restaurant",
     googlePlaceId: "ChIJvictim", brandColor: "#E11D48", chips: ["Secret"],
@@ -131,7 +131,7 @@ after(() => {
 
 test("1a  IDOR: store admin cannot GET/PUT/DELETE another tenant's store", async () => {
   signInAs(STORE_ADMIN);
-  const { GET, PUT, DELETE } = await import("@/app/api/stores/[id]/route");
+  const { GET, PUT, DELETE } = await import("../app/api/stores/[id]/route");
 
   const get = await GET(new Request("http://x"), params(OTHER.id));
   const put = await PUT(json("http://x", "PUT", { name: "pwned" }), params(OTHER.id));
@@ -143,14 +143,14 @@ test("1a  IDOR: store admin cannot GET/PUT/DELETE another tenant's store", async
   assert.equal(del.status, 403);
   assert.ok(!(JSON.stringify(await body(get)).includes("other-owner@other.test")));
 
-  const { getStoreById } = await import("@/lib/store");
+  const { getStoreById } = await import("../lib/store");
   assert.equal((await getStoreById(OTHER.id)).name, "Other Cafe", "other tenant must be untouched");
 });
 
 test("1b  IDOR: store admin cannot reach /api/team or /api/team/[id]", async () => {
   signInAs(STORE_ADMIN);
-  const { GET: getTeam, POST: postTeam } = await import("@/app/api/team/route");
-  const { PUT: putTeam, DELETE: delTeam } = await import("@/app/api/team/[id]/route");
+  const { GET: getTeam, POST: postTeam } = await import("../app/api/team/route");
+  const { PUT: putTeam, DELETE: delTeam } = await import("../app/api/team/[id]/route");
 
   const codes = {
     list: (await getTeam()).status,
@@ -161,14 +161,14 @@ test("1b  IDOR: store admin cannot reach /api/team or /api/team/[id]", async () 
   console.log("   [1b] %j", codes);
   for (const [k, v] of Object.entries(codes)) assert.equal(v, 403, `${k} must be owner-only`);
 
-  const { getTeamMembers } = await import("@/lib/store");
+  const { getTeamMembers } = await import("../lib/store");
   assert.equal((await getTeamMembers()).find((m) => m.email === "a@b.test"), undefined);
 });
 
 test("1c  IDOR: store admin cannot read or mutate another tenant's feedback", async () => {
   signInAs(STORE_ADMIN);
-  const { GET, PATCH } = await import("@/app/api/feedback/route");
-  const { getFeedbacks, getFeedbackById } = await import("@/lib/store");
+  const { GET, PATCH } = await import("../app/api/feedback/route");
+  const { getFeedbacks, getFeedbackById } = await import("../lib/store");
 
   // 1. The unscoped list must not even contain the foreign complaint.
   const listed = (await body(await GET(new Request("http://x/api/feedback")))).feedbacks;
@@ -195,7 +195,7 @@ test("1c  IDOR: store admin cannot read or mutate another tenant's feedback", as
 
 test("1d  IDOR: store admin cannot read another tenant's analytics", async () => {
   signInAs(STORE_ADMIN);
-  const { GET } = await import("@/app/api/analytics/route");
+  const { GET } = await import("../app/api/analytics/route");
   const res = await GET(new Request(`http://x/api/analytics?storeId=${OTHER.id}`));
   console.log("   [1d] GET ?storeId=other -> %s", res.status);
   assert.equal(res.status, 403);
@@ -204,9 +204,9 @@ test("1d  IDOR: store admin cannot read another tenant's analytics", async () =>
 
 test("1e  IDOR: unscoped list endpoints never leak the other tenant", async () => {
   signInAs(STORE_ADMIN);
-  const { GET: getStores } = await import("@/app/api/stores/route");
-  const { GET: getFb } = await import("@/app/api/feedback/route");
-  const { GET: getAn } = await import("@/app/api/analytics/route");
+  const { GET: getStores } = await import("../app/api/stores/route");
+  const { GET: getFb } = await import("../app/api/feedback/route");
+  const { GET: getAn } = await import("../app/api/analytics/route");
 
   const stores = (await body(await getStores())).stores;
   const fbs = (await body(await getFb(new Request("http://x/api/feedback")))).feedbacks;
@@ -229,7 +229,7 @@ test("1e  IDOR: unscoped list endpoints never leak the other tenant", async () =
 
 test("2a  Store admin cannot smuggle id/ratingScore/reviewCount/createdAt via PUT", async () => {
   signInAs(STORE_ADMIN); // only authorized on VICTIM
-  const { PUT } = await import("@/app/api/stores/[id]/route");
+  const { PUT } = await import("../app/api/stores/[id]/route");
 
   const res = await PUT(
     json("http://x", "PUT", {
@@ -254,12 +254,12 @@ test("2a  Store admin cannot smuggle id/ratingScore/reviewCount/createdAt via PU
 
 test("2b  Store admin cannot smuggle storeIds/role/status through any route", async () => {
   signInAs(STORE_ADMIN);
-  const { PUT: putStore } = await import("@/app/api/stores/[id]/route");
-  const { POST: postTeam, GET: getTeam } = await import("@/app/api/team/route");
-  const { PUT: putTeam, DELETE: delTeam } = await import("@/app/api/team/[id]/route");
-  const { PATCH: patchFb } = await import("@/app/api/feedback/route");
+  const { PUT: putStore } = await import("../app/api/stores/[id]/route");
+  const { POST: postTeam, GET: getTeam } = await import("../app/api/team/route");
+  const { PUT: putTeam, DELETE: delTeam } = await import("../app/api/team/[id]/route");
+  const { PATCH: patchFb } = await import("../app/api/feedback/route");
   const { getTeamMembers, getFeedbacks, getFeedbackById, submitPrivateFeedback } =
-    await import("@/lib/store");
+    await import("../lib/store");
 
   // A complaint on the store the admin legitimately owns.
   const own = await submitPrivateFeedback({
@@ -311,9 +311,9 @@ test("2b  Store admin cannot smuggle storeIds/role/status through any route", as
 
 test("3   updateTeamMember is unreachable by a non-owner (every verb, every id)", async () => {
   signInAs(STORE_ADMIN);
-  const { GET: getTeam, POST: postTeam } = await import("@/app/api/team/route");
-  const { PUT: putTeam, DELETE: delTeam } = await import("@/app/api/team/[id]/route");
-  const { getTeamMembers } = await import("@/lib/store");
+  const { GET: getTeam, POST: postTeam } = await import("../app/api/team/route");
+  const { PUT: putTeam, DELETE: delTeam } = await import("../app/api/team/[id]/route");
+  const { getTeamMembers } = await import("../lib/store");
 
   const codes = {
     list: (await getTeam()).status,
@@ -338,7 +338,7 @@ test("3   updateTeamMember is unreachable by a non-owner (every verb, every id)"
 /* ======================================================================== */
 
 test("4a  Owner check: case/whitespace normalize; look-alikes do NOT pass", async () => {
-  const { isSuperAdminEmail, getSessionUser } = await import("@/lib/auth");
+  const { isSuperAdminEmail, getSessionUser } = await import("../lib/auth");
   for (const variant of [OWNER, OWNER.toUpperCase(), `  ${OWNER}  `]) {
     assert.equal(isSuperAdminEmail(variant), true, `"${variant}" is the same mailbox`);
   }
@@ -367,7 +367,7 @@ test("4b  an UNVERIFIED secondary email must NOT confer a member's access", asyn
   // matching the directory against unverified addresses would hand over the
   // victim's console access with no email confirmation at all.
   signInAsMulti("attacker@evil.test", STORE_ADMIN, "unverified");
-  const { getSessionUser } = await import("@/lib/auth");
+  const { getSessionUser } = await import("../lib/auth");
   const u = await getSessionUser();
   assert.equal(
     u,
@@ -394,7 +394,7 @@ test("4b2  an UNVERIFIED PRIMARY address must NOT confer the owner's access", as
       { emailAddress: OWNER, verification: { status: "unverified" } },
     ],
   };
-  const { getSessionUser } = await import("@/lib/auth");
+  const { getSessionUser } = await import("../lib/auth");
   assert.equal(await getSessionUser(), null, "an unverified owner address must not authenticate");
 
   // Control: verified owner works.
@@ -414,11 +414,11 @@ test("4b2  an UNVERIFIED PRIMARY address must NOT confer the owner's access", as
 });
 
 test("4c  candidates loop: a SUSPENDED member's secondary email is still refused", async () => {
-  const { updateTeamMember } = await import("@/lib/store");
+  const { updateTeamMember } = await import("../lib/store");
   await updateTeamMember(STORE_ADMIN_ID, { status: "suspended" });
   try {
     signInAsMulti("attacker@evil.test", STORE_ADMIN, "unverified");
-    const { getSessionUser } = await import("@/lib/auth");
+    const { getSessionUser } = await import("../lib/auth");
     assert.equal(await getSessionUser(), null, "suspension must survive the candidate loop");
   } finally {
     await updateTeamMember(STORE_ADMIN_ID, { status: "active" });
@@ -431,7 +431,7 @@ test("4d  member.status outside the enum fails CLOSED (raw file write)", async (
   // write it (backup restore, migration, hand-edit) controls authorization.
   // Seed via the API, then overwrite the ON-DISK record with an off-enum status
   // so the next resolution must read it straight out of storage.
-  const { createTeamMember } = await import("@/lib/store");
+  const { createTeamMember } = await import("../lib/store");
   await createTeamMember({
     email: "rawprobe@victim.test", name: "Raw", role: "store_admin",
     storeIds: [VICTIM.id],
@@ -446,14 +446,14 @@ test("4d  member.status outside the enum fails CLOSED (raw file write)", async (
   // reference to THAT instance. Re-importing under a new specifier leaves the
   // old instance cached, so use the real invalidation seam — otherwise this
   // test would silently assert against a stale in-memory record.
-  const store = await import("@/lib/store");
+  const store = await import("../lib/store");
   store.invalidateLocalCache();
 
   const onDisk = await store.getTeamMemberByEmail("rawprobe@victim.test");
   assert.equal(onDisk.status, "suspended", "an off-enum status must not normalize to active");
 
   signInAs("rawprobe@victim.test");
-  const auth = await import("@/lib/auth");
+  const auth = await import("../lib/auth");
   assert.equal(
     await auth.getSessionUser(),
     null,
@@ -463,7 +463,7 @@ test("4d  member.status outside the enum fails CLOSED (raw file write)", async (
 });
 
 test("4d2 off-enum status/role/storeIds in the RAW file must fail closed", async () => {
-  const store = await import("@/lib/store");
+  const store = await import("../lib/store");
 
   const cases = [
     ["status", "ACTIVE", "uppercase active"],
@@ -486,11 +486,11 @@ test("4d2 off-enum status/role/storeIds in the RAW file must fail closed", async
     fs.writeFileSync(TEST_DATA_FILE, JSON.stringify(doc, null, 2));
 
     // Bust the in-memory cache so the read comes from the corrupted file.
-    const fresh = await import("@/lib/store?rawprobe=" + Math.random());
+    const fresh = await import("../lib/store?rawprobe=" + Math.random());
     void fresh;
 
     signInAs("rawprobe@victim.test");
-    const { getSessionUser: resolve } = await import("@/lib/auth");
+    const { getSessionUser: resolve } = await import("../lib/auth");
     const u = await resolve();
     console.log("   [4d2] %-8s=%-12j (%s) -> resolved=%s", field, value, label,
       u ? `${u.role} isSuper=${u.isSuperAdmin} scope=${JSON.stringify(u.storeIds)}` : "no");
@@ -503,8 +503,8 @@ test("4d2 off-enum status/role/storeIds in the RAW file must fail closed", async
 });
 
 test("4e  member.role outside the enum cannot mint a super admin", async () => {
-  const { createTeamMember } = await import("@/lib/store");
-  const { getSessionUser, hasStoreAccess, scopedStoreIds } = await import("@/lib/auth");
+  const { createTeamMember } = await import("../lib/store");
+  const { getSessionUser, hasStoreAccess, scopedStoreIds } = await import("../lib/auth");
   let n = 0;
   for (const bogusRole of ["Super_Admin", "super_admin ", "SUPER_ADMIN", "admin", "owner", ""]) {
     n += 1;
@@ -526,7 +526,7 @@ test("4e  member.role outside the enum cannot mint a super admin", async () => {
 });
 
 test("4f  The NODE_ENV/AUTH_BYPASS_TESTS escape hatch requires BOTH", async () => {
-  const { assertAdminAuth } = await import("@/lib/auth");
+  const { assertAdminAuth } = await import("../lib/auth");
   signInAs(STORE_ADMIN); // a mere store admin
 
   // NODE_ENV=test alone must not bypass.
@@ -553,8 +553,8 @@ test("4f  The NODE_ENV/AUTH_BYPASS_TESTS escape hatch requires BOTH", async () =
 
 test("5   Admin pages scope server-side: scope never widens for a store admin", async () => {
   signInAs(STORE_ADMIN);
-  const { getSessionUser, scopedStoreIds, hasStoreAccess } = await import("@/lib/auth");
-  const store = await import("@/lib/store");
+  const { getSessionUser, scopedStoreIds, hasStoreAccess } = await import("../lib/auth");
+  const store = await import("../lib/store");
 
   // app/admin/page.tsx, feedback and stores pages all use this exact expression.
   const user = await getSessionUser();
@@ -587,8 +587,8 @@ test("5   Admin pages scope server-side: scope never widens for a store admin", 
 
 test("5b  team_members is never serialized into a store admin's page payload", async () => {
   signInAs(STORE_ADMIN);
-  const { getSessionUser, scopedStoreIds } = await import("@/lib/auth");
-  const store = await import("@/lib/store");
+  const { getSessionUser, scopedStoreIds } = await import("../lib/auth");
+  const store = await import("../lib/store");
   const user = await getSessionUser();
   const scope = scopedStoreIds(user);
   // No store-admin page calls getTeamMembers(); model the overview payload.
@@ -607,18 +607,18 @@ test("5b  team_members is never serialized into a store admin's page payload", a
 /* ======================================================================== */
 
 test("6   Suspended member: no path reaches data via hasStoreAccess alone", async () => {
-  const { updateTeamMember, getStoreById } = await import("@/lib/store");
+  const { updateTeamMember, getStoreById } = await import("../lib/store");
   await updateTeamMember(STORE_ADMIN_ID, { status: "suspended" });
   try {
     signInAs(STORE_ADMIN);
-    const { getSessionUser } = await import("@/lib/auth");
+    const { getSessionUser } = await import("../lib/auth");
     assert.equal(await getSessionUser(), null, "suspended must not resolve to a session");
 
-    const { GET: listStores, POST: createStore } = await import("@/app/api/stores/route");
-    const storeRoute = await import("@/app/api/stores/[id]/route");
-    const { GET: getFb, PATCH: patchFb } = await import("@/app/api/feedback/route");
-    const { GET: getAn } = await import("@/app/api/analytics/route");
-    const { GET: getTeam } = await import("@/app/api/team/route");
+    const { GET: listStores, POST: createStore } = await import("../app/api/stores/route");
+    const storeRoute = await import("../app/api/stores/[id]/route");
+    const { GET: getFb, PATCH: patchFb } = await import("../app/api/feedback/route");
+    const { GET: getAn } = await import("../app/api/analytics/route");
+    const { GET: getTeam } = await import("../app/api/team/route");
 
     const codes = {
       list: (await listStores()).status,
@@ -652,12 +652,12 @@ test("6   Suspended member: no path reaches data via hasStoreAccess alone", asyn
 
 test("7   Signed out: every handler short-circuits (no forgotten early-return)", async () => {
   signOut();
-  const { GET: listStores, POST: createStore } = await import("@/app/api/stores/route");
-  const storeRoute = await import("@/app/api/stores/[id]/route");
-  const { GET: getTeam, POST: createTeam } = await import("@/app/api/team/route");
-  const teamRoute = await import("@/app/api/team/[id]/route");
-  const { GET: getFb, PATCH: patchFb } = await import("@/app/api/feedback/route");
-  const { GET: getAn } = await import("@/app/api/analytics/route");
+  const { GET: listStores, POST: createStore } = await import("../app/api/stores/route");
+  const storeRoute = await import("../app/api/stores/[id]/route");
+  const { GET: getTeam, POST: createTeam } = await import("../app/api/team/route");
+  const teamRoute = await import("../app/api/team/[id]/route");
+  const { GET: getFb, PATCH: patchFb } = await import("../app/api/feedback/route");
+  const { GET: getAn } = await import("../app/api/analytics/route");
 
   const codes = {
     storesList: (await listStores()).status,
@@ -690,11 +690,11 @@ test("7   Signed out: every handler short-circuits (no forgotten early-return)",
 
 test("7b  Uninvited (signed in but not in the directory) reaches nothing", async () => {
   signInAs("attacker@evil.test");
-  const { GET: listStores } = await import("@/app/api/stores/route");
-  const { GET: getStore } = await import("@/app/api/stores/[id]/route");
-  const { GET: getFb } = await import("@/app/api/feedback/route");
-  const { GET: getAn } = await import("@/app/api/analytics/route");
-  const { GET: getTeam } = await import("@/app/api/team/route");
+  const { GET: listStores } = await import("../app/api/stores/route");
+  const { GET: getStore } = await import("../app/api/stores/[id]/route");
+  const { GET: getFb } = await import("../app/api/feedback/route");
+  const { GET: getAn } = await import("../app/api/analytics/route");
+  const { GET: getTeam } = await import("../app/api/team/route");
   const codes = {
     stores: (await listStores()).status,
     storeById: (await getStore(new Request("http://x"), params(VICTIM.id))).status,
@@ -713,12 +713,12 @@ test("7b  Uninvited (signed in but not in the directory) reaches nothing", async
 test("8   Cross-site mutations are refused even for the platform owner", async () => {
   signInAs(OWNER);
   const evil = { origin: "https://evil.example.com", "sec-fetch-site": "cross-site" };
-  const { POST: createStore } = await import("@/app/api/stores/route");
-  const storeRoute = await import("@/app/api/stores/[id]/route");
-  const { POST: createTeam } = await import("@/app/api/team/route");
-  const { PUT: putTeam } = await import("@/app/api/team/[id]/route");
-  const { PATCH: patchFb } = await import("@/app/api/feedback/route");
-  const { getStoreById, getTeamMembers } = await import("@/lib/store");
+  const { POST: createStore } = await import("../app/api/stores/route");
+  const storeRoute = await import("../app/api/stores/[id]/route");
+  const { POST: createTeam } = await import("../app/api/team/route");
+  const { PUT: putTeam } = await import("../app/api/team/[id]/route");
+  const { PATCH: patchFb } = await import("../app/api/feedback/route");
+  const { getStoreById, getTeamMembers } = await import("../lib/store");
 
   const codes = {
     createStore: (await createStore(
@@ -747,7 +747,7 @@ test("8   Cross-site mutations are refused even for the platform owner", async (
 
 test("9   /r/[slug] public projection carries no owner PII", async () => {
   signOut();
-  const { getStoreByScanKey, toPublicStore } = await import("@/lib/store");
+  const { getStoreByScanKey, toPublicStore } = await import("../lib/store");
   // Resolve by id: an earlier test intentionally renamed this store's slug.
   const payload = JSON.stringify(toPublicStore(await getStoreByScanKey(VICTIM.id)));
   console.log("   [9] payload: %s", payload.slice(0, 150));
@@ -763,10 +763,10 @@ test("9   /r/[slug] public projection carries no owner PII", async () => {
 
 test("10  Control: the configured owner DOES get full access", async () => {
   signInAs(OWNER);
-  const { getSessionUser, hasStoreAccess, scopedStoreIds } = await import("@/lib/auth");
-  const { GET: getStores } = await import("@/app/api/stores/route");
-  const { GET: getTeam } = await import("@/app/api/team/route");
-  const { getStoreById } = await import("@/lib/store");
+  const { getSessionUser, hasStoreAccess, scopedStoreIds } = await import("../lib/auth");
+  const { GET: getStores } = await import("../app/api/stores/route");
+  const { GET: getTeam } = await import("../app/api/team/route");
+  const { getStoreById } = await import("../lib/store");
 
   const u = await getSessionUser();
   const stores = (await body(await getStores())).stores;

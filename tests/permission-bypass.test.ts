@@ -100,7 +100,7 @@ const json = (url: string, method: string, body: unknown, headers: Record<string
   });
 
 before(async () => {
-  const { createStore, createTeamMember } = await import("@/lib/store");
+  const { createStore, createTeamMember } = await import("../lib/store");
 
   VICTIM_STORE = await createStore({
     name: "Victim Bistro",
@@ -148,7 +148,7 @@ after(() => {
 
 /** Creates a team member straight through the data layer for test setup. */
 async function createMember(email: string, name: string, role: "super_admin" | "store_admin", storeIds: string[]) {
-  const { createTeamMember } = await import("@/lib/store");
+  const { createTeamMember } = await import("../lib/store");
   return createTeamMember({ email, name, role, storeIds });
 }
 
@@ -158,11 +158,11 @@ async function createMember(email: string, name: string, role: "super_admin" | "
 
 test("No session at all: every admin API refuses", async () => {
   signOut();
-  const { GET: getStores } = await import("@/app/api/stores/route");
-  const { GET: getAnalytics } = await import("@/app/api/analytics/route");
-  const { GET: getFeedback } = await import("@/app/api/feedback/route");
-  const { GET: getTeam } = await import("@/app/api/team/route");
-  const { GET: getStoreById } = await import("@/app/api/stores/[id]/route");
+  const { GET: getStores } = await import("../app/api/stores/route");
+  const { GET: getAnalytics } = await import("../app/api/analytics/route");
+  const { GET: getFeedback } = await import("../app/api/feedback/route");
+  const { GET: getTeam } = await import("../app/api/team/route");
+  const { GET: getStoreById } = await import("../app/api/stores/[id]/route");
 
   const cases: Array<[string, number]> = [
     ["GET /api/stores", (await getStores()).status],
@@ -182,11 +182,11 @@ test("No session at all: every admin API refuses", async () => {
 
 test("No session at all: every mutating admin API refuses", async () => {
   signOut();
-  const { POST: createStore } = await import("@/app/api/stores/route");
-  const { PUT: updateStore, DELETE: deleteStore } = await import("@/app/api/stores/[id]/route");
-  const { POST: createTeam } = await import("@/app/api/team/route");
-  const { DELETE: deleteTeam } = await import("@/app/api/team/[id]/route");
-  const { PATCH: patchFeedback } = await import("@/app/api/feedback/route");
+  const { POST: createStore } = await import("../app/api/stores/route");
+  const { PUT: updateStore, DELETE: deleteStore } = await import("../app/api/stores/[id]/route");
+  const { POST: createTeam } = await import("../app/api/team/route");
+  const { DELETE: deleteTeam } = await import("../app/api/team/[id]/route");
+  const { PATCH: patchFeedback } = await import("../app/api/feedback/route");
 
   assert.equal((await createStore(json("http://x/api/stores", "POST", {}))).status, 401);
   assert.equal(
@@ -214,10 +214,10 @@ test("No session at all: every mutating admin API refuses", async () => {
 
 test("Signed in but never invited: the whole console is refused", async () => {
   signInAs("attacker@evil.test");
-  const { getSessionUser } = await import("@/lib/auth");
-  const { GET: getStores } = await import("@/app/api/stores/route");
-  const { POST: createStore } = await import("@/app/api/stores/route");
-  const { GET: getTeam } = await import("@/app/api/team/route");
+  const { getSessionUser } = await import("../lib/auth");
+  const { GET: getStores } = await import("../app/api/stores/route");
+  const { POST: createStore } = await import("../app/api/stores/route");
+  const { GET: getTeam } = await import("../app/api/team/route");
 
   assert.equal(await getSessionUser(), null, "an uninvited email must not become a session user");
   assert.equal((await getStores()).status, 403);
@@ -230,9 +230,9 @@ test("Signed in but never invited: the whole console is refused", async () => {
 /* -------------------------------------------------------------------------- */
 
 test("A suspended store admin is refused everywhere, even on their own store", async () => {
-  const { updateTeamMember, getTeamMembers } = await import("@/lib/store");
-  const { GET: getStores } = await import("@/app/api/stores/route");
-  const { getSessionUser } = await import("@/lib/auth");
+  const { updateTeamMember, getTeamMembers } = await import("../lib/store");
+  const { GET: getStores } = await import("../app/api/stores/route");
+  const { getSessionUser } = await import("../lib/auth");
   const memberId = (await getTeamMembers()).find((m) => m.email === STORE_ADMIN_EMAIL)!.id;
 
   try {
@@ -252,9 +252,9 @@ test("A suspended store admin is refused everywhere, even on their own store", a
 
 test("Store admin CANNOT read a store they are not assigned to (IDOR)", async () => {
   signInAs(STORE_ADMIN_EMAIL);
-  const { GET: getStoreById, PUT: updateStore } = await import("@/app/api/stores/[id]/route");
-  const { GET: getAnalytics } = await import("@/app/api/analytics/route");
-  const { GET: getFeedback } = await import("@/app/api/feedback/route");
+  const { GET: getStoreById, PUT: updateStore } = await import("../app/api/stores/[id]/route");
+  const { GET: getAnalytics } = await import("../app/api/analytics/route");
+  const { GET: getFeedback } = await import("../app/api/feedback/route");
 
   // Direct-by-id access to the other tenant.
   const other = OTHER_STORE.id;
@@ -284,9 +284,9 @@ test("Store admin CANNOT read a store they are not assigned to (IDOR)", async ()
 
 test("Store admin's LIST endpoints never leak the other tenant", async () => {
   signInAs(STORE_ADMIN_EMAIL);
-  const { GET: getStores } = await import("@/app/api/stores/route");
-  const { GET: getAnalytics } = await import("@/app/api/analytics/route");
-  const { GET: getFeedback } = await import("@/app/api/feedback/route");
+  const { GET: getStores } = await import("../app/api/stores/route");
+  const { GET: getAnalytics } = await import("../app/api/analytics/route");
+  const { GET: getFeedback } = await import("../app/api/feedback/route");
 
   const stores = (await (await getStores()).json()).stores as Array<{ id: string; name: string }>;
   assert.deepEqual(stores.map((s) => s.id), [VICTIM_STORE.id], "only the assigned store may be listed");
@@ -308,7 +308,7 @@ test("Store admin's LIST endpoints never leak the other tenant", async () => {
 
 test("Store admin CANNOT touch another tenant's menu items (IDOR)", async () => {
   signInAs(PLATFORM_OWNER);
-  const { createMenuItem } = await import("@/lib/menu");
+  const { createMenuItem } = await import("../lib/menu");
   const foreignItem = await createMenuItem({
     storeId: OTHER_STORE.id,
     name: "Other Tenant Secret Dish",
@@ -322,8 +322,8 @@ test("Store admin CANNOT touch another tenant's menu items (IDOR)", async () => 
 
   // Now act as the store admin who is assigned ONLY to VICTIM_STORE.
   signInAs(STORE_ADMIN_EMAIL);
-  const { GET: getStoreMenu, POST: addToMenu } = await import("@/app/api/stores/[id]/menu/route");
-  const { GET: getItem, PATCH: patchItem, DELETE: deleteItem } = await import("@/app/api/menu/[id]/route");
+  const { GET: getStoreMenu, POST: addToMenu } = await import("../app/api/stores/[id]/menu/route");
+  const { GET: getItem, PATCH: patchItem, DELETE: deleteItem } = await import("../app/api/menu/[id]/route");
 
   // Reading another tenant's menu through the admin endpoint is refused.
   assert.equal(
@@ -377,7 +377,7 @@ test("Store admin CANNOT touch another tenant's menu items (IDOR)", async () => 
   );
 
   // The foreign item must be completely untouched.
-  const { getMenuItemById } = await import("@/lib/menu");
+  const { getMenuItemById } = await import("../lib/menu");
   const after = await getMenuItemById(foreignItem.id);
   assert.equal(after!.name, "Other Tenant Secret Dish", "the foreign item must survive the attack");
   assert.equal(after!.storeId, OTHER_STORE.id, "the foreign item must keep its owner");
@@ -398,7 +398,7 @@ test("Store admin CANNOT touch another tenant's menu items (IDOR)", async () => 
   assert.equal(item.storeId, VICTIM_STORE.id, "the item must belong to the caller's store");
 
   // And a reorder mixing a foreign id is rejected wholesale.
-  const { PUT: reorderMenu } = await import("@/app/api/stores/[id]/menu/route");
+  const { PUT: reorderMenu } = await import("../app/api/stores/[id]/menu/route");
   assert.equal(
     (
       await reorderMenu(
@@ -417,10 +417,10 @@ test("Store admin CANNOT touch another tenant's menu items (IDOR)", async () => 
 
 test("Store admin CANNOT escalate to platform owner", async () => {
   signInAs(STORE_ADMIN_EMAIL);
-  const { POST: createStore } = await import("@/app/api/stores/route");
-  const { DELETE: deleteStore } = await import("@/app/api/stores/[id]/route");
-  const { GET: getTeam, POST: createTeam } = await import("@/app/api/team/route");
-  const { PUT: updateTeam, DELETE: deleteTeam } = await import("@/app/api/team/[id]/route");
+  const { POST: createStore } = await import("../app/api/stores/route");
+  const { DELETE: deleteStore } = await import("../app/api/stores/[id]/route");
+  const { GET: getTeam, POST: createTeam } = await import("../app/api/team/route");
+  const { PUT: updateTeam, DELETE: deleteTeam } = await import("../app/api/team/[id]/route");
 
   assert.equal(
     (await createStore(json("http://x/api/stores", "POST", { name: "Mine", slug: "mine", googlePlaceId: "ChIJmine" }))).status,
@@ -447,7 +447,7 @@ test("Store admin CANNOT escalate to platform owner", async () => {
 
 test("Store admin CANNOT edit their own team record to gain stores or super-admin", async () => {
   signInAs(STORE_ADMIN_EMAIL);
-  const { getTeamMembers } = await import("@/lib/store");
+  const { getTeamMembers } = await import("../lib/store");
   const me = (await getTeamMembers()).find((m) => m.email === STORE_ADMIN_EMAIL)!;
 
   // Confirm no escalation persisted anywhere.
@@ -456,7 +456,7 @@ test("Store admin CANNOT edit their own team record to gain stores or super-admi
   assert.equal(me.status, "active");
 
   // And they still cannot reach the other tenant.
-  const { GET: getById } = await import("@/app/api/stores/[id]/route");
+  const { GET: getById } = await import("../app/api/stores/[id]/route");
   assert.equal(
     (await getById(new Request("http://x"), { params: Promise.resolve({ id: OTHER_STORE.id }) })).status,
     403
@@ -469,7 +469,7 @@ test("Store admin CANNOT edit their own team record to gain stores or super-admi
 
 test("Mass-assignment of privileged fields is ignored on store create", async () => {
   signInAs(PLATFORM_OWNER);
-  const { POST: createStore } = await import("@/app/api/stores/route");
+  const { POST: createStore } = await import("../app/api/stores/route");
 
   const res = await createStore(
     json("http://x/api/stores", "POST", {
@@ -494,7 +494,7 @@ test("Mass-assignment of privileged fields is ignored on store create", async ()
 
 test("Mass-assignment on store update cannot rewrite id or counters", async () => {
   signInAs(PLATFORM_OWNER);
-  const { PUT: updateStore } = await import("@/app/api/stores/[id]/route");
+  const { PUT: updateStore } = await import("../app/api/stores/[id]/route");
 
   const res = await updateStore(
     json("http://x", "PUT", {
@@ -517,11 +517,11 @@ test("Mass-assignment on store update cannot rewrite id or counters", async () =
 });
 
 test("An invited store admin cannot grant themselves other stores", async () => {
-  const { createTeamMember, getTeamMembers } = await import("@/lib/store");
+  const { createTeamMember, getTeamMembers } = await import("../lib/store");
   // The API routes are owner-only, but prove the DATA layer won't hand out a
   // forged assignment either, and that the admin cannot reach the route.
   signInAs(STORE_ADMIN_EMAIL);
-  const { POST: createTeam } = await import("@/app/api/team/route");
+  const { POST: createTeam } = await import("../app/api/team/route");
   assert.equal(
     (await createTeam(
       json("http://x/api/team", "POST", { email: "me2@evil.test", role: "super_admin", storeIds: ["*"] })
@@ -551,7 +551,7 @@ test("An invited store admin cannot grant themselves other stores", async () => 
 /* -------------------------------------------------------------------------- */
 
 test("The public scan page never carries owner PII (no auth needed)", async () => {
-  const { getStoreByScanKey, toPublicStore } = await import("@/lib/store");
+  const { getStoreByScanKey, toPublicStore } = await import("../lib/store");
   const store = await getStoreByScanKey(VICTIM_STORE.slug);
   const payload = JSON.stringify(toPublicStore(store!));
 
@@ -561,8 +561,8 @@ test("The public scan page never carries owner PII (no auth needed)", async () =
 
 test("Public telemetry cannot be used to read data or touch admin routes", async () => {
   signOut();
-  const { POST: logEvent } = await import("@/app/api/events/route");
-  const { POST: submitFeedback } = await import("@/app/api/feedback/route");
+  const { POST: logEvent } = await import("../app/api/events/route");
+  const { POST: submitFeedback } = await import("../app/api/feedback/route");
 
   // Anonymous writes are allowed by design (that is the product)...
   const ev = await logEvent(
@@ -593,7 +593,7 @@ test("Public telemetry cannot be used to read data or touch admin routes", async
   assert.ok(feedback && feedback.storeName, "the complaint must be stored");
   // The real store name comes from the database, never the request body.
   // (Compare against the live row: an earlier test may have renamed it.)
-  const { getStoreById: readStore } = await import("@/lib/store");
+  const { getStoreById: readStore } = await import("../lib/store");
   const realName = (await readStore(VICTIM_STORE.id))!.name;
   assert.equal(feedback.storeName, realName, "client-supplied store name must be ignored");
   assert.notEqual(feedback.storeName, "SPOOFED NAME", "the spoofed name must not be stored");
@@ -601,8 +601,8 @@ test("Public telemetry cannot be used to read data or touch admin routes", async
 
 test("Anonymous callers cannot mark somebody else's complaint as resolved", async () => {
   signOut();
-  const { POST: submitFeedback } = await import("@/app/api/feedback/route");
-  const { PATCH: patchFeedback } = await import("@/app/api/feedback/route");
+  const { POST: submitFeedback } = await import("../app/api/feedback/route");
+  const { PATCH: patchFeedback } = await import("../app/api/feedback/route");
 
   const created = await submitFeedback(
     json("http://x/api/feedback", "POST", { storeId: VICTIM_STORE.id, rating: 2, message: "anonymous" })
@@ -611,7 +611,7 @@ test("Anonymous callers cannot mark somebody else's complaint as resolved", asyn
 
   assert.equal((await patchFeedback(json("http://x/api/feedback", "PATCH", { id: feedback.id, status: "resolved" }))).status, 401);
 
-  const { getFeedbackById } = await import("@/lib/store");
+  const { getFeedbackById } = await import("../lib/store");
   assert.equal((await getFeedbackById(feedback.id))!.status, "new", "the complaint must remain open");
 });
 
@@ -625,10 +625,10 @@ test("Cross-site POST/PUT/DELETE/PATCH are refused even with a valid session", a
     origin: "https://evil.example.com",
     "sec-fetch-site": "cross-site",
   };
-  const { POST: createStore } = await import("@/app/api/stores/route");
-  const { PUT: updateStore, DELETE: deleteStore } = await import("@/app/api/stores/[id]/route");
-  const { POST: createTeam } = await import("@/app/api/team/route");
-  const { PATCH: patchFeedback } = await import("@/app/api/feedback/route");
+  const { POST: createStore } = await import("../app/api/stores/route");
+  const { PUT: updateStore, DELETE: deleteStore } = await import("../app/api/stores/[id]/route");
+  const { POST: createTeam } = await import("../app/api/team/route");
+  const { PATCH: patchFeedback } = await import("../app/api/feedback/route");
 
   assert.equal((await createStore(json("http://x/api/stores", "POST", { name: "x", slug: "csrf-x", googlePlaceId: "ChIJx" }, evil))).status, 403);
   assert.equal((await updateStore(json("http://x", "PUT", { name: "x" }, evil), { params: Promise.resolve({ id: VICTIM_STORE.id }) })).status, 403);
@@ -637,7 +637,7 @@ test("Cross-site POST/PUT/DELETE/PATCH are refused even with a valid session", a
   assert.equal((await patchFeedback(json("http://x/api/feedback", "PATCH", { id: "x", status: "resolved" }, evil))).status, 403);
 
   // The store must still be intact after the attack.
-  const { getStoreById } = await import("@/lib/store");
+  const { getStoreById } = await import("../lib/store");
   assert.ok(await getStoreById(VICTIM_STORE.id), "the victim's store must survive a CSRF attempt");
 });
 
@@ -647,19 +647,19 @@ test("Cross-site POST/PUT/DELETE/PATCH are refused even with a valid session", a
 
 test("The configured platform owner does get full access (control test)", async () => {
   signInAs(PLATFORM_OWNER);
-  const { getSessionUser } = await import("@/lib/auth");
+  const { getSessionUser } = await import("../lib/auth");
   const user = await getSessionUser();
   assert.ok(user, "the owner must resolve to a session");
   assert.equal(user!.isSuperAdmin, true);
   assert.equal(user!.email, PLATFORM_OWNER);
 
-  const { GET: getStores } = await import("@/app/api/stores/route");
+  const { GET: getStores } = await import("../app/api/stores/route");
   const stores = (await (await getStores()).json()).stores as Array<{ id: string }>;
   assert.equal(stores.length >= 2, true, "the owner sees every location");
 });
 
 test("Look-alike owner addresses do NOT grant super-admin", async () => {
-  const { isSuperAdminEmail } = await import("@/lib/auth");
+  const { isSuperAdminEmail } = await import("../lib/auth");
 
   // The real check normalizes case and trims — so the owner variants DO match.
   // What must not work is a *different* address that merely resembles it.
@@ -669,7 +669,7 @@ test("Look-alike owner addresses do NOT grant super-admin", async () => {
 
   // And a real, separate signed-in identity is still refused.
   signInAs("notowner@platform.test");
-  const { getSessionUser } = await import("@/lib/auth");
+  const { getSessionUser } = await import("../lib/auth");
   assert.equal(await getSessionUser(), null);
 });
 
@@ -678,8 +678,8 @@ test("Look-alike owner addresses do NOT grant super-admin", async () => {
 /* -------------------------------------------------------------------------- */
 
 test("Only the literal status 'active' grants console access", async () => {
-  const { updateTeamMember, getTeamMembers } = await import("@/lib/store");
-  const { getSessionUser } = await import("@/lib/auth");
+  const { updateTeamMember, getTeamMembers } = await import("../lib/store");
+  const { getSessionUser } = await import("../lib/auth");
   const email = "status-probe@tenant.test";
 
   await createMember(email, "Status Probe", "store_admin", [VICTIM_STORE.id]);
@@ -717,8 +717,8 @@ test("Only the literal status 'active' grants console access", async () => {
 });
 
 test("A corrupted storeIds value cannot widen a member's scope", async () => {
-  const { updateTeamMember, getTeamMembers } = await import("@/lib/store");
-  const { getSessionUser } = await import("@/lib/auth");
+  const { updateTeamMember, getTeamMembers } = await import("../lib/store");
+  const { getSessionUser } = await import("../lib/auth");
   const email = "scope-probe@tenant.test";
 
   await createMember(email, "Scope Probe", "store_admin", [VICTIM_STORE.id]);
@@ -749,8 +749,8 @@ test("A corrupted storeIds value cannot widen a member's scope", async () => {
 });
 
 test("An out-of-enum role cannot be used to claim super-admin", async () => {
-  const { updateTeamMember, getTeamMembers } = await import("@/lib/store");
-  const { getSessionUser } = await import("@/lib/auth");
+  const { updateTeamMember, getTeamMembers } = await import("../lib/store");
+  const { getSessionUser } = await import("../lib/auth");
   const email = "role-probe@tenant.test";
 
   await createMember(email, "Role Probe", "store_admin", [VICTIM_STORE.id]);
@@ -777,7 +777,7 @@ test("An out-of-enum role cannot be used to claim super-admin", async () => {
 
 test("A feedback row whose storeId is tampered cannot be resolved by an admin", async () => {
   signOut();
-  const { POST: submitRoute } = await import("@/app/api/feedback/route");
+  const { POST: submitRoute } = await import("../app/api/feedback/route");
 
   // Create a complaint against the tenant the store admin does NOT own.
   const created = await submitRoute(
@@ -792,22 +792,22 @@ test("A feedback row whose storeId is tampered cannot be resolved by an admin", 
 
   // The store admin must not be able to flip it to resolved.
   signInAs(STORE_ADMIN_EMAIL);
-  const { PATCH: patchFeedback } = await import("@/app/api/feedback/route");
+  const { PATCH: patchFeedback } = await import("../app/api/feedback/route");
   const res = await patchFeedback(
     json("http://x/api/feedback", "PATCH", { id: feedback.id, status: "resolved" })
   );
   assert.equal(res.status, 403, "a cross-tenant complaint must not be resolvable");
 
-  const { getFeedbackById } = await import("@/lib/store");
+  const { getFeedbackById } = await import("../lib/store");
   assert.equal((await getFeedbackById(feedback.id))!.status, "new", "the complaint must stay open");
 });
 
 
 test("Only the platform owner can widen a member's store assignments", async () => {
-  const { getTeamMembers } = await import("@/lib/store");
+  const { getTeamMembers } = await import("../lib/store");
 
   signInAs(STORE_ADMIN_EMAIL);
-  const { PUT: updateTeam } = await import("@/app/api/team/[id]/route");
+  const { PUT: updateTeam } = await import("../app/api/team/[id]/route");
   const target = (await getTeamMembers()).find((m) => m.email === STORE_ADMIN_EMAIL)!;
 
   const res = await updateTeam(
@@ -907,7 +907,7 @@ test("Every admin API route is covered by the proxy matcher AND by its own handl
 /* -------------------------------------------------------------------------- */
 
 test("A whitespace-only ADMIN_ALLOWED_EMAIL falls back to the default owner", async () => {
-  const { getSuperAdminEmail, isSuperAdminEmail } = await import("@/lib/auth");
+  const { getSuperAdminEmail, isSuperAdminEmail } = await import("../lib/auth");
   const previous = process.env.ADMIN_ALLOWED_EMAIL;
 
   try {
@@ -947,8 +947,8 @@ test("A whitespace-only ADMIN_ALLOWED_EMAIL falls back to the default owner", as
 });
 
 test("A Clerk user with no verified email is never a super admin, whatever the owner config", async () => {
-  const { getSessionUser } = await import("@/lib/auth");
-  const { isClerkConfigured } = await import("@/lib/clerk");
+  const { getSessionUser } = await import("../lib/auth");
+  const { isClerkConfigured } = await import("../lib/clerk");
   assert.equal(isClerkConfigured(), true, "the harness needs Clerk configured to reach this path");
 
   const previous = process.env.ADMIN_ALLOWED_EMAIL;
@@ -998,7 +998,7 @@ test("A Clerk user with no verified email is never a super admin, whatever the o
 /* -------------------------------------------------------------------------- */
 
 test("isClerkConfigured rejects blank or malformed keys", async () => {
-  const { isClerkConfigured } = await import("@/lib/clerk");
+  const { isClerkConfigured } = await import("../lib/clerk");
   const pk = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
   const sk = process.env.CLERK_SECRET_KEY;
 
@@ -1040,7 +1040,7 @@ test("isClerkConfigured rejects blank or malformed keys", async () => {
 /* -------------------------------------------------------------------------- */
 
 test("hasStoreAccess / isSuperAdminEmail / scopedStoreIds hold their invariants", async () => {
-  const { hasStoreAccess, isSuperAdminEmail, scopedStoreIds } = await import("@/lib/auth");
+  const { hasStoreAccess, isSuperAdminEmail, scopedStoreIds } = await import("../lib/auth");
 
   const VICTIM = "store_victim_abc123";
   const unassigned = {
@@ -1107,7 +1107,7 @@ test("A tampered on-disk membership cannot smuggle a wildcard into storeIds", as
   const fs = await import("node:fs");
   const {
     createStore, createTeamMember, getTeamMemberByEmail, invalidateLocalCache,
-  } = await import("@/lib/store");
+  } = await import("../lib/store");
 
   const store = await createStore({
     name: "Tenant A", slug: "tenant-a", tagline: "", category: "Cafe",
@@ -1151,7 +1151,7 @@ test("A tampered on-disk membership cannot smuggle a wildcard into storeIds", as
 
   // And the session layer must not widen it either.
   signInAs("tamper@tenant.test");
-  const { getSessionUser } = await import("@/lib/auth");
+  const { getSessionUser } = await import("../lib/auth");
   const user = await getSessionUser();
   if (user) {
     for (const id of user!.storeIds) {
@@ -1164,7 +1164,7 @@ test("A tampered on-disk membership cannot smuggle a wildcard into storeIds", as
 test("Store and member lookups never resolve a mangled id to a real tenant", async () => {
   const {
     createStore, createTeamMember, getStoreById, getStoreBySlug, getTeamMemberByEmail,
-  } = await import("@/lib/store");
+  } = await import("../lib/store");
 
   const store = await createStore({
     name: "Lookup Tenant", slug: "lookup-tenant", tagline: "", category: "Cafe",
@@ -1271,7 +1271,7 @@ test("Removing the auth gate is detected, not silently tolerated", async () => {
     );
     // Control: on the REAL module the same gates refuse, so a green run of this
     // file can never be explained by "everything is simply allowed".
-    const real = await import("@/lib/auth");
+    const real = await import("../lib/auth");
     assert.equal(
       (await real.assertAdminAuth()).authorized,
       false,
@@ -1298,7 +1298,7 @@ test("A regression in the real auth layer fails the suite, not just the meta-tes
   //
   // If someone "fixes" a failing test by loosening an assertion here, the next
   // real regression ships silently. Keep the counts explicit.
-  const { assertAdminAuth } = await import("@/lib/auth");
+  const { assertAdminAuth } = await import("../lib/auth");
 
   signOut();
   const result = await assertAdminAuth();
@@ -1307,7 +1307,7 @@ test("A regression in the real auth layer fails the suite, not just the meta-tes
   assert.ok(result.user === undefined, "an unauthorized result must carry no session user");
 
   // And an invited-but-suspended member must be refused on the real module.
-  const { updateTeamMember, getTeamMembers } = await import("@/lib/store");
+  const { updateTeamMember, getTeamMembers } = await import("../lib/store");
   await createMember("tripwire@tenant.test", "Tripwire", "store_admin", [VICTIM_STORE.id]);
   const id = (await getTeamMembers()).find((m) => m.email === "tripwire@tenant.test")!.id;
   await updateTeamMember(id, { status: "suspended" });
@@ -1355,7 +1355,7 @@ test("A membership scope can never exceed the assignment cap, on any path", asyn
   const fs = await import("node:fs");
   const {
     createStore, createTeamMember, updateTeamMember, getTeamMemberByEmail, invalidateLocalCache,
-  } = await import("@/lib/store");
+  } = await import("../lib/store");
 
   // Real ids must exist, otherwise the HTTP route's existence filter would drop them.
   const ids: string[] = [];
