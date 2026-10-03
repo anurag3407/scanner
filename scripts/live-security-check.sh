@@ -47,8 +47,8 @@ mv .env      /tmp/.env.bak.$$      2>/dev/null
 trap 'mv /tmp/.env.local.bak.$$ .env.local 2>/dev/null; mv /tmp/.env.bak.$$ .env 2>/dev/null; cleanup' EXIT
 
 echo "Starting server on $BASE ..."
-NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_Y2xlcmsuZXhhbXBsZS5jb20k \
-CLERK_SECRET_KEY=sk_test_dGVzdC1zZWNyZXQta2V5 \
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_mock_dummy_publishable_key \
+CLERK_SECRET_KEY=sk_mock_dummy_secret_key \
 ADMIN_ALLOWED_EMAIL=owner@platform.test \
 STORE_DATA_FILE="$TMP_STORE" \
 NEXT_PUBLIC_APP_URL="$BASE" \
@@ -132,8 +132,8 @@ mint_token() { # sub keyfile
 
 # Restart the server so it trusts the local public key.
 kill "$SERVER_PID" 2>/dev/null; wait "$SERVER_PID" 2>/dev/null
-NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_Y2xlcmsuZXhhbXBsZS5jb20k \
-CLERK_SECRET_KEY=sk_test_dGVzdC1zZWNyZXQta2V5 \
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_mock_dummy_publishable_key \
+CLERK_SECRET_KEY=sk_mock_dummy_secret_key \
 CLERK_JWT_KEY="$(cat "$KEYDIR/good.pub")" \
 ADMIN_ALLOWED_EMAIL=owner@platform.test \
 STORE_DATA_FILE="$TMP_STORE" \
@@ -237,8 +237,8 @@ import("@/lib/store").then(async (m) => {
 
 # The server caches its data file in memory, so restart it to pick up the seed.
 kill "$SERVER_PID" 2>/dev/null; wait "$SERVER_PID" 2>/dev/null
-NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_Y2xlcmsuZXhhbXBsZS5jb20k \
-CLERK_SECRET_KEY=sk_test_dGVzdC1zZWNyZXQta2V5 \
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_mock_dummy_publishable_key \
+CLERK_SECRET_KEY=sk_mock_dummy_secret_key \
 ADMIN_ALLOWED_EMAIL=owner@platform.test \
 STORE_DATA_FILE="$TMP_STORE" \
 NEXT_PUBLIC_APP_URL="$BASE" \

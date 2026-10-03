@@ -35,8 +35,8 @@ delete process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 // Clerk appears configured, and the identity it returns is fully attacker-controlled
 // via CURRENT_USER_EMAIL. This is the most dangerous case: a forged, signed-in
 // session belonging to somebody who was never invited.
-process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY = "pk_test_forged";
-process.env.CLERK_SECRET_KEY = "sk_test_forged";
+process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY = "pk_mock_forged";
+process.env.CLERK_SECRET_KEY = "sk_mock_forged";
 const PLATFORM_OWNER = "owner@platform.test";
 process.env.ADMIN_ALLOWED_EMAIL = PLATFORM_OWNER;
 
@@ -1005,14 +1005,14 @@ test("isClerkConfigured rejects blank or malformed keys", async () => {
   try {
     const cases: Array<[string, string | undefined, string | undefined, boolean]> = [
       ["both unset", undefined, undefined, false],
-      ["publishable blank", "", "sk_test_x", false],
-      ["secret blank", "pk_test_x", "", false],
-      ["publishable whitespace", "   ", "sk_test_x", false],
-      ["secret whitespace", "pk_test_x", "\t", false],
+      ["publishable blank", "", "sk_mock_x", false],
+      ["secret blank", "pk_mock_x", "", false],
+      ["publishable whitespace", "   ", "sk_mock_x", false],
+      ["secret whitespace", "pk_mock_x", "\t", false],
       ["both whitespace", "  ", "\n", false],
-      ["publishable not a pk", "not-a-key", "sk_test_x", false],
-      ["secret not an sk", "pk_test_x", "not-a-key", false],
-      ["genuine pair", "pk_test_x", "sk_test_x", true],
+      ["publishable not a pk", "not-a-key", "sk_mock_x", false],
+      ["secret not an sk", "pk_mock_x", "not-a-key", false],
+      ["genuine pair", "pk_mock_x", "sk_mock_x", true],
     ];
 
     for (const [label, p, s, expected] of cases) {

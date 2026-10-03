@@ -40,6 +40,13 @@ jobs:
           if ! command -v initdb >/dev/null 2>&1; then
             sudo apt-get update -qq
             sudo apt-get install -y -qq postgresql postgresql-contrib
+            for p in /usr/lib/postgresql/*/bin; do
+              if [ -x "$p/initdb" ]; then
+                echo "$p" >> "$GITHUB_PATH"
+                export PATH="$p:$PATH"
+                break
+              fi
+            done
           fi
           initdb --version
 

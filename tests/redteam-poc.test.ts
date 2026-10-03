@@ -32,8 +32,8 @@ for (const k of [
   delete process.env[k];
 }
 
-process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY = "pk_test_redteam";
-process.env.CLERK_SECRET_KEY = "sk_test_redteam";
+process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY = "pk_mock_redteam";
+process.env.CLERK_SECRET_KEY = "sk_mock_redteam";
 const OWNER = "owner@platform.test";
 process.env.ADMIN_ALLOWED_EMAIL = OWNER;
 
