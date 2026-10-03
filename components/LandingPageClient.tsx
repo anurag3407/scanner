@@ -11,13 +11,10 @@ import {
   Check,
   ExternalLink,
   ArrowRight,
-  Printer,
-  Smartphone,
   TrendingUp,
   QrCode,
   UtensilsCrossed,
   CheckCircle2,
-  Lock,
   Users,
 } from "lucide-react";
 import confetti from "canvas-confetti";
@@ -66,42 +63,175 @@ export default function LandingPageClient({ sampleStore, totalStoresCount = 103 
         particleCount: 70,
         spread: 60,
         origin: { y: 0.65 },
-        colors: ["#FF5400", "#10B981", "#F59E0B", "#3B82F6"],
+        colors: ["#FF6B6B", "#FFD93D", "#C4B5FD", "#6BCB77", "#000000"],
       });
     } catch {}
 
     setTimeout(() => setCopied(false), 3500);
   };
 
+  const trustHighlights = [
+    "0ms first draft",
+    "Direct 5★ modal open",
+    "Reputation firewall shield",
+    "100% Google compliant",
+  ];
+
+  const steps = [
+    {
+      n: "1",
+      title: "Scan Table Standee",
+      body: (
+        <>
+          Diner points phone camera at the acrylic table standee or tent. Opens instantly in browser
+          with <strong>zero app download</strong> or login required.
+        </>
+      ),
+      icon: <QrCode className="h-3.5 w-3.5" strokeWidth={3} />,
+      caption: "Instant camera launch",
+      bg: "bg-neo-blue",
+    },
+    {
+      n: "2",
+      title: "Tap What They Loved",
+      body: (
+        <>
+          Diner taps their favorite dishes (e.g. <em>Kulhad Chai, Peri Peri Maggi</em>). The 0ms
+          engine instantly pre-drafts an authentic, enthusiastic 5-star review.
+        </>
+      ),
+      icon: <UtensilsCrossed className="h-3.5 w-3.5" strokeWidth={3} />,
+      caption: "Zero writer's block",
+      bg: "bg-neo-yellow",
+    },
+    {
+      n: "3",
+      title: "1-Tap Post to Google",
+      body: (
+        <>
+          Tapping the button copies the review and directly triggers Google&apos;s 5-star modal box.
+          The guest taps the 5th star, pastes, and posts in 3 seconds.
+        </>
+      ),
+      icon: <Check className="h-3.5 w-3.5" strokeWidth={4} />,
+      caption: "Direct review dialog open",
+      bg: "bg-neo-green",
+    },
+  ];
+
+  const pillars = [
+    {
+      id: undefined,
+      icon: <TrendingUp className="h-6 w-6" strokeWidth={2.5} />,
+      iconBg: "bg-neo-green",
+      title: (
+        <>
+          MAXIMUM GOOGLE
+          <br />
+          MAPS VISIBILITY
+        </>
+      ),
+      body: "Google algorithms rank local restaurants based on review frequency, GPS proximity, and dish keyword density.",
+      points: [
+        {
+          strong: "On-Site GPS Trust:",
+          text: "Reviews submitted while seated at the venue carry the highest algorithm trust score and never get filtered as spam.",
+        },
+        {
+          strong: "Menu Keyword Lift:",
+          text: "Specific dish mentions (e.g. Signature Kulhad Chai) index your restaurant when locals search for those items nearby.",
+        },
+        {
+          strong: "Natural Daily Drip:",
+          text: "Consistent 3–8 new reviews every single day rather than suspicious bulk spikes.",
+        },
+      ],
+    },
+    {
+      id: undefined,
+      icon: <ShieldCheck className="h-6 w-6" strokeWidth={2.5} />,
+      iconBg: "bg-neo-yellow",
+      title: (
+        <>
+          REPUTATION
+          <br />
+          FIREWALL SHIELD
+        </>
+      ),
+      body: "A single 1-star review on Google Maps damages your ranking for months. Catch diner grievances table-side before they leave.",
+      points: [
+        {
+          strong: "Table-Side Escalation:",
+          text: "1–3 star ratings invite diners to send an immediate note directly to the GM to fix the food or service on the spot.",
+        },
+        {
+          strong: "Turns Complaints into Loyalty:",
+          text: "Resolving an issue at the table prevents 90%+ of negative public reviews.",
+        },
+        {
+          strong: "100% Policy Compliant:",
+          text: "Transparent Google review option prevents \"Review Gating\" penalties.",
+        },
+      ],
+    },
+    {
+      id: "roles",
+      icon: <Users className="h-6 w-6" strokeWidth={2.5} />,
+      iconBg: "bg-neo-violet",
+      title: (
+        <>
+          TEAM ACCESS,
+          <br />
+          DONE RIGHT
+        </>
+      ),
+      body: "One platform account, many restaurants. Give every location its own admin without ever exposing the others.",
+      points: [
+        {
+          strong: "Store Admins:",
+          text: "each owner sees only the locations you assign — their own live menu, dishes, sentence combinations, analytics and firewall inbox.",
+        },
+        {
+          strong: "Owner-first alerts:",
+          text: "low-rating emails go straight to each store's owner inbox, with delivery status tracked in the console.",
+        },
+        {
+          strong: "Permanent QR codes:",
+          text: "one printed standee per location — rename the café, change the menu, and the code still works.",
+        },
+      ],
+    },
+  ];
+
   return (
-    <div className="w-full bg-[#0B0B0E] text-white selection:bg-[#FF5400] selection:text-white relative font-sans">
+    <div className="relative w-full bg-cream bg-neo-grid font-sans text-black selection:bg-neo-yellow selection:text-black">
       {/* ========================================================================= */}
-      {/* 1. FLOATING CLEAN NAVBAR */}
+      {/* 1. FLOATING NAVBAR */}
       {/* ========================================================================= */}
-      <div className="max-w-6xl mx-auto pt-4 sm:pt-6 px-4 sticky top-3 sm:top-4 z-50">
-        <header className="bg-[#141418]/90 backdrop-blur-md rounded-2xl border border-white/10 px-5 sm:px-6 py-3.5 flex items-center justify-between shadow-2xl">
+      <div className="sticky top-3 z-50 mx-auto max-w-6xl px-4 pt-4 sm:top-4 sm:pt-6">
+        <header className="flex items-center justify-between border-4 border-black bg-white px-4 py-3 shadow-neo-md sm:px-6">
           {/* Brand Logo */}
-          <Link href="/" className="flex items-center gap-2.5 group">
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-[#FF5400] via-amber-500 to-orange-400 flex items-center justify-center shadow-lg shadow-orange-600/30 group-hover:scale-105 transition-transform">
-              <Sparkles className="w-4 h-4 text-white" />
-            </div>
-            <span className="font-display uppercase text-2xl tracking-tight text-white">
+          <Link href="/" className="group flex items-center gap-2.5">
+            <span className="flex h-9 w-9 -rotate-6 items-center justify-center border-[3px] border-black bg-neo-yellow shadow-neo-xs transition-transform group-hover:rotate-6">
+              <Sparkles className="h-4 w-4" strokeWidth={3} />
+            </span>
+            <span className="font-display text-2xl uppercase tracking-tight text-black">
               REVIEWBOOST
             </span>
           </Link>
 
           {/* Desktop Nav Items */}
-          <nav className="hidden md:flex items-center gap-7 text-xs font-bold uppercase tracking-wider text-zinc-400">
-            <Link href="#how-it-works" className="hover:text-white transition-colors">
+          <nav className="hidden items-center gap-6 text-xs font-black uppercase tracking-widest text-black md:flex">
+            <Link href="#how-it-works" className="border-2 border-transparent px-1 py-0.5 transition-all duration-100 ease-linear hover:border-black hover:bg-neo-yellow hover:shadow-neo-xs">
               How It Works
             </Link>
-            <Link href="#benefits" className="hover:text-white transition-colors">
+            <Link href="#benefits" className="border-2 border-transparent px-1 py-0.5 transition-all duration-100 ease-linear hover:border-black hover:bg-neo-yellow hover:shadow-neo-xs">
               Why It Converts
             </Link>
-            <Link href="#roles" className="hover:text-white transition-colors">
+            <Link href="#roles" className="border-2 border-transparent px-1 py-0.5 transition-all duration-100 ease-linear hover:border-black hover:bg-neo-yellow hover:shadow-neo-xs">
               Team &amp; Roles
             </Link>
-            <Link href="/admin" className="hover:text-white transition-colors">
+            <Link href="/admin" className="border-2 border-transparent px-1 py-0.5 transition-all duration-100 ease-linear hover:border-black hover:bg-neo-yellow hover:shadow-neo-xs">
               Admin Portal
             </Link>
           </nav>
@@ -110,10 +240,10 @@ export default function LandingPageClient({ sampleStore, totalStoresCount = 103 
           <div className="flex items-center gap-2.5">
             <Link
               href="/admin"
-              className="bg-[#FF5400] hover:bg-[#E04B00] text-white font-display text-xs uppercase tracking-wider px-4 sm:px-5 py-2.5 rounded-xl transition-all shadow-lg shadow-orange-600/30 active:scale-95 flex items-center gap-1.5"
+              className="flex items-center gap-1.5 border-[3px] border-black bg-neo-red px-4 py-2.5 text-xs font-black uppercase tracking-widest text-white shadow-neo-xs transition-all duration-100 ease-linear hover:bg-black hover:text-white active:translate-x-0.5 active:translate-y-0.5 active:shadow-none sm:px-5"
             >
               <span>Console Login</span>
-              <ArrowRight className="w-3.5 h-3.5" />
+              <ArrowRight className="h-3.5 w-3.5" strokeWidth={3} />
             </Link>
           </div>
         </header>
@@ -122,41 +252,40 @@ export default function LandingPageClient({ sampleStore, totalStoresCount = 103 
       {/* ========================================================================= */}
       {/* 2. HERO SECTION WITH INTERACTIVE DEMO */}
       {/* ========================================================================= */}
-      <section className="relative pt-12 sm:pt-20 pb-20 px-4 sm:px-6 lg:px-8 max-w-6xl mx-auto overflow-hidden">
-        {/* Ambient Top Glows */}
-        <div className="absolute top-12 left-1/2 -translate-x-1/2 w-[600px] h-[350px] bg-gradient-to-tr from-[#FF5400]/20 via-amber-500/10 to-purple-600/10 rounded-full blur-[120px] pointer-events-none -z-10" />
-
-        <div className="text-center max-w-4xl mx-auto space-y-5">
+      <section className="relative mx-auto max-w-6xl overflow-hidden px-4 pb-20 pt-12 sm:px-6 sm:pt-20 lg:px-8">
+        <div className="mx-auto max-w-4xl space-y-5 text-center">
           {/* Live Status Pill */}
-          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs font-semibold text-zinc-300 shadow-inner">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+          <div className="inline-flex -rotate-1 items-center gap-2 border-[3px] border-black bg-white px-3.5 py-1.5 text-xs font-black uppercase tracking-widest text-black shadow-neo-xs">
+            <span className="h-2 w-2 animate-pulse bg-neo-green" />
             <span>Turn Table Diners into 5★ Google Reviews in 10s</span>
-            <span className="text-zinc-600">•</span>
-            <span className="text-amber-400 font-bold">Zero App Download</span>
+            <span className="text-black/40">•</span>
+            <span className="bg-neo-yellow px-1">Zero App Download</span>
           </div>
 
           {/* Main Hero Headline */}
-          <h1 className="font-display uppercase text-4xl sm:text-6xl lg:text-[5.5rem] leading-[0.95] tracking-tight text-white">
+          <h1 className="font-display text-4xl uppercase leading-[0.95] tracking-tight text-black sm:text-6xl lg:text-7xl">
             TURN DINING GUESTS INTO
             <br />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#FF5400] via-amber-400 to-[#FF5400]">
+            <span className="inline-block -rotate-1 border-4 border-black bg-neo-yellow px-3 py-1 shadow-neo-md">
               5-STAR GOOGLE REVIEWS
             </span>
           </h1>
 
           {/* Hero Subtitle */}
-          <p className="text-sm sm:text-base text-zinc-400 max-w-2xl mx-auto leading-relaxed">
-            Eliminate customer writer&apos;s block. Diners tap what they ate, our 0ms engine pre-drafts the review, and Google&apos;s 5-star box opens directly. Negative feedback is intercepted privately.
+          <p className="mx-auto max-w-2xl text-sm font-bold leading-relaxed text-black/70 sm:text-base">
+            Eliminate customer writer&apos;s block. Diners tap what they ate, our 0ms engine
+            pre-drafts the review, and Google&apos;s 5-star box opens directly. Negative feedback is
+            intercepted privately.
           </p>
 
           {/* CTA Buttons — one clear primary action, secondary links to a live standee */}
-          <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3.5">
+          <div className="flex flex-col items-center justify-center gap-4 pt-2 sm:flex-row">
             <Link
               href="#how-it-works"
-              className="w-full sm:w-auto bg-[#FF5400] hover:bg-[#E04B00] text-white font-display text-sm uppercase tracking-wider px-8 py-4 rounded-xl shadow-2xl shadow-orange-600/35 transition-all active:scale-95 flex items-center justify-center gap-2"
+              className="flex w-full items-center justify-center gap-2 border-4 border-black bg-neo-red px-8 py-4 text-sm font-black uppercase tracking-widest text-white shadow-neo transition-all duration-100 ease-linear hover:bg-black hover:text-neo-yellow active:translate-x-1.5 active:translate-y-1.5 active:shadow-none sm:w-auto"
             >
               <span>See How It Works</span>
-              <ArrowRight className="w-4 h-4" />
+              <ArrowRight className="h-4 w-4" strokeWidth={3} />
             </Link>
 
             {sampleStore && (
@@ -164,98 +293,81 @@ export default function LandingPageClient({ sampleStore, totalStoresCount = 103 
                 href={`/r/${sampleStore.id}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="w-full sm:w-auto bg-[#141418] hover:bg-zinc-800 text-zinc-200 border border-white/10 font-display text-sm uppercase tracking-wider px-6 py-4 rounded-xl transition-all flex items-center justify-center gap-2"
+                className="flex w-full items-center justify-center gap-2 border-4 border-black bg-white px-6 py-4 text-sm font-black uppercase tracking-widest text-black shadow-neo transition-all duration-100 ease-linear hover:bg-neo-violet active:translate-x-1.5 active:translate-y-1.5 active:shadow-none sm:w-auto"
               >
                 <span>{sampleStore.name} Table Standee</span>
-                <ExternalLink className="w-3.5 h-3.5 text-zinc-400" />
+                <ExternalLink className="h-3.5 w-3.5" strokeWidth={3} />
               </Link>
             )}
           </div>
 
           {/* Quick Trust Highlights */}
-          <div className="pt-3 flex flex-wrap items-center justify-center gap-x-8 gap-y-3 text-xs text-zinc-400 font-semibold uppercase tracking-wider">
-            <span className="flex items-center gap-1.5">
-              <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-              0ms First Draft
-            </span>
-            <span className="flex items-center gap-1.5">
-              <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-              Direct 5★ Modal Open
-            </span>
-            <span className="flex items-center gap-1.5">
-              <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-              Reputation Firewall Shield
-            </span>
-            <span className="flex items-center gap-1.5">
-              <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-              100% Google Compliant
-            </span>
+          <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2.5 pt-3 text-xs font-black uppercase tracking-widest text-black">
+            {trustHighlights.map((t, i) => (
+              <span key={t} className={`flex items-center gap-1.5 border-2 border-black bg-white px-2 py-1 shadow-neo-xs ${i % 2 === 0 ? "-rotate-1" : "rotate-1"}`}>
+                <CheckCircle2 className="h-4 w-4 text-neo-green" strokeWidth={3} />
+                {t}
+              </span>
+            ))}
           </div>
         </div>
 
         {/* ========================================================================= */}
         {/* INTERACTIVE HERO MOCKUP CARD (Live Interactive Widget) */}
         {/* ========================================================================= */}
-        <div className="mt-14 max-w-lg mx-auto">
-          <div className="bg-[#121216] border border-white/15 rounded-3xl p-6 sm:p-7 shadow-2xl relative text-left overflow-hidden">
-            {/* Ambient Card Backlight */}
-            <div className="absolute top-0 right-0 w-44 h-44 bg-[#FF5400]/15 rounded-full blur-3xl pointer-events-none" />
-
+        <div className="mx-auto mt-14 max-w-lg">
+          <div className="relative overflow-hidden border-4 border-black bg-white p-6 text-left shadow-neo-lg sm:p-7">
             {/* Mock Restaurant Header */}
-            <div className="flex items-center justify-between pb-4 border-b border-white/10">
+            <div className="flex items-center justify-between border-b-[3px] border-black pb-4">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-[#B45309] text-white font-bold flex items-center justify-center text-sm shadow-md">
+                <div className="flex h-11 w-11 -rotate-3 items-center justify-center border-[3px] border-black bg-neo-violet text-sm font-black text-black shadow-neo-xs">
                   CSB
                 </div>
                 <div>
-                  <h3 className="font-bold text-sm text-white leading-tight">
-                    {storeName}
-                  </h3>
-                  <p className="text-[11px] text-zinc-400">
-                    Table #4 • Verified On-Site Guest
-                  </p>
+                  <h3 className="text-sm font-black uppercase leading-tight tracking-wide text-black">{storeName}</h3>
+                  <p className="text-[11px] font-bold text-black/60">Table #4 • Verified On-Site Guest</p>
                 </div>
               </div>
-              <span className="text-[10px] font-mono font-bold px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+              <span className="rotate-2 border-2 border-black bg-neo-green px-2.5 py-1 font-mono text-[10px] font-black uppercase tracking-widest text-black shadow-neo-xs">
                 0ms Engine
               </span>
             </div>
 
             {/* Star Selector */}
-            <div className="my-4 text-center">
+            <div className="my-5 text-center">
               <div className="flex items-center justify-center gap-2">
                 {[1, 2, 3, 4, 5].map((star) => (
                   <button
                     key={star}
                     type="button"
                     onClick={() => setRating(star)}
-                    className="p-1 hover:scale-115 transition-transform cursor-pointer"
+                    className="cursor-pointer p-0.5 transition-transform duration-100 ease-linear hover:scale-125 active:scale-90"
                   >
                     <Star
-                      className={`w-7 h-7 ${
-                        rating >= star ? "text-amber-400 fill-amber-400" : "text-zinc-700"
+                      className={`h-8 w-8 stroke-[1.5] ${
+                        rating >= star ? "fill-neo-yellow text-black" : "fill-white text-black/30"
                       }`}
                     />
                   </button>
                 ))}
               </div>
-              <p className="text-[11px] font-medium text-zinc-400 mt-1.5">
+              <p className="mt-2 text-[11px] font-black uppercase tracking-widest">
                 {rating >= 4 ? (
-                  <span className="text-emerald-400 font-semibold">⭐⭐⭐⭐⭐ 5/5 Happy Diner (Proceeds to Google)</span>
+                  <span className="bg-neo-green px-2 py-0.5 text-black">⭐⭐⭐⭐⭐ 5/5 Happy diner (proceeds to Google)</span>
                 ) : (
-                  <span className="text-amber-400 font-semibold">⚠️ 1–3 Stars: Reputation Firewall Intercepts Privately</span>
+                  <span className="bg-neo-red px-2 py-0.5 text-black">⚠️ 1–3 stars: reputation firewall intercepts privately</span>
                 )}
               </p>
             </div>
 
             {rating >= 4 ? (
-              <div className="space-y-3.5">
+              <div className="space-y-4">
                 {/* Highlight Chips */}
                 <div>
-                  <span className="text-[11px] font-bold text-zinc-300 block mb-1.5">
+                  <span className="mb-2 inline-block -rotate-1 border-2 border-black bg-neo-violet px-2 py-0.5 text-[11px] font-black uppercase tracking-widest text-black shadow-neo-xs">
                     Tap dishes to customize review in 0ms:
                   </span>
-                  <div className="flex flex-wrap gap-1.5">
+                  <div className="flex flex-wrap gap-2">
                     {defaultChips.map((chip) => {
                       const active = selectedChips.includes(chip);
                       return (
@@ -263,10 +375,8 @@ export default function LandingPageClient({ sampleStore, totalStoresCount = 103 
                           key={chip}
                           type="button"
                           onClick={() => toggleChip(chip)}
-                          className={`text-xs px-3 py-1.5 rounded-full font-medium transition-all cursor-pointer ${
-                            active
-                              ? "bg-white text-zinc-950 font-bold shadow-sm"
-                              : "bg-white/10 text-zinc-300 hover:bg-white/20"
+                          className={`cursor-pointer border-[3px] border-black px-3 py-1.5 text-xs font-black uppercase tracking-wide shadow-neo-xs transition-all duration-100 ease-linear active:translate-x-0.5 active:translate-y-0.5 active:shadow-none ${
+                            active ? "bg-black text-white" : "bg-white text-black hover:bg-neo-yellow"
                           }`}
                         >
                           {active ? "✓ " : "+ "}
@@ -278,7 +388,7 @@ export default function LandingPageClient({ sampleStore, totalStoresCount = 103 
                 </div>
 
                 {/* Pre-Drafted Review Box */}
-                <div className="p-3.5 rounded-2xl bg-black/40 border border-white/10 text-xs text-zinc-200 italic leading-relaxed">
+                <div className="border-[3px] border-black bg-cream p-3.5 text-xs font-bold italic leading-relaxed text-black shadow-neo-xs">
                   &ldquo;{getSimulatedReview()}&rdquo;
                 </div>
 
@@ -286,37 +396,38 @@ export default function LandingPageClient({ sampleStore, totalStoresCount = 103 
                 <button
                   type="button"
                   onClick={handleTestCopy}
-                  className="w-full py-3.5 px-4 rounded-xl bg-[#FF5400] hover:bg-[#E04B00] text-white font-display text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg shadow-orange-600/30 transition-all active:scale-95 cursor-pointer"
+                  className="flex w-full cursor-pointer items-center justify-center gap-2 border-4 border-black bg-neo-red px-4 py-3.5 text-xs font-black uppercase tracking-widest text-white shadow-neo transition-all duration-100 ease-linear hover:bg-black hover:text-white active:translate-x-1.5 active:translate-y-1.5 active:shadow-none"
                 >
                   {copied ? (
                     <>
-                      <Check className="w-4 h-4 text-white stroke-[3]" />
-                      <span>Copied! Opening 5★ Google Box...</span>
+                      <Check className="h-4 w-4 text-neo-green" strokeWidth={4} />
+                      <span>Copied! Opening 5★ Google box...</span>
                     </>
                   ) : (
                     <>
-                      <Copy className="w-3.5 h-3.5" />
+                      <Copy className="h-3.5 w-3.5" strokeWidth={3} />
                       <span>Copy Review &amp; Open 5★ Review Box</span>
-                      <ExternalLink className="w-3.5 h-3.5 opacity-70 ml-0.5" />
+                      <ExternalLink className="ml-0.5 h-3.5 w-3.5 opacity-70" strokeWidth={3} />
                     </>
                   )}
                 </button>
 
-                <p className="text-[10px] text-zinc-500 text-center">
-                  1-Tap copies review text and pops open Google&apos;s direct Write-A-Review modal.
+                <p className="text-center text-[10px] font-bold uppercase tracking-widest text-black/50">
+                  1-tap copies review text and pops open Google&apos;s direct write-a-review modal.
                 </p>
               </div>
             ) : (
               /* Reputation Firewall Mock */
-              <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 space-y-2.5 text-xs text-amber-200">
-                <div className="flex items-center gap-2 font-bold text-amber-400">
-                  <ShieldAlert className="w-4 h-4" />
+              <div className="space-y-2.5 border-[3px] border-black bg-neo-yellow p-4 text-xs text-black shadow-neo-xs">
+                <div className="flex items-center gap-2 font-black uppercase tracking-widest">
+                  <ShieldAlert className="h-4 w-4" strokeWidth={3} />
                   <span>Reputation Firewall Active</span>
                 </div>
-                <p className="text-[11px] text-zinc-300 leading-relaxed">
-                  Negative ratings trigger an immediate private manager alert table-side. The manager can visit the table and resolve the issue before a 1-star review hits Google Maps.
+                <p className="text-[11px] font-bold leading-relaxed text-black/80">
+                  Negative ratings trigger an immediate private manager alert table-side. The manager
+                  can visit the table and resolve the issue before a 1-star review hits Google Maps.
                 </p>
-                <div className="p-2.5 rounded-xl bg-black/40 border border-amber-500/30 font-mono text-[10px] text-amber-300">
+                <div className="border-[3px] border-black bg-white p-2.5 font-mono text-[10px] font-bold text-black shadow-neo-xs">
                   ⚡ [Manager Alert]: Table #4 requested table-side assistance.
                 </div>
               </div>
@@ -328,196 +439,118 @@ export default function LandingPageClient({ sampleStore, totalStoresCount = 103 
       {/* ========================================================================= */}
       {/* 3. HOW IT WORKS (3 Simple Steps) */}
       {/* ========================================================================= */}
-      <section id="how-it-works" className="py-20 px-4 sm:px-6 lg:px-8 max-w-6xl mx-auto border-t border-white/5">
-        <div className="text-center max-w-3xl mx-auto mb-14 space-y-3">
-          <span className="font-mono text-xs font-bold uppercase tracking-wider text-[#FF5400] block">
+      <section id="how-it-works" className="mx-auto max-w-6xl scroll-mt-24 border-t-4 border-black px-4 py-20 sm:px-6 lg:px-8">
+        <div className="mx-auto mb-14 max-w-3xl space-y-3 text-center">
+          <span className="inline-block rotate-1 border-2 border-black bg-neo-blue px-3 py-1 font-mono text-xs font-black uppercase tracking-widest text-white shadow-neo-xs">
             10-Second Table Workflow
           </span>
-          <h2 className="font-display uppercase text-3xl sm:text-5xl tracking-tight text-white">
+          <h2 className="font-display text-3xl uppercase tracking-tight text-black sm:text-5xl">
             HOW IT TURNS DINERS INTO REVIEWS
           </h2>
-          <p className="text-xs sm:text-sm text-zinc-400">
-            Traditional review requests get ignored because writing a review takes work. ReviewBoost makes it effortless.
+          <p className="text-xs font-bold text-black/70 sm:text-sm">
+            Traditional review requests get ignored because writing a review takes work. ReviewBoost
+            makes it effortless.
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* Step 1 */}
-          <div className="bg-[#141418] border border-white/5 rounded-3xl p-7 relative space-y-4">
-            <div className="w-12 h-12 rounded-2xl bg-blue-500/10 border border-blue-500/20 text-blue-400 flex items-center justify-center font-display text-xl">
-              1
+        <div className="grid grid-cols-1 gap-7 md:grid-cols-3">
+          {steps.map((step, idx) => (
+            <div
+              key={step.n}
+              className={`relative space-y-4 border-4 border-black bg-white p-7 shadow-neo-sm transition-all duration-200 ease-linear hover:-translate-y-2 hover:shadow-neo-md ${
+                idx === 1 ? "md:rotate-1" : idx === 2 ? "md:-rotate-1" : ""
+              } hover:rotate-0`}
+            >
+              <div
+                className={`flex h-12 w-12 -rotate-3 items-center justify-center border-[3px] border-black font-display text-xl text-black shadow-neo-xs ${step.bg}`}
+              >
+                {step.n}
+              </div>
+              <h3 className="text-xl font-black uppercase tracking-wide text-black">{step.title}</h3>
+              <p className="text-xs font-bold leading-relaxed text-black/70">{step.body}</p>
+              <div className="flex items-center gap-1.5 pt-2 text-[11px] font-black uppercase tracking-widest text-black">
+                <span className="border-2 border-black bg-white px-1.5 py-0.5 shadow-neo-xs">{step.icon}</span>
+                <span>{step.caption}</span>
+              </div>
             </div>
-            <h3 className="font-display uppercase text-xl text-white">
-              Scan Table Standee
-            </h3>
-            <p className="text-xs text-zinc-400 leading-relaxed">
-              Diner points phone camera at the acrylic table standee or tent. Opens instantly in browser with <strong>zero app download</strong> or login required.
-            </p>
-            <div className="pt-2 flex items-center gap-1.5 text-[11px] font-mono text-blue-400">
-              <QrCode className="w-3.5 h-3.5" />
-              <span>Instant Camera Launch</span>
-            </div>
-          </div>
-
-          {/* Step 2 */}
-          <div className="bg-[#141418] border border-white/5 rounded-3xl p-7 relative space-y-4">
-            <div className="w-12 h-12 rounded-2xl bg-[#FF5400]/10 border border-[#FF5400]/20 text-[#FF5400] flex items-center justify-center font-display text-xl">
-              2
-            </div>
-            <h3 className="font-display uppercase text-xl text-white">
-              Tap What They Loved
-            </h3>
-            <p className="text-xs text-zinc-400 leading-relaxed">
-              Diner taps their favorite dishes (e.g. <em>Kulhad Chai, Peri Peri Maggi</em>). The 0ms engine instantly pre-drafts an authentic, enthusiastic 5-star review.
-            </p>
-            <div className="pt-2 flex items-center gap-1.5 text-[11px] font-mono text-amber-400">
-              <UtensilsCrossed className="w-3.5 h-3.5" />
-              <span>Zero Writer&apos;s Block</span>
-            </div>
-          </div>
-
-          {/* Step 3 */}
-          <div className="bg-[#141418] border border-white/5 rounded-3xl p-7 relative space-y-4">
-            <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center font-display text-xl">
-              3
-            </div>
-            <h3 className="font-display uppercase text-xl text-white">
-              1-Tap Post to Google
-            </h3>
-            <p className="text-xs text-zinc-400 leading-relaxed">
-              Tapping the button copies the review and directly triggers Google&apos;s 5-star modal box. The guest taps the 5th star, pastes, and posts in 3 seconds.
-            </p>
-            <div className="pt-2 flex items-center gap-1.5 text-[11px] font-mono text-emerald-400">
-              <Check className="w-3.5 h-3.5 stroke-[3]" />
-              <span>Direct Review Dialog Open</span>
-            </div>
-          </div>
+          ))}
         </div>
       </section>
 
       {/* ========================================================================= */}
       {/* 4. THE TWO CORE PILLARS (Why It Converts & Protects) */}
       {/* ========================================================================= */}
-      <section id="benefits" className="py-20 px-4 sm:px-6 lg:px-8 max-w-6xl mx-auto border-t border-white/5">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Pillar 1: Growth Engine */}
-          <div className="bg-[#141418] border border-white/10 rounded-3xl p-8 sm:p-10 space-y-5 relative overflow-hidden">
-            <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center">
-              <TrendingUp className="w-6 h-6" />
+      <section id="benefits" className="mx-auto max-w-6xl scroll-mt-24 border-t-4 border-black px-4 py-20 sm:px-6 lg:px-8">
+        <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
+          {pillars.map((pillar, idx) => (
+            <div
+              key={idx}
+              id={pillar.id}
+              className={`relative space-y-5 overflow-hidden border-4 border-black bg-white p-8 shadow-neo-md sm:p-10 ${
+                idx === 0 ? "-rotate-1" : idx === 1 ? "rotate-1" : "-rotate-1"
+              } transition-all duration-200 ease-linear hover:rotate-0 hover:shadow-neo-lg ${pillar.id ? "scroll-mt-28" : ""}`}
+            >
+              <div
+                className={`flex h-12 w-12 items-center justify-center border-[3px] border-black shadow-neo-xs ${pillar.iconBg}`}
+              >
+                {pillar.icon}
+              </div>
+
+              <h3 className="font-display text-3xl uppercase tracking-tight text-black sm:text-4xl">
+                {pillar.title}
+              </h3>
+
+              <p className="text-xs font-bold leading-relaxed text-black/70 sm:text-sm">{pillar.body}</p>
+
+              <ul className="space-y-3 border-t-[3px] border-black pt-4 text-xs font-bold text-black/70">
+                {pillar.points.map((p) => (
+                  <li key={p.strong} className="flex items-start gap-2.5">
+                    <Check className="mt-0.5 h-4 w-4 shrink-0 text-neo-green" strokeWidth={4} />
+                    <span>
+                      <strong className="font-black text-black">{p.strong}</strong> {p.text}
+                    </span>
+                  </li>
+                ))}
+              </ul>
             </div>
-
-            <h3 className="font-display uppercase text-3xl sm:text-4xl text-white tracking-tight">
-              MAXIMUM GOOGLE MAPS VISIBILITY
-            </h3>
-
-            <p className="text-xs sm:text-sm text-zinc-300 leading-relaxed">
-              Google algorithms rank local restaurants based on review frequency, GPS proximity, and dish keyword density.
-            </p>
-
-            <ul className="space-y-3 text-xs text-zinc-400 pt-2">
-              <li className="flex items-start gap-2.5">
-                <Check className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
-                <span><strong>On-Site GPS Trust:</strong> Reviews submitted while seated at the venue carry the highest algorithm trust score and never get filtered as spam.</span>
-              </li>
-              <li className="flex items-start gap-2.5">
-                <Check className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
-                <span><strong>Menu Keyword Lift:</strong> Specific dish mentions (e.g. <em>Signature Kulhad Chai</em>) index your restaurant when locals search for those items nearby.</span>
-              </li>
-              <li className="flex items-start gap-2.5">
-                <Check className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
-                <span><strong>Natural Daily Drip:</strong> Consistent 3–8 new reviews every single day rather than suspicious bulk spikes.</span>
-              </li>
-            </ul>
-          </div>
-
-          {/* Pillar 2: Reputation Firewall */}
-          <div className="bg-[#141418] border border-white/10 rounded-3xl p-8 sm:p-10 space-y-5 relative overflow-hidden">
-            <div className="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center">
-              <ShieldCheck className="w-6 h-6" />
-            </div>
-
-            <h3 className="font-display uppercase text-3xl sm:text-4xl text-white tracking-tight">
-              REPUTATION FIREWALL SHIELD
-            </h3>
-
-            <p className="text-xs sm:text-sm text-zinc-300 leading-relaxed">
-              A single 1-star review on Google Maps damages your ranking for months. Catch diner grievances table-side before they leave.
-            </p>
-
-            <ul className="space-y-3 text-xs text-zinc-400 pt-2">
-              <li className="flex items-start gap-2.5">
-                <Check className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
-                <span><strong>Table-Side Escalation:</strong> 1–3 star ratings invite diners to send an immediate note directly to the GM to fix the food or service on the spot.</span>
-              </li>
-              <li className="flex items-start gap-2.5">
-                <Check className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
-                <span><strong>Turns Complaints into Loyalty:</strong> Resolving an issue at the table prevents 90%+ of negative public reviews.</span>
-              </li>
-              <li className="flex items-start gap-2.5">
-                <Check className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
-                <span><strong>100% Policy Compliant:</strong> Transparent Google review option prevents &quot;Review Gating&quot; penalties.</span>
-              </li>
-            </ul>
-          </div>
-
-          {/* Pillar 3: Role-Based Team Access */}
-          <div id="roles" className="bg-[#141418] border border-white/10 rounded-3xl p-8 sm:p-10 space-y-5 relative overflow-hidden scroll-mt-28">
-            <div className="w-12 h-12 rounded-2xl bg-blue-500/10 border border-blue-500/20 text-blue-400 flex items-center justify-center">
-              <Users className="w-6 h-6" />
-            </div>
-
-            <h3 className="font-display uppercase text-3xl sm:text-4xl text-white tracking-tight">
-              TEAM ACCESS, DONE RIGHT
-            </h3>
-
-            <p className="text-xs sm:text-sm text-zinc-300 leading-relaxed">
-              One platform account, many restaurants. Give every location its own admin without ever exposing the others.
-            </p>
-
-            <ul className="space-y-3 text-xs text-zinc-400 pt-2">
-              <li className="flex items-start gap-2.5">
-                <Check className="w-4 h-4 text-blue-400 shrink-0 mt-0.5" />
-                <span><strong>Store Admins:</strong> each owner sees only the locations you assign — their own dishes, sentence combinations, analytics and firewall inbox.</span>
-              </li>
-              <li className="flex items-start gap-2.5">
-                <Check className="w-4 h-4 text-blue-400 shrink-0 mt-0.5" />
-                <span><strong>Owner-first alerts:</strong> low-rating emails go straight to each store&apos;s owner inbox, with delivery status tracked in the console.</span>
-              </li>
-              <li className="flex items-start gap-2.5">
-                <Check className="w-4 h-4 text-blue-400 shrink-0 mt-0.5" />
-                <span><strong>Permanent QR codes:</strong>  one printed standee per location — rename the café, change the menu, and the code still works.</span>
-              </li>
-            </ul>
-          </div>
+          ))}
         </div>
       </section>
 
       {/* ========================================================================= */}
       {/* 5. RESTAURANT SOCIAL PROOF BAR */}
       {/* ========================================================================= */}
-      <section className="py-14 px-4 sm:px-6 lg:px-8 max-w-6xl mx-auto border-t border-white/5">
-        <div className="bg-[#141418] border border-white/5 rounded-3xl p-6 sm:p-8 text-center space-y-4">
+      <section className="mx-auto max-w-6xl border-t-4 border-black bg-neo-yellow px-4 py-14 sm:px-6 lg:px-8">
+        <div className="space-y-4 border-4 border-black bg-white p-6 text-center shadow-neo-md sm:p-8">
           <div className="flex items-center justify-center gap-2">
-            <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
-            <span className="text-xs font-mono font-bold text-zinc-400 uppercase tracking-wider">
+            <span className="h-2.5 w-2.5 animate-pulse bg-neo-green" />
+            <span className="font-mono text-xs font-black uppercase tracking-widest text-black">
               Platform Scale
             </span>
           </div>
 
-          <h3 className="font-display uppercase text-2xl sm:text-3xl text-white tracking-tight">
+          <h3 className="font-display text-2xl uppercase tracking-tight text-black sm:text-3xl">
             POWERING {totalStoresCount}+ LOCATIONS ACROSS INDIA
           </h3>
 
-          <p className="text-xs text-zinc-400 max-w-xl mx-auto">
-            From youth cafes in Patna and Bihta to bustling bistros in Bengaluru and Pune, ReviewBoost is running on live dining tables every day.
+          <p className="mx-auto max-w-xl text-xs font-bold text-black/70">
+            From youth cafes in Patna and Bihta to bustling bistros in Bengaluru and Pune, ReviewBoost
+            is running on live dining tables every day.
           </p>
 
-          <div className="pt-2 flex flex-wrap items-center justify-center gap-3 text-xs font-semibold text-zinc-300">
-            <span className="px-3 py-1.5 rounded-xl bg-white/5 border border-white/10">Chai Sutta Bar (CSB) Bihta</span>
-            <span className="px-3 py-1.5 rounded-xl bg-white/5 border border-white/10">Cafe 13 Patna</span>
-            <span className="px-3 py-1.5 rounded-xl bg-white/5 border border-white/10">Third Wave Coffee</span>
-            <span className="px-3 py-1.5 rounded-xl bg-white/5 border border-white/10">Toit Brewpub</span>
-            <span className="px-3 py-1.5 rounded-xl bg-white/5 border border-white/10">French Window Pune</span>
+          <div className="flex flex-wrap items-center justify-center gap-3 pt-2 text-xs font-black uppercase tracking-widest text-black">
+            {["Chai Sutta Bar (CSB) Bihta", "Cafe 13 Patna", "Third Wave Coffee", "Toit Brewpub", "French Window Pune"].map(
+              (name, i) => (
+                <span
+                  key={name}
+                  className={`border-[3px] border-black bg-cream px-3 py-1.5 shadow-neo-xs ${
+                    i % 2 === 0 ? "-rotate-1" : "rotate-1"
+                  } transition-transform hover:rotate-0`}
+                >
+                  {name}
+                </span>
+              )
+            )}
           </div>
         </div>
       </section>
@@ -525,32 +558,37 @@ export default function LandingPageClient({ sampleStore, totalStoresCount = 103 
       {/* ========================================================================= */}
       {/* 6. CALL TO ACTION BANNER */}
       {/* ========================================================================= */}
-      <section className="py-20 px-4 sm:px-6 lg:px-8 max-w-6xl mx-auto border-t border-white/5">
-        <div className="bg-gradient-to-br from-[#1C1714] via-[#121216] to-[#121216] border border-orange-500/20 rounded-3xl p-8 sm:p-14 text-center relative overflow-hidden shadow-2xl space-y-6">
-          <div className="w-14 h-14 rounded-2xl bg-[#FF5400]/15 border border-[#FF5400]/30 text-[#FF5400] flex items-center justify-center mx-auto shadow-lg shadow-orange-600/20">
-            <Sparkles className="w-7 h-7" />
+      <section className="mx-auto max-w-6xl border-t-4 border-black bg-black px-4 py-20 sm:px-6 lg:px-8">
+        <div className="relative space-y-6 overflow-hidden border-4 border-white p-8 text-center shadow-neo-white-md sm:p-14">
+          <div className="pointer-events-none absolute -right-8 -top-8 h-40 w-40 bg-neo-halftone opacity-20" />
+          <div className="pointer-events-none absolute -bottom-8 -left-8 h-40 w-40 bg-neo-halftone opacity-20" />
+
+          <div className="mx-auto flex h-16 w-16 rotate-3 items-center justify-center border-4 border-neo-yellow bg-neo-yellow shadow-neo-white-sm">
+            <Sparkles className="h-7 w-7 text-black" strokeWidth={2.5} />
           </div>
 
-          <h2 className="font-display uppercase text-3xl sm:text-5xl lg:text-6xl tracking-tight text-white max-w-3xl mx-auto leading-tight">
-            READY TO MULTIPLY YOUR RESTAURANT&apos;S 5-STAR REVIEWS?
+          <h2 className="mx-auto max-w-3xl font-display text-3xl uppercase leading-tight tracking-tight text-white sm:text-5xl lg:text-6xl">
+            READY TO MULTIPLY YOUR RESTAURANT&apos;S{" "}
+            <span className="text-neo-yellow">5-STAR REVIEWS?</span>
           </h2>
 
-          <p className="text-xs sm:text-sm text-zinc-400 max-w-xl mx-auto leading-relaxed">
-            Explore the 10-second diner flow, or jump into the console to generate print-ready table standees and invite each store&apos;s team.
+          <p className="mx-auto max-w-xl text-xs font-bold leading-relaxed text-white/70 sm:text-sm">
+            Explore the 10-second diner flow, or jump into the console to generate print-ready table
+            standees and invite each store&apos;s team.
           </p>
 
-          <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-4">
+          <div className="flex flex-col items-center justify-center gap-4 pt-2 sm:flex-row">
             <Link
               href="/admin"
-              className="w-full sm:w-auto bg-[#FF5400] hover:bg-[#E04B00] text-white font-display text-sm uppercase tracking-wider px-9 py-4 rounded-xl shadow-2xl shadow-orange-600/35 transition-all active:scale-95 flex items-center justify-center gap-2"
+              className="flex w-full items-center justify-center gap-2 border-4 border-white bg-neo-red px-9 py-4 text-sm font-black uppercase tracking-widest text-black shadow-neo-white-sm transition-all duration-100 ease-linear hover:bg-neo-yellow active:translate-x-1.5 active:translate-y-1.5 active:shadow-none sm:w-auto"
             >
               <span>Open Admin Console</span>
-              <ArrowRight className="w-4 h-4" />
+              <ArrowRight className="h-4 w-4" strokeWidth={3} />
             </Link>
 
             <Link
               href="#how-it-works"
-              className="w-full sm:w-auto bg-white/10 hover:bg-white/15 text-white font-display text-sm uppercase tracking-wider px-7 py-4 rounded-xl transition-all border border-white/10 flex items-center justify-center gap-2"
+              className="flex w-full items-center justify-center gap-2 border-4 border-white bg-transparent px-7 py-4 text-sm font-black uppercase tracking-widest text-white transition-all duration-100 ease-linear hover:bg-white hover:text-black sm:w-auto"
             >
               <span>See How It Works</span>
             </Link>
@@ -561,48 +599,45 @@ export default function LandingPageClient({ sampleStore, totalStoresCount = 103 
       {/* ========================================================================= */}
       {/* 7. CLEAN PROFESSIONAL FOOTER */}
       {/* ========================================================================= */}
-      <footer className="pt-12 pb-12 px-4 sm:px-6 lg:px-8 max-w-6xl mx-auto border-t border-white/5">
-        <div className="flex flex-col md:flex-row items-center justify-between gap-6 text-center md:text-left">
+      <footer className="mx-auto max-w-6xl px-4 pb-12 pt-12 sm:px-6 lg:px-8">
+        <div className="flex flex-col items-center justify-between gap-6 text-center md:flex-row md:text-left">
           {/* Brand Info */}
           <div className="space-y-1.5">
-            <div className="flex items-center justify-center md:justify-start gap-2">
-              <div className="w-6 h-6 rounded-lg bg-[#FF5400] flex items-center justify-center">
-                <Sparkles className="w-3.5 h-3.5 text-white" />
+            <div className="flex items-center justify-center gap-2 md:justify-start">
+              <div className="flex h-7 w-7 -rotate-6 items-center justify-center border-2 border-black bg-neo-yellow">
+                <Sparkles className="h-3.5 w-3.5" strokeWidth={3} />
               </div>
-              <span className="font-display uppercase text-lg text-white">
-                REVIEWBOOST
-              </span>
+              <span className="font-display text-lg uppercase text-black">REVIEWBOOST</span>
             </div>
-            <p className="text-xs text-zinc-500">
+            <p className="text-xs font-bold text-black/60">
               The 10-Second Table-to-Google Review Engine for Restaurants &amp; Cafes.
             </p>
           </div>
 
           {/* Quick Links */}
-          <div className="flex flex-wrap items-center justify-center gap-6 text-xs text-zinc-400 font-semibold">
-            <Link href="#how-it-works" className="hover:text-white transition-colors">
+          <div className="flex flex-wrap items-center justify-center gap-5 text-xs font-black uppercase tracking-widest text-black">
+            <Link href="#how-it-works" className="border-2 border-transparent px-1 py-0.5 transition-all duration-100 ease-linear hover:border-black hover:bg-neo-yellow hover:shadow-neo-xs">
               How It Works
             </Link>
-            <Link href="/admin/stores" className="hover:text-white transition-colors">
+            <Link href="/admin/stores" className="border-2 border-transparent px-1 py-0.5 transition-all duration-100 ease-linear hover:border-black hover:bg-neo-yellow hover:shadow-neo-xs">
               Table Standees
             </Link>
-            <Link href="/admin/analytics" className="hover:text-white transition-colors">
+            <Link href="/admin/analytics" className="border-2 border-transparent px-1 py-0.5 transition-all duration-100 ease-linear hover:border-black hover:bg-neo-yellow hover:shadow-neo-xs">
               Live Analytics
             </Link>
-            <Link href="/admin" className="hover:text-white transition-colors">
+            <Link href="/admin" className="border-2 border-transparent px-1 py-0.5 transition-all duration-100 ease-linear hover:border-black hover:bg-neo-yellow hover:shadow-neo-xs">
               Admin Login
             </Link>
           </div>
         </div>
 
         {/* Bottom Line */}
-        <div className="mt-8 pt-6 border-t border-white/5 flex flex-col sm:flex-row items-center justify-between gap-3 text-[11px] text-zinc-500 text-center">
+        <div className="mt-8 flex flex-col items-center justify-between gap-3 border-t-[3px] border-black pt-6 text-center text-[11px] font-bold text-black/60 sm:flex-row">
           <p>
-            Designed &amp; Developed by <strong>SayaLabs</strong> (sayalabs.in) • All Rights Reserved.
+            Designed &amp; Developed by <strong className="font-black text-black">SayaLabs</strong>{" "}
+            (sayalabs.in) • All Rights Reserved.
           </p>
-          <p className="text-zinc-600">
-            Compliant with Google Business Profile &amp; FTC Guidelines
-          </p>
+          <p>Compliant with Google Business Profile &amp; FTC Guidelines</p>
         </div>
       </footer>
     </div>

@@ -143,3 +143,76 @@ test("sanitizeTemplateSet trims, dedupes, and clears empty sets", () => {
   assert.equal(sanitizeTemplateSet(null), undefined);
 });
 
+/* --------------------------- Review engine v2 ----------------------------- */
+
+import { DEFAULT_CHIPS, estimateReviewCombinations, generateUniqueReview } from "../lib/ai";
+
+test("consecutive seeds never reproduce the same draft (anti-duplicate mixing)", () => {
+  // The old arithmetic picker repeated entries whenever the seed moved by a
+  // list length (e.g. 20) — two customers a few taps apart could mint the
+  // identical review, which is what Google's spam filter blocks.
+  const drafts = new Set<string>();
+  for (let seed = 0; seed < 60; seed++) {
+    drafts.add(
+      generateOfflineReview({
+        storeName: "Dup Check Diner",
+        category: "Cafe",
+        chips: ["Truffle Pizza", "Cold Brew"],
+        variationSeed: seed,
+      })
+    );
+  }
+  assert.equal(drafts.size, 60, "every seed in a 60-draft run must produce a distinct review");
+});
+
+test("generateUniqueReview never hands back a draft the visitor already saw", () => {
+  const options = {
+    storeName: "Seen Before Bistro",
+    category: "Bistro",
+    chips: ["Duck Confit"],
+    variationSeed: 5,
+  };
+  const first = generateOfflineReview(options);
+  const second = generateUniqueReview(options, [first]);
+  assert.notEqual(first, second, "a seen draft must be re-rolled");
+  assert.equal(generateUniqueReview(options, []), first, "no history means the base draft");
+});
+
+test("signature keywords are woven in and never duplicated alongside chips", () => {
+  const review = generateOfflineReview({
+    storeName: "Keyword Kitchen",
+    category: "Pizzeria",
+    chips: ["Wood-Fired Oven"],
+    variationSeed: 3,
+    keywords: ["wood-fired oven", "generous portions"],
+  });
+  assert.ok(review.toLowerCase().includes("generous portions"), "the fresh keyword must be woven in");
+  // "wood-fired oven" appears as the chip; the same phrase must not be woven again.
+  const occurrences = review.toLowerCase().split("wood-fired oven").length - 1;
+  assert.equal(occurrences, 1, "a keyword that duplicates a tapped chip must be skipped");
+});
+
+test("estimateReviewCombinations reports meaningful headroom", () => {
+  const bare = estimateReviewCombinations({ chips: [], keywords: [] });
+  assert.ok(bare >= 100, `even the bare config has headroom, got ${bare}`);
+
+  const rich = estimateReviewCombinations({
+    chips: ["A", "B", "C"],
+    keywords: ["wood-fired oven", "generous portions", "family recipes"],
+  });
+  assert.ok(rich > 50_000, `a configured store should exceed 50k drafts, got ${rich}`);
+  assert.ok(rich > bare, "more ingredients must strictly increase the estimate");
+});
+
+test("stores without chips still get working tap-to-review chips", () => {
+  assert.ok(DEFAULT_CHIPS.length >= 3, "the default chip set must exist");
+  const review = generateOfflineReview({
+    storeName: "Zero Config Cafe",
+    category: "Cafe",
+    chips: DEFAULT_CHIPS.slice(0, 2),
+    variationSeed: 1,
+  });
+  assert.ok(review.includes("Zero Config Cafe"));
+  assert.ok(review.length > 50);
+});
+

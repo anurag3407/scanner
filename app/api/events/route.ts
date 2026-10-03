@@ -1,8 +1,20 @@
 import { NextResponse } from "next/server";
 import { getStoreById, logScanEvent, SCAN_EVENT_TYPES } from "@/lib/store";
 import { sanitizeStringArray } from "@/lib/validation";
+import { clientIdentifier, rateLimit } from "@/lib/rate-limit";
 
 export async function POST(req: Request) {
+  // Anonymous telemetry: bound it so one client cannot flood the events table
+  // or exhaust the database quota. The real scan flow fires a handful of
+  // events per visit (scan, chip toggles, copy_open), so 120/min is generous.
+  const limiter = rateLimit(`events:${clientIdentifier(req)}`, 120, 60_000);
+  if (limiter.limited) {
+    return NextResponse.json(
+      { error: "Too many requests. Please slow down." },
+      { status: 429, headers: { "Retry-After": String(limiter.retryAfter) } }
+    );
+  }
+
   let body: Record<string, unknown>;
   try {
     body = await req.json();

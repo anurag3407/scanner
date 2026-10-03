@@ -1,7 +1,17 @@
 import { NextResponse } from "next/server";
 import { getAllStores, createStore, getStoreBySlug, getStoresByIds } from "@/lib/store";
-import { slugify, isValidHexColor, sanitizeStringArray, sanitizeTemplateSet } from "@/lib/validation";
+import {
+  slugify,
+  isValidHexColor,
+  sanitizeStringArray,
+  sanitizeTemplateSet,
+  sanitizeEmailList,
+  sanitizeKeywordList,
+  sanitizeReviewTone,
+  sanitizeCurrency,
+} from "@/lib/validation";
 import { assertAdminAuth, assertSuperAdmin, scopedStoreIds } from "@/lib/auth";
+import { isSameOriginRequest } from "@/lib/csrf";
 
 export async function GET() {
   const auth = await assertAdminAuth();
@@ -21,6 +31,11 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
+  // Cookie-authenticated mutation: reject cross-site callers outright.
+  if (!isSameOriginRequest(req)) {
+    return NextResponse.json({ error: "Cross-origin request rejected" }, { status: 403 });
+  }
+
   // Creating locations is platform-owner only.
   const auth = await assertSuperAdmin();
   if (!auth.authorized) {
@@ -79,11 +94,17 @@ export async function POST(req: Request) {
       logoUrl: typeof body.logoUrl === "string" && body.logoUrl.trim() ? body.logoUrl.trim() : undefined,
       chips: sanitizeStringArray(body.chips),
       seoKeywords: sanitizeStringArray(body.seoKeywords),
-      managerEmail: typeof body.managerEmail === "string" ? body.managerEmail.trim() : "",
+      // Normalized to a clean comma-separated inbox list so the alert path
+      // can always parse it.
+      managerEmail: sanitizeEmailList(body.managerEmail).join(", "),
       managerPhone: typeof body.managerPhone === "string" ? body.managerPhone.trim() : "",
       address: typeof body.address === "string" ? body.address.trim() : "",
       tableCount: Number.isFinite(tableCount) && tableCount > 0 ? Math.floor(tableCount) : 1,
       reviewTemplates: sanitizeTemplateSet(body.reviewTemplates),
+      // Review engine v2 config: keyword pool, draft voice, menu currency.
+      signatureKeywords: sanitizeKeywordList(body.signatureKeywords),
+      reviewTone: sanitizeReviewTone(body.reviewTone) || "punchy",
+      currency: sanitizeCurrency(body.currency) || "INR",
     });
 
     return NextResponse.json({ store }, { status: 201 });

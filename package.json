@@ -2,16 +2,28 @@
   "name": "scanner",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": ">=22.3.0"
+  },
   "scripts": {
+    "test:rls": "bash scripts/test-rls-migration.sh",
+    "test:sql": "node scripts/check-sql.mjs",
+    "check:rls": "node scripts/check-rls.mjs",
     "build": "next build",
     "dev": "next dev",
     "start": "next start",
     "lint": "eslint",
-    "test": "NODE_ENV=test tsx --test tests/**/*.test.ts",
+    "test:functional": "node scripts/check-sql.mjs && bash scripts/test-rls-migration.sh && NODE_ENV=test AUTH_BYPASS_TESTS=true tsx --test tests/api-routes.test.ts tests/rbac.test.ts tests/review-engine.test.ts tests/review-links.test.ts tests/security.test.ts tests/store.test.ts tests/menu.test.ts",
+    "test:bypass": "NODE_ENV=test tsx --experimental-test-module-mocks --test tests/permission-bypass.test.ts && NODE_ENV=test tsx --experimental-test-module-mocks --test tests/redteam-poc.test.ts",
+    "test": "npm run test:functional && npm run test:bypass",
+    "test:all": "npm run test",
+    "test:live": "bash scripts/live-security-check.sh",
+    "verify": "npm run test:all && npm run lint && npm run build",
     "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
     "deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
     "upload": "opennextjs-cloudflare build && opennextjs-cloudflare upload",
-    "cf-typegen": "wrangler types --env-interface CloudflareEnv cloudflare-env.d.ts"
+    "cf-typegen": "wrangler types --env-interface CloudflareEnv cloudflare-env.d.ts",
+    "check:rls:policies": "node scripts/check-rls-policies.mjs"
   },
   "dependencies": {
     "@clerk/nextjs": "^7.9.8",

@@ -1,8 +1,18 @@
 import { NextResponse } from "next/server";
 import { getStoreById, getStoreBySlug, updateStore, deleteStore } from "@/lib/store";
 import { Store } from "@/lib/types";
-import { slugify, isValidHexColor, sanitizeStringArray, sanitizeTemplateSet } from "@/lib/validation";
+import {
+  slugify,
+  isValidHexColor,
+  sanitizeStringArray,
+  sanitizeTemplateSet,
+  sanitizeEmailList,
+  sanitizeKeywordList,
+  sanitizeReviewTone,
+  sanitizeCurrency,
+} from "@/lib/validation";
 import { assertStoreAccess, assertSuperAdmin } from "@/lib/auth";
+import { isSameOriginRequest } from "@/lib/csrf";
 
 export async function GET(
   _req: Request,
@@ -31,6 +41,11 @@ export async function PUT(
   req: Request,
   context: { params: Promise<{ id: string }> }
 ) {
+  // Cookie-authenticated mutation: reject cross-site callers outright.
+  if (!isSameOriginRequest(req)) {
+    return NextResponse.json({ error: "Cross-origin request rejected" }, { status: 403 });
+  }
+
   try {
     const { id } = await context.params;
 
@@ -93,7 +108,12 @@ export async function PUT(
     if (typeof body.logoUrl === "string") updates.logoUrl = body.logoUrl.trim() || undefined;
     if (Array.isArray(body.chips)) updates.chips = sanitizeStringArray(body.chips);
     if (Array.isArray(body.seoKeywords)) updates.seoKeywords = sanitizeStringArray(body.seoKeywords);
-    if (typeof body.managerEmail === "string") updates.managerEmail = body.managerEmail.trim();
+    // Sanitize like the create route: one unvalidated address could otherwise
+    // break the comma-separated inbox parse at alert time and silently disable
+    // owner alerts for this location.
+    if (typeof body.managerEmail === "string") {
+      updates.managerEmail = sanitizeEmailList(body.managerEmail).join(", ");
+    }
     if (typeof body.managerPhone === "string") updates.managerPhone = body.managerPhone.trim();
     if (typeof body.address === "string") updates.address = body.address.trim();
 
@@ -101,6 +121,32 @@ export async function PUT(
     // set clears the store override and falls back to the built-in library.
     if (body.reviewTemplates !== undefined) {
       updates.reviewTemplates = sanitizeTemplateSet(body.reviewTemplates);
+    }
+
+    // Review engine v2: signature keyword pool and draft voice. An empty
+    // keyword list clears the pool (the engine then relies on chips alone).
+    if (Array.isArray(body.signatureKeywords)) {
+      updates.signatureKeywords = sanitizeKeywordList(body.signatureKeywords);
+    }
+    if (body.reviewTone !== undefined) {
+      const tone = sanitizeReviewTone(body.reviewTone);
+      if (body.reviewTone !== null && !tone) {
+        return NextResponse.json(
+          { error: "reviewTone must be one of: punchy, foodie, hospitality" },
+          { status: 400 }
+        );
+      }
+      if (tone) updates.reviewTone = tone;
+    }
+    if (body.currency !== undefined) {
+      const currency = sanitizeCurrency(body.currency);
+      if (body.currency !== null && !currency) {
+        return NextResponse.json(
+          { error: "currency must be a 3-letter ISO 4217 code (e.g. INR, USD)" },
+          { status: 400 }
+        );
+      }
+      if (currency) updates.currency = currency;
     }
 
     const tableCount = Number(body.tableCount);
@@ -118,9 +164,14 @@ export async function PUT(
 }
 
 export async function DELETE(
-  _req: Request,
+  req: Request,
   context: { params: Promise<{ id: string }> }
 ) {
+  // Cookie-authenticated mutation: reject cross-site callers outright.
+  if (!isSameOriginRequest(req)) {
+    return NextResponse.json({ error: "Cross-origin request rejected" }, { status: 403 });
+  }
+
   // Deleting a location is platform-owner only.
   const auth = await assertSuperAdmin();
   if (!auth.authorized) {

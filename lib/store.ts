@@ -9,6 +9,7 @@ import {
   TeamMember,
   AlertDelivery,
   ReviewTemplateSet,
+  PublicStore,
 } from "./types";
 import { getSupabaseClient } from "./supabase";
 import { sanitizeTemplateSet } from "./validation";
@@ -22,6 +23,31 @@ interface DataStoreSchema {
 
 let memoryCache: DataStoreSchema | null = null;
 let memoryCacheFile: string | null = null;
+
+/**
+ * Drops the in-memory cache of the JSON fallback file.
+ *
+ * Exposed for tests that corrupt the file on disk and then assert what the
+ * authorization layer reads back. Without this seam such a test silently
+ * passes against a stale cached record and proves nothing.
+ */
+export function invalidateLocalCache(): void {
+  memoryCache = null;
+  memoryCacheFile = null;
+}
+
+/**
+ * Upper bound on rows read into memory for the two append-only tables.
+ *
+ * `/api/events` is an anonymous, publicly writable endpoint, so both tables
+ * grow without any human in the loop. Loading every row into the Worker to
+ * compute a dashboard is an unbounded-query / memory-exhaustion vector: enough
+ * anonymous POSTs would make every console page and `/api/analytics` fail.
+ * Analytics are built over a recent window, which is both correct for the
+ * 7-day heatmap and bounded.
+ */
+const MAX_EVENT_ROWS = 5000;
+const MAX_FEEDBACK_ROWS = 1000;
 
 function getDataFile(): string {
   return process.env.STORE_DATA_FILE || path.join(process.cwd(), ".data", "store-data.json");
@@ -75,17 +101,68 @@ function id(prefix: string): string {
   return `${prefix}_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
 }
 
+/** Last `max` entries of an append-ordered array, mirroring the SQL LIMIT. */
+function tail<T>(items: T[], max: number): T[] {
+  return items.length > max ? items.slice(items.length - max) : [...items];
+}
+
 function parseJsonArray(val: unknown): string[] {
-  if (Array.isArray(val)) return val.map(String);
+  // Only real strings count. `val.map(String)` used to stringify objects and
+  // numbers into ids like "[object Object]" or "42"; a permissive array in a
+  // JSON column must never become a scope entry.
+  if (Array.isArray(val)) {
+    return val.filter((item): item is string => typeof item === "string");
+  }
   if (typeof val === "string") {
     try {
       const parsed = JSON.parse(val);
-      if (Array.isArray(parsed)) return parsed.map(String);
+      if (Array.isArray(parsed)) {
+        return parsed.filter((item): item is string => typeof item === "string");
+      }
     } catch {
       return [];
     }
   }
   return [];
+}
+
+/**
+ * True for a value shaped like a server-minted store id (`store_<ts>_<rand>`).
+ *
+ * Store ids are the only thing a membership assignment may contain. Rejecting
+ * everything else at the data layer means wildcards, prototype keys and
+ * non-strings cannot reach an authorization decision even if a caller forgets
+ * to filter.
+ */
+function isStoreIdShape(id: unknown): id is string {
+  return typeof id === "string" && id.length > 0 && id.length <= 128 && /^[A-Za-z0-9_-]+$/.test(id);
+}
+
+/**
+ * Upper bound on a single member's location assignments.
+ *
+ * Scoped reads expand these ids into a PostgREST `in.(...)` filter, which lands
+ * in the request URL. Measured against realistic ids (`store_<ts>_<rand>`,
+ * ~25 chars): 100 ids is about 3 KB, 500 about 15 KB, 5 000 about 145 KB — past
+ * the 16 KB Cloudflare Worker limit and the 8 KB nginx default, at which point
+ * EVERY scoped read for that member fails.
+ *
+ * The HTTP routes already cap at 100, but the cap belongs here too: this is the
+ * layer a future caller, a migration, or a hand-edited row would go through, and
+ * the failure mode is total rather than gradual.
+ */
+const MAX_ASSIGNMENTS = 100;
+
+function normalizeAssignments(val: unknown): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const id of parseJsonArray(val)) {
+    if (!isStoreIdShape(id) || seen.has(id)) continue;
+    seen.add(id);
+    out.push(id);
+    if (out.length >= MAX_ASSIGNMENTS) break;
+  }
+  return out;
 }
 
 function parseJsonObject<T>(val: unknown): T | undefined {
@@ -120,6 +197,11 @@ function mapRowToStore(r: any): Store {
     logoUrl: r.logo_url || r.logoUrl || undefined,
     chips: parseJsonArray(r.chips),
     seoKeywords: parseJsonArray(r.seo_keywords || r.seoKeywords),
+    signatureKeywords: parseJsonArray(r.signature_keywords || r.signatureKeywords),
+    reviewTone: ["foodie", "hospitality"].includes(String(r.review_tone || r.reviewTone))
+      ? (String(r.review_tone || r.reviewTone) as Store["reviewTone"])
+      : undefined,
+    currency: typeof r.currency === "string" && r.currency ? r.currency : undefined,
     managerEmail: r.manager_email || r.managerEmail || "",
     managerPhone: r.manager_phone || r.managerPhone || "",
     address: r.address || "",
@@ -145,6 +227,9 @@ function mapStoreToRow(s: Store): any {
     logo_url: s.logoUrl || null,
     chips: s.chips || [],
     seo_keywords: s.seoKeywords || [],
+    signature_keywords: s.signatureKeywords || [],
+    review_tone: s.reviewTone || "punchy",
+    currency: s.currency || "INR",
     manager_email: s.managerEmail || "",
     manager_phone: s.managerPhone || "",
     address: s.address || "",
@@ -196,6 +281,52 @@ function mapMemberToRow(m: TeamMember): any {
     store_ids: m.storeIds || [],
     status: m.status,
     created_at: m.createdAt,
+  };
+}
+
+/**
+ * Forces a team-member record into the declared shape. Auth decisions in
+ * lib/auth.ts depend on `role` and `status`; without this, an out-of-enum
+ * value read from storage flows straight into the authorization branch.
+ */
+function normalizeMember(raw: unknown): TeamMember {
+  const r = (raw || {}) as Record<string, unknown>;
+  // NOTE: an unrecognized `status` must NOT be coerced to "active". Doing so
+  // would silently promote a corrupted or revoked record to full access. Keep
+  // it verbatim so lib/auth.ts can fail closed on anything but "active".
+  const status: TeamMember["status"] =
+    r.status === "active" || r.status === "suspended" ? r.status : "suspended";
+  return {
+    id: String(r.id ?? ""),
+    email: String(r.email ?? "").toLowerCase().trim(),
+    name: typeof r.name === "string" ? r.name : "",
+    role: r.role === "super_admin" ? "super_admin" : "store_admin",
+    // Only well-formed ids survive. A JSON column can hold anything, and a
+    // wildcard entry ("*") must never leave the data layer as an assignment —
+    // it is the kind of value a future query could read as "all locations".
+    storeIds: normalizeAssignments(r.storeIds),
+    status,
+    createdAt: r.createdAt ? String(r.createdAt) : new Date().toISOString(),
+  };
+}
+
+/** Forces a feedback record into the declared shape. */
+function normalizeFeedback(raw: unknown): FeedbackSubmission {
+  const r = (raw || {}) as Record<string, unknown>;
+  const status: FeedbackSubmission["status"] =
+    r.status === "reviewed" || r.status === "resolved" ? r.status : "new";
+  return {
+    id: String(r.id ?? ""),
+    storeId: String(r.storeId ?? ""),
+    storeName: typeof r.storeName === "string" ? r.storeName : "",
+    rating: Number(r.rating) || 0,
+    tableNumber: typeof r.tableNumber === "string" ? r.tableNumber : undefined,
+    customerName: typeof r.customerName === "string" ? r.customerName : undefined,
+    customerContact: typeof r.customerContact === "string" ? r.customerContact : undefined,
+    message: typeof r.message === "string" ? r.message : "",
+    status,
+    alert: parseJsonObject<AlertDelivery>(r.alert),
+    createdAt: r.createdAt ? String(r.createdAt) : new Date().toISOString(),
   };
 }
 
@@ -304,6 +435,29 @@ export async function getStoreByScanKey(key: string): Promise<Store | null> {
   const byId = await getStoreById(trimmed);
   if (byId) return byId;
   return getStoreBySlug(trimmed);
+}
+
+/**
+ * Strips a Store down to the fields the unauthenticated diner flow is allowed
+ * to see. Owner inboxes, owner phone numbers, SEO keywords, revenue counters
+ * and creation timestamps are deliberately dropped — they are server-only.
+ */
+export function toPublicStore(store: Store): PublicStore {
+  return {
+    id: store.id,
+    name: store.name,
+    slug: store.slug,
+    tagline: store.tagline || "",
+    category: store.category || "Restaurant",
+    address: store.address || undefined,
+    brandColor: store.brandColor || "#E11D48",
+    googlePlaceId: store.googlePlaceId || "",
+    chips: Array.isArray(store.chips) ? store.chips : [],
+    reviewTemplates: store.reviewTemplates,
+    reviewTone: store.reviewTone,
+    signatureKeywords: Array.isArray(store.signatureKeywords) ? store.signatureKeywords : [],
+    currency: store.currency,
+  };
 }
 
 export async function createStore(
@@ -421,8 +575,12 @@ export async function getTeamMemberByEmail(email: string): Promise<TeamMember | 
     return data ? mapRowToMember(data) : null;
   }
 
-  const found = loadLocalData().members.find((m) => m.email === normalized);
-  return found ? { ...found } : null;
+  // Normalize on read: a local record written by an older code path may hold
+  // values outside the enum, and this result feeds authorization directly.
+  const found = loadLocalData().members.find(
+    (m) => String(m?.email ?? "").toLowerCase().trim() === normalized
+  );
+  return found ? normalizeMember(found) : null;
 }
 
 export async function createTeamMember(
@@ -431,6 +589,9 @@ export async function createTeamMember(
   const member: TeamMember = {
     ...input,
     email: input.email.toLowerCase().trim(),
+    // Enforce the assignment cap here, not only at the HTTP routes: the URL
+    // length of a scoped read depends on it.
+    storeIds: normalizeAssignments(input.storeIds),
     status: input.status || "active",
     id: id("member"),
     createdAt: new Date().toISOString(),
@@ -473,6 +634,9 @@ export async function updateTeamMember(
       ...updates,
       id: memberId,
       email: (updates.email || mapRowToMember(data).email).toLowerCase().trim(),
+      // Cap + shape-check assignments on write, so an oversized or malformed
+      // scope never reaches storage (and never inflates a scoped read URL).
+      storeIds: updates.storeIds ? normalizeAssignments(updates.storeIds) : mapRowToMember(data).storeIds,
     };
     const { error: updateError } = await supabase
       .from("team_members")
@@ -487,14 +651,22 @@ export async function updateTeamMember(
   const data = loadLocalData();
   const index = data.members.findIndex((m) => m.id === memberId);
   if (index === -1) return null;
-  data.members[index] = {
+
+  // Normalize through the same mapper the Supabase path uses. Spreading
+  // `updates` over the raw stored row previously let arbitrary values (an
+  // unknown `status`, a bad `role`, a non-array `storeIds`) reach
+  // `getTeamMemberByEmail`, which returns local rows un-mapped — and those
+  // values then drive authorization decisions in lib/auth.ts.
+  const merged = normalizeMember({
     ...data.members[index],
     ...updates,
     id: memberId,
     email: (updates.email || data.members[index].email).toLowerCase().trim(),
-  };
+    ...(updates.storeIds ? { storeIds: updates.storeIds } : {}),
+  });
+  data.members[index] = merged;
   persistLocalData(data);
-  return data.members[index];
+  return merged;
 }
 
 export async function deleteTeamMember(memberId: string): Promise<boolean> {
@@ -589,7 +761,13 @@ export async function getScanEvents(storeId?: string, storeIds?: string[]): Prom
   const supabase = getSupabaseClient();
   if (supabase) {
     if (storeIds && storeIds.length === 0 && !storeId) return [];
-    let query = supabase.from("scan_events").select("*").order("timestamp", { ascending: true });
+    // Ordered ascending so the newest events land exactly at the limit — a
+    // bounded read that still returns the data the dashboard shows.
+    let query = supabase
+      .from("scan_events")
+      .select("*")
+      .order("timestamp", { ascending: true })
+      .limit(MAX_EVENT_ROWS);
     if (storeId) {
       query = query.eq("store_id", storeId);
     } else if (storeIds && storeIds.length > 0) {
@@ -603,12 +781,12 @@ export async function getScanEvents(storeId?: string, storeIds?: string[]): Prom
   }
 
   const events = loadLocalData().events;
-  if (storeId) return events.filter((e) => e.storeId === storeId);
+  if (storeId) return tail(events.filter((e) => e.storeId === storeId), MAX_EVENT_ROWS);
   if (storeIds) {
     const allowed = new Set(storeIds);
-    return events.filter((e) => allowed.has(e.storeId));
+    return tail(events.filter((e) => allowed.has(e.storeId)), MAX_EVENT_ROWS);
   }
-  return [...events];
+  return tail(events, MAX_EVENT_ROWS);
 }
 
 export async function submitPrivateFeedback(
@@ -673,7 +851,12 @@ export async function getFeedbacks(storeId?: string, storeIds?: string[]): Promi
   const supabase = getSupabaseClient();
   if (supabase) {
     if (storeIds && storeIds.length === 0 && !storeId) return [];
-    let query = supabase.from("feedbacks").select("*").order("created_at", { ascending: false });
+    // Newest first, capped — the inbox only ever renders the most recent slice.
+    let query = supabase
+      .from("feedbacks")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(MAX_FEEDBACK_ROWS);
     if (storeId) {
       query = query.eq("store_id", storeId);
     } else if (storeIds && storeIds.length > 0) {
@@ -687,12 +870,12 @@ export async function getFeedbacks(storeId?: string, storeIds?: string[]): Promi
   }
 
   const feedbacks = loadLocalData().feedbacks;
-  if (storeId) return feedbacks.filter((f) => f.storeId === storeId);
+  if (storeId) return feedbacks.filter((f) => f.storeId === storeId).slice(0, MAX_FEEDBACK_ROWS);
   if (storeIds) {
     const allowed = new Set(storeIds);
-    return feedbacks.filter((f) => allowed.has(f.storeId));
+    return feedbacks.filter((f) => allowed.has(f.storeId)).slice(0, MAX_FEEDBACK_ROWS);
   }
-  return [...feedbacks];
+  return feedbacks.slice(0, MAX_FEEDBACK_ROWS);
 }
 
 export async function getFeedbackById(feedbackId: string): Promise<FeedbackSubmission | null> {
@@ -710,8 +893,11 @@ export async function getFeedbackById(feedbackId: string): Promise<FeedbackSubmi
     return data ? mapRowToFeedback(data) : null;
   }
 
-  const found = loadLocalData().feedbacks.find((f) => f.id === feedbackId);
-  return found ? { ...found } : null;
+  // This result's `storeId` is exactly what the PATCH route authorizes
+  // against, so a malformed local row must not be able to carry a bogus
+  // owner (or a bogus status) through the check.
+  const found = loadLocalData().feedbacks.find((f) => f?.id === feedbackId);
+  return found ? normalizeFeedback(found) : null;
 }
 
 export async function updateFeedbackStatus(
@@ -852,6 +1038,7 @@ export async function getAnalytics(storeId?: string, storeIds?: string[]): Promi
 
 export const SCAN_EVENT_TYPES: ScanEventType[] = [
   "scan",
+  "menu_view",
   "chip_toggle",
   "rating_change",
   "firewall_intercept",

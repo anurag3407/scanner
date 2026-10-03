@@ -12,6 +12,12 @@ export interface GenerateReviewOptions {
   tone?: "punchy" | "foodie" | "hospitality";
   /** Store-owned sentence combinations. Empty lists fall back to the built-in library. */
   templates?: ReviewTemplateSet;
+  /**
+   * Store signature phrases ("wood-fired oven", "generous portions") woven
+   * into the draft on top of the tapped chips. A larger word pool is the
+   * primary defense against Google flagging repeated review text.
+   */
+  keywords?: string[];
 }
 
 const INTROS = [
@@ -113,6 +119,49 @@ const VIBE_CONNECTORS = [
   "A vibrant, energetic atmosphere with cozy lighting and {chip}."
 ];
 
+/**
+ * Sentences that weave a store's signature keywords into the draft. Deliberately
+ * varied in structure so the same keyword never always appears in the same
+ * sentence shape — repeated sentence shapes are exactly what spam filters key on.
+ */
+const KEYWORD_CONNECTORS = [
+  "A special mention for the {keyword}—absolutely spot on.",
+  "Another highlight: the {keyword}. Genuinely memorable.",
+  "The {keyword} deserves a shout-out; it elevated the whole visit.",
+  "You can tell the {keyword} is a real point of pride for this team.",
+  "Do pay attention to the {keyword}—it is handled with real care.",
+  "The {keyword} alone is worth a repeat visit.",
+  "Also loved the {keyword}; thoughtful touches everywhere you look.",
+  "The {keyword} reflected real attention to detail.",
+  "What stood out for me was the {keyword}—clearly done right.",
+  "And the {keyword}? Flawless from start to finish.",
+];
+
+/** Suggestions offered in the Review Studio keyword editor. */
+export const STARTER_KEYWORD_SUGGESTIONS = [
+  "wood-fired oven",
+  "generous portions",
+  "family recipes",
+  "fresh ingredients",
+  "value for money",
+  "quick service",
+  "cozy outdoor seating",
+  "house-made desserts",
+  "single-origin coffee",
+  "live acoustic evenings",
+];
+
+/**
+ * Highlight phrases a diner can tap when the store has not configured its own
+ * chips yet, so every QR still has a working review flow out of the box.
+ */
+export const DEFAULT_CHIPS = [
+  "Food Quality",
+  "Service",
+  "Ambience",
+  "Value for Money",
+];
+
 const OUTROS = [
   "Will definitely be returning soon and bringing friends along. Highly recommended!",
   "Easily a 5/5 star spot. If you haven't visited yet, you are truly missing out!",
@@ -157,9 +206,26 @@ export const STARTER_TEMPLATES: ReviewTemplateSet = {
   ],
 };
 
+/**
+ * Avalanche-mixes seed and salt into a uniform index.
+ *
+ * The previous picker (`seed * 17 + salt` style arithmetic) shared structure
+ * with the list lengths: seeds that differed by exactly a list's length (20,
+ * 13, 12...) landed on the SAME entry, so two customers a few "Different
+ * wording" taps apart could mint identical drafts — precisely the duplication
+ * that gets reviews blocked. Mixing every bit of the seed before the modulo
+ * makes consecutive seeds land on different entries.
+ */
+function mixSeed(seed: number, salt: number): number {
+  let h = (Math.abs(Math.trunc(seed)) ^ Math.imul(salt + 1, 0x9e3779b1)) >>> 0;
+  h = Math.imul(h ^ (h >>> 16), 2246822507) >>> 0;
+  h = Math.imul(h ^ (h >>> 13), 3266489909) >>> 0;
+  return (h ^ (h >>> 16)) >>> 0;
+}
+
 function pickFrom(list: string[], seed: number, salt: number): string {
   if (list.length === 0) return "";
-  return list[Math.abs(seed * (13 + salt) + salt * 29 + salt) % list.length];
+  return list[mixSeed(seed, salt) % list.length];
 }
 
 function renderTemplate(
@@ -192,6 +258,7 @@ export function generateOfflineReview({
   variationSeed = 0,
   tone,
   templates,
+  keywords,
 }: GenerateReviewOptions): string {
   const customIntros = templates?.intros?.length ? templates.intros : null;
   const customHighlights = templates?.highlights?.length ? templates.highlights : null;
@@ -211,9 +278,9 @@ export function generateOfflineReview({
     outroList = OUTROS;
   }
 
-  // Derive unique indexes with prime offsets based on variation seed
-  const introIndex = Math.abs(variationSeed * 17 + chips.length * 7) % introList.length;
-  const outroIndex = Math.abs(variationSeed * 31 + chips.length * 11 + 3) % outroList.length;
+  // Mixed indexes: consecutive seeds must never reproduce the same draft.
+  const introIndex = mixSeed(variationSeed, 1) % introList.length;
+  const outroIndex = mixSeed(variationSeed, 2) % outroList.length;
 
   const intro = customIntros
     ? renderTemplate(pickFrom(customIntros, variationSeed, 3), { name: storeName, category })
@@ -222,11 +289,50 @@ export function generateOfflineReview({
     ? renderTemplate(pickFrom(customClosers, variationSeed, 7), { name: storeName, category })
     : outroList[outroIndex].replace(/{name}/g, storeName);
 
+  // Signature keywords, minus anything the diner already tapped as a chip
+  // (a phrase must never appear twice in the same draft).
+  const chipSet = new Set(chips.map((c) => c.toLowerCase().trim()));
+  const keywordPool = (keywords || [])
+    .map((k) => k.trim())
+    .filter((k) => k.length > 0 && !chipSet.has(k.toLowerCase()));
+
+  // Weave one or two keyword sentences, seeded so different visits pick
+  // different keywords in different sentence shapes.
+  const keywordLines: string[] = [];
+  if (keywordPool.length > 0) {
+    const weaveCount = Math.min(keywordPool.length, mixSeed(variationSeed, 41) % 2 === 0 ? 1 : 2);
+    const usedKeywords = new Set<string>();
+    for (let i = 0; i < weaveCount; i++) {
+      const keyword = pickFrom(
+        keywordPool.filter((k) => !usedKeywords.has(k.toLowerCase())),
+        variationSeed + i * 97,
+        43 + i
+      );
+      if (!keyword) break;
+      usedKeywords.add(keyword.toLowerCase());
+      const connector = pickFrom(KEYWORD_CONNECTORS, variationSeed + i * 131, 47 + i);
+      const line = renderTemplate(connector, { name: storeName, category, chip: keyword }).replace(
+        /\{keyword\}/gi,
+        keyword
+      );
+      if (line) keywordLines.push(line);
+    }
+  }
+
   if (!chips || chips.length === 0) {
     if (tone === "punchy") {
-      return `${intro} The food and service at this ${category.toLowerCase()} were top-tier. ${outro}`;
+      const filler = "The food and service at this {category} were top-tier.";
+      const body = keywordLines.length
+        ? keywordLines.join(" ")
+        : renderTemplate(filler, { name: storeName, category });
+      return `${intro} ${body} ${outro}`;
     }
-    return `${intro} The food, atmosphere, and service at this ${category.toLowerCase()} were exceptional from start to finish. ${outro}`;
+    const filler =
+      "The food, atmosphere, and service at this {category} were exceptional from start to finish.";
+    const body = keywordLines.length
+      ? keywordLines.join(" ")
+      : renderTemplate(filler, { name: storeName, category });
+    return `${intro} ${body} ${outro}`;
   }
 
   // Store-authored sentence combinations take priority over the built-in library.
@@ -244,7 +350,8 @@ export function generateOfflineReview({
       .join(" ");
 
     if (customBody) {
-      return `${intro} ${customBody} ${outro}`;
+      const keywordTail = keywordLines.length ? ` ${keywordLines.join(" ")}` : "";
+      return `${intro} ${customBody}${keywordTail} ${outro}`;
     }
   }
 
@@ -252,7 +359,7 @@ export function generateOfflineReview({
 
   // Permute order based on seed to ensure varied syntax
   const sortedChips = [...chips];
-  if (variationSeed % 2 === 1 && sortedChips.length > 1) {
+  if (mixSeed(variationSeed, 5) % 2 === 1 && sortedChips.length > 1) {
     sortedChips.reverse();
   }
 
@@ -264,15 +371,12 @@ export function generateOfflineReview({
       lower.includes("host") ||
       lower.includes("staff") ||
       lower.includes("waiter") ||
-      lower.includes("rahul") ||
-      lower.includes("santosh") ||
-      lower.includes("priya") ||
-      lower.includes("vikram") ||
       lower.includes("manager") ||
       lower.includes("chef") ||
-      lower.includes("barista")
+      lower.includes("barista") ||
+      lower.includes("attentive")
     ) {
-      const template = SERVICE_CONNECTORS[Math.abs(idx * 7 + variationSeed * 13) % SERVICE_CONNECTORS.length];
+      const template = SERVICE_CONNECTORS[mixSeed(idx + variationSeed, 13) % SERVICE_CONNECTORS.length];
       highlights.push(template.replace(/{chip}/g, chip));
     } else if (
       lower.includes("vibe") ||
@@ -286,16 +390,81 @@ export function generateOfflineReview({
       lower.includes("seating") ||
       lower.includes("work")
     ) {
-      const template = VIBE_CONNECTORS[Math.abs(idx * 11 + variationSeed * 19) % VIBE_CONNECTORS.length];
+      const template = VIBE_CONNECTORS[mixSeed(idx + variationSeed, 19) % VIBE_CONNECTORS.length];
       highlights.push(template.replace(/{chip}/g, chip));
     } else {
-      const template = FOOD_CONNECTORS[Math.abs(idx * 5 + variationSeed * 23) % FOOD_CONNECTORS.length];
+      const template = FOOD_CONNECTORS[mixSeed(idx + variationSeed, 23) % FOOD_CONNECTORS.length];
       highlights.push(template.replace(/{chip}/g, chip));
     }
   });
 
   const body = highlights.slice(0, tone === "punchy" ? 2 : 3).join(" ");
-  return `${intro} ${body} ${outro}`;
+  const keywordTail = keywordLines.length ? ` ${keywordLines.join(" ")}` : "";
+  return `${intro} ${body}${keywordTail} ${outro}`;
+}
+
+/**
+ * Generates a draft that is guaranteed to differ from every string in
+ * `recentDrafts` (the client passes the drafts this visitor has already seen).
+ * Re-rolls the seed up to `maxTries` times, then falls back to the last draft.
+ */
+export function generateUniqueReview(
+  options: GenerateReviewOptions,
+  recentDrafts: string[] = [],
+  maxTries = 12
+): string {
+  if (recentDrafts.length === 0) {
+    return generateOfflineReview(options);
+  }
+
+  const seen = new Set(recentDrafts);
+  const baseSeed = Math.abs(Math.trunc(options.variationSeed ?? 0));
+  let draft = generateOfflineReview(options);
+  for (let attempt = 1; attempt <= maxTries && seen.has(draft); attempt++) {
+    draft = generateOfflineReview({ ...options, variationSeed: baseSeed + attempt * 101 });
+  }
+  return draft;
+}
+
+/**
+ * Estimates how many distinct drafts a store's configuration can produce.
+ * Shown in the Review Studio so owners understand the anti-duplicate headroom:
+ * the bigger the pool, the smaller the chance Google ever sees the same text.
+ */
+export function estimateReviewCombinations(options: {
+  chips?: string[];
+  keywords?: string[];
+  tone?: GenerateReviewOptions["tone"];
+  templates?: ReviewTemplateSet;
+}): number {
+  const tone = options.tone;
+  const introCount =
+    options.templates?.intros?.filter((l) => l.trim()).length ||
+    (tone === "punchy"
+      ? PUNCHY_INTROS.length
+      : tone === "foodie"
+        ? FOODIE_INTROS.length
+        : tone === "hospitality"
+          ? HOSPITALITY_INTROS.length
+          : INTROS.length);
+  const closerCount =
+    options.templates?.closers?.filter((l) => l.trim()).length ||
+    (tone === "punchy" ? PUNCHY_OUTROS.length : OUTROS.length);
+
+  const chips = options.chips || [];
+  const perChipConnectors =
+    options.templates?.highlights?.filter((l) => l.trim()).length || FOOD_CONNECTORS.length;
+  const bodySpace = chips.length === 0 ? 2 : Math.pow(perChipConnectors, Math.min(chips.length, 3)) * (chips.length > 1 ? 2 : 1);
+
+  const keywords = (options.keywords || []).filter((k) => k.trim());
+  // Either one keyword (n×10 sentence shapes) or two (n×(n-1)×10×10 ordered pairs), halved for overlap.
+  const keywordSpace =
+    keywords.length === 0
+      ? 1
+      : keywords.length * KEYWORD_CONNECTORS.length +
+        keywords.length * Math.max(0, keywords.length - 1) * KEYWORD_CONNECTORS.length;
+
+  return introCount * closerCount * bodySpace * keywordSpace;
 }
 
 /**

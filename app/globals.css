@@ -1,18 +1,67 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #18181b;
+/* ---------------------------------------------------------------------------
+   NEO-BRUTALISM DESIGN SYSTEM
+   Cream paper canvas, pure-black structure, hard offset shadows, highlighter
+   accents. No blur, no soft grays, no mid-range rounding — ever.
+--------------------------------------------------------------------------- */
+
+@theme {
+  /* The "Pop" palette */
+  --color-cream: #fffdf5; /* canvas — aged newsprint */
+  --color-neo-red: #ff6b6b; /* primary action */
+  --color-neo-yellow: #ffd93d; /* secondary highlight */
+  --color-neo-violet: #c4b5fd; /* muted depth */
+  --color-neo-green: #6bcb77; /* veg / success accents */
+  --color-neo-blue: #4d96ff; /* info accents */
+
+  /* Hard offset shadows — solid ink, zero blur */
+  --shadow-neo-xs: 2px 2px 0px 0px #000;
+  --shadow-neo-sm: 4px 4px 0px 0px #000;
+  --shadow-neo: 6px 6px 0px 0px #000;
+  --shadow-neo-md: 8px 8px 0px 0px #000;
+  --shadow-neo-lg: 12px 12px 0px 0px #000;
+  --shadow-neo-xl: 16px 16px 0px 0px #000;
+  --shadow-neo-white-sm: 4px 4px 0px 0px #fff;
+  --shadow-neo-white-md: 8px 8px 0px 0px #fff;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-  --font-display: var(--font-display);
+  --font-sans: var(--font-space-grotesk), "Space Grotesk", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, "SFMono-Regular", monospace;
+  --font-display: var(--font-display), "Space Grotesk", "Impact", sans-serif;
 }
 
+/* ---------------------------- Texture utilities -------------------------- */
+
+/* Halftone dots — pop-art print texture */
+@utility bg-neo-halftone {
+  background-image: radial-gradient(#000 1.5px, transparent 1.5px);
+  background-size: 20px 20px;
+}
+
+/* Sparse dot field for large sections */
+@utility bg-neo-dots {
+  background-image: radial-gradient(circle, #000 1.5px, transparent 2px);
+  background-size: 28px 28px;
+}
+
+/* Graph-paper grid */
+@utility bg-neo-grid {
+  background-size: 40px 40px;
+  background-image: linear-gradient(to right, rgba(0, 0, 0, 0.06) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(0, 0, 0, 0.06) 1px, transparent 1px);
+}
+
+/* Hollow display text */
+@utility text-stroke-neo {
+  -webkit-text-stroke: 2px #000;
+  color: transparent;
+}
+
+/* Legacy utilities kept for pages not yet migrated */
 .font-display {
   font-family: var(--font-display), "Impact", -apple-system, BlinkMacSystemFont, sans-serif;
   letter-spacing: -0.01em;
@@ -25,21 +74,47 @@
 
 .bg-grid-lines {
   background-image: linear-gradient(to right, rgba(255, 255, 255, 0.04) 1px, transparent 1px),
-                    linear-gradient(to bottom, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
   background-size: 48px 48px;
 }
 
 .bg-hero-grid {
-  background-image: 
-    linear-gradient(to right, rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+  background-image: linear-gradient(to right, rgba(255, 255, 255, 0.05) 1px, transparent 1px),
     linear-gradient(to bottom, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
   background-size: 64px 64px;
+}
+
+/* Slow decorative spin for sticker stars */
+@keyframes spin-slow {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-spin-slow {
+  animation: spin-slow 10s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-spin-slow {
+    animation: none;
+  }
+}
+
+/* --------------------------------- Base ---------------------------------- */
+
+:root {
+  --background: #fffdf5;
+  --foreground: #000000;
 }
 
 body {
   background-color: var(--background);
   color: var(--foreground);
-  font-family: var(--font-sans), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-family: var(--font-space-grotesk), "Space Grotesk", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -48,11 +123,16 @@ body {
     margin: 0.5cm;
     size: auto;
   }
-  *, *::before, *::after {
+  *,
+  *::before,
+  *::after {
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
   }
-  html, body, main, div {
+  html,
+  body,
+  main,
+  div {
     overflow: visible !important;
     height: auto !important;
   }

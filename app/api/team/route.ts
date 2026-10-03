@@ -3,6 +3,7 @@ import { createTeamMember, getTeamMemberByEmail, getTeamMembers, getStoresByIds 
 import { UserRole } from "@/lib/types";
 import { isValidEmail, sanitizeStringArray } from "@/lib/validation";
 import { assertSuperAdmin, getSuperAdminEmail } from "@/lib/auth";
+import { isSameOriginRequest } from "@/lib/csrf";
 
 const VALID_ROLES: UserRole[] = ["super_admin", "store_admin"];
 
@@ -29,6 +30,11 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
+  // Cookie-authenticated mutation: reject cross-site callers outright.
+  if (!isSameOriginRequest(req)) {
+    return NextResponse.json({ error: "Cross-origin request rejected" }, { status: 403 });
+  }
+
   const auth = await assertSuperAdmin();
   if (!auth.authorized) {
     return NextResponse.json({ error: auth.error }, { status: auth.status || 401 });

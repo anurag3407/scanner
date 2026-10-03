@@ -444,17 +444,27 @@ test("A store with no owner inbox records a skipped alert instead of emailing th
   });
 });
 
-test("Security: Admin endpoints reject requests when unauthenticated in production mode", async () => {
+test("Security: NODE_ENV=test alone must NOT bypass authentication", async () => {
+  // Regression guard. Previously `NODE_ENV === "test"` alone granted full
+  // super-admin access, which meant any environment where the runtime variable
+  // could be influenced would expose the whole admin console. The bypass now
+  // requires an explicit AUTH_BYPASS_TESTS opt-in as well.
   const originalEnv = process.env.NODE_ENV;
-  process.env.NODE_ENV = "production";
+  const originalFlag = process.env.AUTH_BYPASS_TESTS;
+  process.env.NODE_ENV = "test";
+  delete process.env.AUTH_BYPASS_TESTS;
 
   try {
     const res = await getStores();
-    // In production without Clerk keys configured or session, must fail closed with 503 or 401
-    assert.ok(res.status === 503 || res.status === 401);
+    assert.equal(res.status, 503, "Clerk-less environment must fail closed with 503");
     const body = await res.json();
     assert.ok(body.error);
   } finally {
     process.env.NODE_ENV = originalEnv;
+    if (originalFlag === undefined) {
+      delete process.env.AUTH_BYPASS_TESTS;
+    } else {
+      process.env.AUTH_BYPASS_TESTS = originalFlag;
+    }
   }
 });

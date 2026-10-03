@@ -4,7 +4,20 @@ import { isClerkConfigured } from "@/lib/clerk";
 
 // The admin console and store management APIs require a signed-in Clerk user.
 const isProtectedPage = createRouteMatcher(["/admin(.*)"]);
-const isProtectedApi = createRouteMatcher(["/api/stores(.*)", "/api/analytics(.*)"]);
+// NOTE: `/api/team(.*)` must stay in this list. It was previously absent, so
+// the team directory fell through the middleware entirely and was protected
+// only by the route handler's own `assertSuperAdmin()` call. The inner check did
+// refuse unauthenticated callers, but a second independent gate in front of the
+// most privileged endpoints (creating/promoting admins) is far safer than
+// relying on a single check not drifting during a refactor.
+const isProtectedApi = createRouteMatcher([
+  "/api/stores(.*)",
+  "/api/analytics(.*)",
+  "/api/team(.*)",
+  // Owner menu writes go through /api/menu/<itemId>. The diner's read-only
+  // feed lives at /api/public/menu/<key>, a different prefix that stays public.
+  "/api/menu(.*)",
+]);
 const isFeedbackApi = createRouteMatcher(["/api/feedback(.*)"]);
 
 const SIGN_IN_PATH = "/sign-in";

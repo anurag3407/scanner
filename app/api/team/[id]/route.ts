@@ -3,6 +3,7 @@ import { getTeamMembers, getTeamMemberByEmail, getStoresByIds, updateTeamMember,
 import { TeamMember, UserRole } from "@/lib/types";
 import { isValidEmail, sanitizeStringArray } from "@/lib/validation";
 import { assertSuperAdmin, getSuperAdminEmail } from "@/lib/auth";
+import { isSameOriginRequest } from "@/lib/csrf";
 
 const VALID_ROLES: UserRole[] = ["super_admin", "store_admin"];
 const VALID_STATUSES: TeamMember["status"][] = ["active", "suspended"];
@@ -17,6 +18,11 @@ export async function PUT(
   req: Request,
   context: { params: Promise<{ id: string }> }
 ) {
+  // Cookie-authenticated mutation: reject cross-site callers outright.
+  if (!isSameOriginRequest(req)) {
+    return NextResponse.json({ error: "Cross-origin request rejected" }, { status: 403 });
+  }
+
   const auth = await assertSuperAdmin();
   if (!auth.authorized) {
     return NextResponse.json({ error: auth.error }, { status: auth.status || 401 });
@@ -83,9 +89,14 @@ export async function PUT(
 }
 
 export async function DELETE(
-  _req: Request,
+  req: Request,
   context: { params: Promise<{ id: string }> }
 ) {
+  // Cookie-authenticated mutation: reject cross-site callers outright.
+  if (!isSameOriginRequest(req)) {
+    return NextResponse.json({ error: "Cross-origin request rejected" }, { status: 403 });
+  }
+
   const auth = await assertSuperAdmin();
   if (!auth.authorized) {
     return NextResponse.json({ error: auth.error }, { status: auth.status || 401 });

@@ -10,12 +10,12 @@ export const metadata = {
 
 export default function PublicProspectusPage() {
   return (
-    <div className="min-h-screen bg-zinc-50 flex flex-col font-sans text-zinc-900 print:bg-white">
+    <div className="min-h-screen bg-cream bg-neo-grid flex flex-col font-sans text-black print:bg-white">
       {/* Top Navbar */}
-      <nav className="w-full bg-white/80 backdrop-blur-md border-b border-zinc-200 sticky top-0 z-50 py-3.5 px-4 sm:px-8 print:hidden">
+      <nav className="w-full border-b-4 border-black bg-white sticky top-0 z-50 py-3.5 px-4 sm:px-8 print:hidden">
         <div className="max-w-6xl mx-auto flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2 font-black text-lg text-zinc-900 tracking-tight">
-            <span className="w-8 h-8 rounded-xl bg-zinc-900 text-white flex items-center justify-center font-bold text-sm shadow-sm">
+            <span className="w-8 h-8 border-[3px] border-black bg-neo-yellow text-black flex items-center justify-center font-black text-sm shadow-neo-xs">
               ⚡
             </span>
             <span>ReviewBoost</span>
@@ -44,7 +44,7 @@ export default function PublicProspectusPage() {
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-zinc-200 py-6 px-4 bg-white text-center text-xs text-zinc-500 print:hidden">
+      <footer className="border-t-[3px] border-black py-6 px-4 bg-white text-center text-xs font-black uppercase tracking-widest text-black/60 print:hidden">
         <p>ReviewBoost SaaS Platform • Confidential Investment Prospectus &amp; Enterprise Overview</p>
       </footer>
     </div>

@@ -21,14 +21,36 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          # >= 22.3: the security suite uses the experimental, flag-gated
+          # `mock.module` API to forge Clerk identities. On an older runtime the
+          # bypass tests cannot load and the whole file errors out.
+          node-version: "22.3"
           cache: "npm"
 
       - name: Install dependencies
         run: npm install
 
+      # `npm test` now runs scripts/test-rls-migration.sh, which boots a
+      # throwaway Postgres to prove the RLS lockdown actually applies. Ubuntu
+      # runners ship PostgreSQL client binaries; install the server so
+      # initdb/pg_ctl are on PATH. If they are missing the script skips rather
+      # than failing, so this step is belt-and-braces.
+      - name: Install PostgreSQL server
+        run: |
+          if ! command -v initdb >/dev/null 2>&1; then
+            sudo apt-get update -qq
+            sudo apt-get install -y -qq postgresql postgresql-contrib
+          fi
+          initdb --version
+
+      # Security tripwire. `npm test` runs the functional suite AND the bypass
+      # suites; it exits non-zero if an authorization regression is introduced,
+      # which blocks the deploy below.
       - name: Run automated test suite
         run: npm test
+
+      - name: Run lint
+        run: npm run lint
 
       - name: Build OpenNext Cloudflare bundle
         run: npx opennextjs-cloudflare build

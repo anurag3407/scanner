@@ -174,62 +174,63 @@ export default function TeamManagementClient({ initialMembers, stores, superAdmi
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+      <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
         <div>
-          <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-xs font-semibold mb-1">
-            <Users className="w-3.5 h-3.5" />
-            Role-Based Access Control
+          <div className="mb-2 inline-flex -rotate-1 items-center gap-1.5 border-[3px] border-black bg-neo-green px-2.5 py-1 text-xs font-black uppercase tracking-widest text-black shadow-neo-xs">
+            <Users className="h-3.5 w-3.5" strokeWidth={3} />
+            Role-based access control
           </div>
-          <h1 className="text-2xl font-black text-zinc-900 tracking-tight">Team &amp; Store Access</h1>
-          <p className="text-xs text-zinc-500 mt-0.5">
-            Invite store admins and choose exactly which locations they can manage. Owners always retain platform control.
+          <h1 className="text-3xl font-black uppercase tracking-tight text-black">Team &amp; store access</h1>
+          <p className="mt-1 text-xs font-bold text-black/70">
+            Invite store admins and choose exactly which locations they can manage. Owners always
+            retain platform control.
           </p>
         </div>
 
         <button
           onClick={openAddModal}
-          className="px-5 py-2.5 rounded-2xl bg-zinc-900 text-white font-semibold text-xs hover:bg-black transition-all flex items-center gap-1.5 shadow-md cursor-pointer shrink-0"
+          className="shrink-0 cursor-pointer border-4 border-black bg-neo-red px-5 py-2.5 text-xs font-black uppercase tracking-widest text-white shadow-neo-sm transition-all duration-100 ease-linear hover:bg-black hover:text-neo-yellow active:translate-x-1 active:translate-y-1 active:shadow-none"
         >
-          <Plus className="w-4 h-4" /> Invite Store Admin
+          <Plus className="mr-1 inline h-4 w-4" strokeWidth={3} /> Invite store admin
         </button>
       </div>
 
       {/* Platform owner card */}
-      <div className="bg-white rounded-3xl p-6 border border-zinc-200 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+      <div className="flex flex-col items-start justify-between gap-4 border-4 border-black bg-white p-6 shadow-neo-sm sm:flex-row sm:items-center">
         <div className="flex items-center gap-4">
-          <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-amber-500 to-rose-500 text-white flex items-center justify-center font-black text-lg shadow-sm shrink-0">
+          <div className="flex h-12 w-12 shrink-0 -rotate-3 items-center justify-center border-[3px] border-black bg-neo-yellow text-lg font-black text-black shadow-neo-xs">
             ★
           </div>
           <div>
             <div className="flex flex-wrap items-center gap-2">
-              <h3 className="font-bold text-zinc-900">Platform Owner</h3>
-              <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-200">
+              <h3 className="font-black uppercase tracking-wide text-black">Platform Owner</h3>
+              <span className="border-2 border-black bg-neo-yellow px-2 py-0.5 text-[10px] font-black uppercase tracking-widest text-black shadow-neo-xs">
                 Super Admin
               </span>
             </div>
-            <p className="text-xs text-zinc-500 mt-0.5">{superAdminEmail}</p>
+            <p className="mt-0.5 text-xs font-bold text-black/60">{superAdminEmail}</p>
           </div>
         </div>
-        <span className="text-[11px] text-zinc-500 font-medium flex items-center gap-1">
-          <ShieldCheck className="w-4 h-4 text-emerald-600" /> Full control over every location
+        <span className="flex items-center gap-1 text-[11px] font-black uppercase tracking-widest text-black">
+          <ShieldCheck className="h-4 w-4 text-neo-green" strokeWidth={3} /> Full control over every location
         </span>
       </div>
 
       {/* Search */}
-      <div className="bg-white p-3.5 rounded-2xl border border-zinc-200 shadow-2xs">
+      <div className="border-4 border-black bg-white p-3.5 shadow-neo-sm">
         <div className="relative">
-          <Search className="w-4 h-4 text-zinc-400 absolute left-3.5 top-3" />
+          <Search className="pointer-events-none absolute left-3.5 top-3 h-4 w-4 text-black" strokeWidth={3} />
           <input
             type="text"
             placeholder="Search team by name or email..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full bg-zinc-50 text-xs pl-10 pr-9 py-2.5 rounded-xl border border-zinc-200 focus:outline-none focus:ring-2 focus:ring-zinc-900"
+            className="w-full border-[3px] border-black bg-cream py-2.5 pl-10 pr-9 text-xs font-bold text-black placeholder-black/40 shadow-neo-xs transition-all duration-100 ease-linear focus:bg-neo-yellow focus:shadow-neo-sm focus:outline-none"
           />
           {searchQuery && (
             <button
               onClick={() => setSearchQuery("")}
-              className="absolute right-3 top-2.5 text-zinc-400 hover:text-zinc-700 text-xs font-bold"
+              className="absolute right-3 top-2.5 cursor-pointer border border-black bg-white px-1 text-xs font-black text-black hover:bg-neo-red"
             >
               ✕
             </button>
@@ -238,14 +239,14 @@ export default function TeamManagementClient({ initialMembers, stores, superAdmi
       </div>
 
       {/* Members list */}
-      <div className="space-y-4">
+      <div className="space-y-5">
         {filteredMembers.length === 0 ? (
-          <div className="bg-white rounded-3xl p-12 border border-zinc-200 text-center space-y-3">
-            <Users className="w-10 h-10 text-zinc-300 mx-auto" />
-            <h3 className="font-bold text-zinc-900">
+          <div className="space-y-3 border-4 border-dashed border-black bg-white p-12 text-center shadow-neo-sm">
+            <Users className="mx-auto h-10 w-10 text-black/30" strokeWidth={2.5} />
+            <h3 className="font-black uppercase tracking-wide text-black">
               {members.length === 0 ? "No store admins invited yet" : "No team members match your search"}
             </h3>
-            <p className="text-xs text-zinc-500 max-w-md mx-auto">
+            <p className="mx-auto max-w-md text-xs font-bold text-black/60">
               {members.length === 0
                 ? "Invite a restaurant owner or manager and assign only the locations they should manage."
                 : "Try a different name or email."}
@@ -253,9 +254,9 @@ export default function TeamManagementClient({ initialMembers, stores, superAdmi
             {members.length === 0 && (
               <button
                 onClick={openAddModal}
-                className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-zinc-900 text-white text-xs font-semibold hover:bg-black transition-colors"
+                className="inline-flex cursor-pointer items-center gap-1.5 border-[3px] border-black bg-neo-red px-4 py-2.5 text-xs font-black uppercase tracking-widest text-white shadow-neo-xs transition-all duration-100 ease-linear hover:bg-black active:translate-x-0.5 active:translate-y-0.5 active:shadow-none"
               >
-                <Plus className="w-3.5 h-3.5" /> Invite your first store admin
+                <Plus className="h-3.5 w-3.5" strokeWidth={3} /> Invite your first store admin
               </button>
             )}
           </div>
@@ -263,65 +264,63 @@ export default function TeamManagementClient({ initialMembers, stores, superAdmi
           filteredMembers.map((member) => (
             <div
               key={member.id}
-              className={`bg-white rounded-3xl p-6 border shadow-sm flex flex-col lg:flex-row items-start lg:items-center justify-between gap-5 ${
-                member.status === "suspended" ? "border-zinc-300 bg-zinc-50/60" : "border-zinc-200"
+              className={`flex flex-col items-start justify-between gap-5 border-4 border-black p-6 shadow-neo-sm transition-all duration-200 ease-linear hover:-translate-y-1 hover:shadow-neo-md lg:flex-row lg:items-center ${
+                member.status === "suspended" ? "bg-cream" : "bg-white"
               }`}
             >
-              <div className="flex items-start gap-4 flex-1">
+              <div className="flex flex-1 items-start gap-4">
                 <div
-                  className={`w-11 h-11 rounded-2xl flex items-center justify-center font-bold text-sm shrink-0 ${
-                    member.status === "suspended"
-                      ? "bg-zinc-200 text-zinc-500"
-                      : "bg-zinc-900 text-white"
+                  className={`flex h-11 w-11 shrink-0 -rotate-3 items-center justify-center border-[3px] border-black text-sm font-black shadow-neo-xs ${
+                    member.status === "suspended" ? "bg-white text-black/50" : "bg-black text-white"
                   }`}
                 >
                   {(member.name || member.email).charAt(0).toUpperCase()}
                 </div>
 
-                <div className="space-y-2 flex-1 min-w-0">
+                <div className="min-w-0 flex-1 space-y-2">
                   <div className="flex flex-wrap items-center gap-2">
-                    <h3 className="font-bold text-zinc-900 truncate">
+                    <h3 className="truncate font-black text-black">
                       {member.name || member.email.split("@")[0]}
                     </h3>
                     <span
-                      className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border ${
-                        member.role === "super_admin"
-                          ? "bg-amber-100 text-amber-800 border-amber-200"
-                          : "bg-blue-50 text-blue-700 border-blue-200"
+                      className={`border-2 border-black px-2 py-0.5 text-[10px] font-black uppercase tracking-widest text-black shadow-neo-xs ${
+                        member.role === "super_admin" ? "bg-neo-yellow" : "bg-neo-blue text-white"
                       }`}
                     >
                       {member.role === "super_admin" ? "Super Admin" : "Store Admin"}
                     </span>
                     {member.status === "suspended" && (
-                      <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-zinc-200 text-zinc-600 border border-zinc-300">
+                      <span className="border-2 border-black bg-white px-2 py-0.5 text-[10px] font-black uppercase tracking-widest text-black shadow-neo-xs">
                         Suspended
                       </span>
                     )}
                   </div>
 
-                  <p className="text-xs text-zinc-500 flex items-center gap-1.5 truncate">
-                    <Mail className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
+                  <p className="flex items-center gap-1.5 truncate text-xs font-bold text-black/60">
+                    <Mail className="h-3.5 w-3.5 shrink-0 text-black" strokeWidth={3} />
                     {member.email}
                   </p>
 
                   <div className="flex flex-wrap items-center gap-1.5">
                     {member.role === "super_admin" ? (
-                      <span className="text-[11px] text-zinc-500 font-medium flex items-center gap-1">
-                        <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" /> All locations
+                      <span className="flex items-center gap-1 text-[11px] font-black uppercase tracking-widest text-black">
+                        <ShieldCheck className="h-3.5 w-3.5 text-neo-green" strokeWidth={3} /> All locations
                       </span>
                     ) : member.storeIds.length === 0 ? (
-                      <span className="text-[11px] text-amber-700 font-medium">
+                      <span className="text-[11px] font-black uppercase tracking-widest text-black">
                         No locations assigned yet
                       </span>
                     ) : (
-                      member.storeIds.map((storeId) => {
+                      member.storeIds.map((storeId, i) => {
                         const store = storeNameById(storeId);
                         return (
                           <span
                             key={storeId}
-                            className="text-[11px] px-2.5 py-1 rounded-lg bg-zinc-100 text-zinc-700 font-medium flex items-center gap-1"
+                            className={`flex items-center gap-1 border-2 border-black bg-white px-2.5 py-1 text-[11px] font-black text-black shadow-neo-xs ${
+                              i % 2 === 0 ? "-rotate-1" : "rotate-1"
+                            }`}
                           >
-                            <StoreIcon className="w-3 h-3 text-zinc-400" />
+                            <StoreIcon className="h-3 w-3" strokeWidth={3} />
                             {store ? store.name : storeId}
                           </span>
                         );
@@ -331,32 +330,32 @@ export default function TeamManagementClient({ initialMembers, stores, superAdmi
                 </div>
               </div>
 
-              <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto justify-end shrink-0">
+              <div className="flex w-full shrink-0 flex-wrap items-center justify-end gap-2 lg:w-auto">
                 <button
                   type="button"
                   onClick={() => openEditModal(member)}
-                  className="px-3.5 py-2.5 rounded-xl bg-zinc-100 text-zinc-800 text-xs font-semibold hover:bg-zinc-200 transition-colors flex items-center gap-1.5 cursor-pointer"
+                  className="flex cursor-pointer items-center gap-1.5 border-[3px] border-black bg-white px-3.5 py-2.5 text-xs font-black uppercase tracking-widest text-black shadow-neo-xs transition-all duration-100 ease-linear hover:bg-neo-blue hover:text-white active:translate-x-0.5 active:translate-y-0.5 active:shadow-none"
                 >
-                  <Edit2 className="w-3.5 h-3.5" /> Edit Access
+                  <Edit2 className="h-3.5 w-3.5" strokeWidth={3} /> Edit access
                 </button>
 
                 <button
                   type="button"
                   disabled={busyMemberId === member.id}
                   onClick={() => handleToggleStatus(member)}
-                  className={`px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-colors flex items-center gap-1.5 cursor-pointer disabled:opacity-50 ${
+                  className={`flex cursor-pointer items-center gap-1.5 border-[3px] border-black px-3.5 py-2.5 text-xs font-black uppercase tracking-widest shadow-neo-xs transition-all duration-100 ease-linear disabled:cursor-wait disabled:opacity-50 enabled:active:translate-x-0.5 enabled:active:translate-y-0.5 enabled:active:shadow-none ${
                     member.status === "active"
-                      ? "bg-amber-50 text-amber-800 border border-amber-200 hover:bg-amber-100"
-                      : "bg-emerald-50 text-emerald-800 border border-emerald-200 hover:bg-emerald-100"
+                      ? "bg-neo-yellow text-black hover:bg-white"
+                      : "bg-neo-green text-black hover:bg-white"
                   }`}
                 >
                   {member.status === "active" ? (
                     <>
-                      <Ban className="w-3.5 h-3.5" /> Suspend
+                      <Ban className="h-3.5 w-3.5" strokeWidth={3} /> Suspend
                     </>
                   ) : (
                     <>
-                      <Check className="w-3.5 h-3.5" /> Reactivate
+                      <Check className="h-3.5 w-3.5" strokeWidth={3} /> Reactivate
                     </>
                   )}
                 </button>
@@ -365,10 +364,10 @@ export default function TeamManagementClient({ initialMembers, stores, superAdmi
                   type="button"
                   disabled={busyMemberId === member.id}
                   onClick={() => handleRemove(member)}
-                  className="p-2.5 rounded-xl bg-zinc-100 text-rose-600 hover:text-rose-700 hover:bg-rose-50 transition-colors cursor-pointer disabled:opacity-50"
+                  className="cursor-pointer border-2 border-black bg-white p-2.5 text-black shadow-neo-xs transition-all duration-100 ease-linear hover:bg-neo-red disabled:cursor-wait disabled:opacity-50 active:translate-x-0.5 active:translate-y-0.5 active:shadow-none"
                   title="Remove from team"
                 >
-                  <Trash2 className="w-4 h-4" />
+                  <Trash2 className="h-4 w-4" strokeWidth={3} />
                 </button>
               </div>
             </div>
@@ -378,47 +377,49 @@ export default function TeamManagementClient({ initialMembers, stores, superAdmi
 
       {/* Invite / Edit Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm overflow-y-auto">
-          <div className="bg-white rounded-3xl max-w-xl w-full p-6 sm:p-8 shadow-2xl border border-zinc-200 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between pb-4 border-b border-zinc-100">
+        <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/60 p-4">
+          <div className="max-h-[90vh] w-full max-w-xl overflow-y-auto border-4 border-black bg-white shadow-neo-xl">
+            <div className="sticky top-0 flex items-center justify-between border-b-4 border-black bg-neo-yellow px-6 py-4">
               <div>
-                <h2 className="text-xl font-bold text-zinc-900">
-                  {editingMemberId ? "Edit Team Access" : "Invite Store Admin"}
+                <h2 className="text-lg font-black uppercase tracking-wide text-black">
+                  {editingMemberId ? "Edit team access" : "Invite store admin"}
                 </h2>
-                <p className="text-xs text-zinc-500 mt-0.5">
+                <p className="text-[11px] font-bold text-black/70">
                   They sign in with Clerk using this exact email address.
                 </p>
               </div>
               <button
                 onClick={() => setIsModalOpen(false)}
-                className="p-2 rounded-xl hover:bg-zinc-100 text-zinc-500 transition-colors cursor-pointer"
+                className="cursor-pointer border-2 border-black bg-white p-1.5 text-black shadow-neo-xs transition-all duration-100 ease-linear hover:bg-neo-red active:translate-x-0.5 active:translate-y-0.5 active:shadow-none"
               >
-                <X className="w-5 h-5" />
+                <X className="h-4 w-4" strokeWidth={3} />
               </button>
             </div>
 
             {errorMsg && (
-              <div className="mt-4 p-3 rounded-xl bg-rose-50 text-rose-700 text-xs font-medium border border-rose-200">
+              <div className="mx-6 mt-4 border-[3px] border-black bg-neo-red px-3 py-2 text-xs font-black uppercase tracking-wide text-black">
                 {errorMsg}
               </div>
             )}
 
-            <form onSubmit={handleSave} className="mt-6 space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <form onSubmit={handleSave} className="space-y-4 p-6">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div>
-                  <label className="block text-xs font-semibold text-zinc-700 mb-1">Full Name</label>
+                  <label className="mb-1.5 block text-[11px] font-black uppercase tracking-widest text-black">
+                    Full name
+                  </label>
                   <input
                     type="text"
                     value={form.name}
                     onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
                     placeholder="e.g. Rohan Mehta"
-                    className="w-full text-xs p-3 rounded-xl border border-zinc-200 focus:outline-none focus:ring-2 focus:ring-zinc-900"
+                    className="w-full border-[3px] border-black bg-cream px-3 py-3 text-xs font-bold text-black placeholder-black/40 shadow-neo-xs transition-all duration-100 ease-linear focus:bg-neo-yellow focus:shadow-neo-sm focus:outline-none"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-zinc-700 mb-1">
-                    Email Address *
+                  <label className="mb-1.5 block text-[11px] font-black uppercase tracking-widest text-black">
+                    Email address *
                   </label>
                   <input
                     type="email"
@@ -426,39 +427,39 @@ export default function TeamManagementClient({ initialMembers, stores, superAdmi
                     value={form.email}
                     onChange={(e) => setForm((prev) => ({ ...prev, email: e.target.value }))}
                     placeholder="owner@restaurant.com"
-                    className="w-full text-xs p-3 rounded-xl border border-zinc-200 focus:outline-none focus:ring-2 focus:ring-zinc-900"
+                    className="w-full border-[3px] border-black bg-cream px-3 py-3 text-xs font-bold text-black placeholder-black/40 shadow-neo-xs transition-all duration-100 ease-linear focus:bg-neo-yellow focus:shadow-neo-sm focus:outline-none"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-zinc-700 mb-1">Role</label>
-                <div className="grid grid-cols-2 gap-2">
+                <label className="mb-1.5 block text-[11px] font-black uppercase tracking-widest text-black">Role</label>
+                <div className="grid grid-cols-2 gap-3">
                   <button
                     type="button"
                     onClick={() => setForm((prev) => ({ ...prev, role: "store_admin" }))}
-                    className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
+                    className={`cursor-pointer border-[3px] border-black p-3 text-left transition-all duration-100 ease-linear shadow-neo-xs ${
                       form.role === "store_admin"
-                        ? "border-zinc-900 bg-zinc-50 ring-1 ring-zinc-900"
-                        : "border-zinc-200 hover:bg-zinc-50"
+                        ? "-rotate-1 bg-black text-white"
+                        : "bg-white text-black hover:bg-neo-yellow"
                     }`}
                   >
-                    <span className="block text-xs font-bold text-zinc-900">Store Admin</span>
-                    <span className="block text-[11px] text-zinc-500 mt-0.5">
+                    <span className="block text-xs font-black uppercase tracking-wide">Store admin</span>
+                    <span className={`mt-0.5 block text-[11px] font-bold ${form.role === "store_admin" ? "text-white/70" : "text-black/60"}`}>
                       Sees only assigned locations
                     </span>
                   </button>
                   <button
                     type="button"
                     onClick={() => setForm((prev) => ({ ...prev, role: "super_admin" }))}
-                    className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
+                    className={`cursor-pointer border-[3px] border-black p-3 text-left transition-all duration-100 ease-linear shadow-neo-xs ${
                       form.role === "super_admin"
-                        ? "border-zinc-900 bg-zinc-50 ring-1 ring-zinc-900"
-                        : "border-zinc-200 hover:bg-zinc-50"
+                        ? "rotate-1 bg-black text-white"
+                        : "bg-white text-black hover:bg-neo-yellow"
                     }`}
                   >
-                    <span className="block text-xs font-bold text-zinc-900">Super Admin</span>
-                    <span className="block text-[11px] text-zinc-500 mt-0.5">
+                    <span className="block text-xs font-black uppercase tracking-wide">Super admin</span>
+                    <span className={`mt-0.5 block text-[11px] font-bold ${form.role === "super_admin" ? "text-white/70" : "text-black/60"}`}>
                       Full platform access
                     </span>
                   </button>
@@ -467,15 +468,15 @@ export default function TeamManagementClient({ initialMembers, stores, superAdmi
 
               {form.role === "store_admin" && (
                 <div>
-                  <label className="block text-xs font-semibold text-zinc-700 mb-1">
-                    Assigned Locations ({form.storeIds.length} selected)
+                  <label className="mb-1.5 block text-[11px] font-black uppercase tracking-widest text-black">
+                    Assigned locations ({form.storeIds.length} selected)
                   </label>
                   {stores.length === 0 ? (
-                    <p className="text-[11px] text-zinc-500 p-3 rounded-xl bg-zinc-50 border border-zinc-200">
+                    <p className="border-[3px] border-black bg-cream p-3 text-[11px] font-bold text-black/70 shadow-neo-xs">
                       Add a restaurant first, then assign it here.
                     </p>
                   ) : (
-                    <div className="max-h-52 overflow-y-auto space-y-1.5 p-2 rounded-xl border border-zinc-200 bg-zinc-50">
+                    <div className="max-h-52 space-y-2 overflow-y-auto border-[3px] border-black bg-cream p-2 shadow-neo-xs">
                       {stores.map((store) => {
                         const checked = form.storeIds.includes(store.id);
                         return (
@@ -483,55 +484,54 @@ export default function TeamManagementClient({ initialMembers, stores, superAdmi
                             key={store.id}
                             type="button"
                             onClick={() => toggleStore(store.id)}
-                            className={`w-full flex items-center justify-between gap-3 p-2.5 rounded-lg border text-left transition-all cursor-pointer ${
-                              checked
-                                ? "bg-white border-zinc-900 shadow-sm"
-                                : "bg-white/60 border-zinc-200 hover:bg-white"
+                            className={`flex w-full cursor-pointer items-center justify-between gap-3 border-[3px] border-black p-2.5 text-left transition-all duration-100 ease-linear shadow-neo-xs ${
+                              checked ? "bg-neo-green" : "bg-white hover:bg-neo-yellow"
                             }`}
                           >
-                            <div className="flex items-center gap-2.5 min-w-0">
+                            <div className="flex min-w-0 items-center gap-2.5">
                               <span
-                                className={`w-5 h-5 rounded-md border flex items-center justify-center shrink-0 ${
-                                  checked ? "bg-zinc-900 border-zinc-900" : "border-zinc-300"
+                                className={`flex h-5 w-5 shrink-0 items-center justify-center border-2 border-black ${
+                                  checked ? "bg-black" : "bg-white"
                                 }`}
                               >
-                                {checked && <Check className="w-3.5 h-3.5 text-emerald-400 stroke-[3]" />}
+                                {checked && <Check className="h-3.5 w-3.5 text-white" strokeWidth={4} />}
                               </span>
                               <span className="min-w-0">
-                                <span className="block text-xs font-semibold text-zinc-900 truncate">
-                                  {store.name}
-                                </span>
-                                <span className="block text-[10px] text-zinc-500 font-mono truncate">
+                                <span className="block truncate text-xs font-black text-black">{store.name}</span>
+                                <span className="block truncate font-mono text-[10px] font-bold text-black/60">
                                   /r/{store.slug}
                                 </span>
                               </span>
                             </div>
-                            <span className="text-[10px] text-zinc-400 shrink-0">{store.category}</span>
+                            <span className="shrink-0 text-[10px] font-black uppercase tracking-widest text-black/50">
+                              {store.category}
+                            </span>
                           </button>
                         );
                       })}
                     </div>
                   )}
-                  <p className="text-[11px] text-zinc-500 mt-1.5">
-                    Store admins can edit dishes and sentence combinations for their locations — and nothing else.
+                  <p className="mt-1.5 text-[11px] font-bold text-black/60">
+                    Store admins can edit menus, dishes and sentence combinations for their locations
+                    — and nothing else.
                   </p>
                 </div>
               )}
 
-              <div className="pt-4 border-t border-zinc-100 flex items-center justify-end gap-3">
+              <div className="flex items-center justify-end gap-3 border-t-[3px] border-black pt-4">
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2.5 rounded-xl text-zinc-600 hover:text-zinc-900 text-xs font-medium cursor-pointer"
+                  className="cursor-pointer border-2 border-transparent px-4 py-2.5 text-xs font-black uppercase tracking-widest text-black transition-all duration-100 ease-linear hover:border-black hover:bg-white"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={isSaving}
-                  className="px-6 py-2.5 rounded-xl bg-zinc-900 text-white text-xs font-semibold hover:bg-black transition-all shadow-md disabled:opacity-50 cursor-pointer"
+                  className="cursor-pointer border-4 border-black bg-neo-red px-6 py-2.5 text-xs font-black uppercase tracking-widest text-white shadow-neo-sm transition-all duration-100 ease-linear hover:bg-black hover:text-neo-yellow disabled:cursor-wait disabled:opacity-50 enabled:active:translate-x-1 enabled:active:translate-y-1 enabled:active:shadow-none"
                 >
-                  {isSaving ? "Saving..." : editingMemberId ? "Save Access" : "Send Invite"}
+                  {isSaving ? "Saving..." : editingMemberId ? "Save access" : "Send invite"}
                 </button>
               </div>
             </form>

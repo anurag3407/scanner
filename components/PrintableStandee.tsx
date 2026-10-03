@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useSyncExternalStore } from "react";
 import { Store } from "@/lib/types";
 import QRCode from "qrcode";
 import { Printer, Star, ShieldCheck, Sparkles, Scissors, ArrowLeft, Download, Copy, Check, QrCode as QrIcon } from "lucide-react";
@@ -8,6 +8,22 @@ import Link from "next/link";
 
 interface Props {
   store: Store;
+}
+
+const FALLBACK_ORIGIN = "https://scanner.sayalabs.in";
+
+/** No-op: `window.location.origin` cannot change within a page session. */
+function subscribeToOrigin(): () => void {
+  return () => {};
+}
+
+function getClientOrigin(): string {
+  return window.location.origin || FALLBACK_ORIGIN;
+}
+
+/** Stable across server render and the client's first hydration pass. */
+function getServerOrigin(): string {
+  return process.env.NEXT_PUBLIC_APP_URL || FALLBACK_ORIGIN;
 }
 
 export default function PrintableStandee({ store }: Props) {
@@ -18,7 +34,16 @@ export default function PrintableStandee({ store }: Props) {
   const [accentColor, setAccentColor] = useState<string>(store.brandColor || "#0d9488");
   const [copiedLink, setCopiedLink] = useState<boolean>(false);
 
-  const origin = typeof window !== "undefined" ? window.location.origin : (process.env.NEXT_PUBLIC_APP_URL || "https://scanner.sayalabs.in");
+  // Reading `window.location.origin` during render produced a different origin
+  // on the server than on the client's first pass, so the QR payload and the
+  // displayed link differed and React logged a hydration mismatch on every
+  // preview/staging deploy.
+  //
+  // `useSyncExternalStore` is the correct primitive here: the server snapshot and
+  // the first client render both return the configured origin, then React
+  // re-renders with the real one after hydration. No setState-in-effect cascade.
+  const origin = useSyncExternalStore(subscribeToOrigin, getClientOrigin, getServerOrigin);
+
   // The QR encodes the immutable store id — never the slug. Printed standees
   // keep working even if the restaurant is renamed or its slug changes.
   const targetUrl = `${origin}/r/${store.id}${tableNumber.trim() ? `?table=${encodeURIComponent(tableNumber.trim())}` : ""}`;
@@ -208,10 +233,10 @@ export default function PrintableStandee({ store }: Props) {
                   <img src={qrCodeUrl} alt="Scan QR Code" className="w-36 h-36" />
                 </div>
                 <p className="text-xs font-bold text-zinc-900 mt-1">
-                  Scan to leave a 5-star review in 10 seconds!
+                  Scan for our live menu &amp; leave a 5-star review!
                 </p>
                 <p className="text-[10px] text-zinc-500 mt-0.5">
-                  Point camera &bull; Pre-drafted review &bull; 1-tap post
+                  Point camera &bull; Live menu &amp; pre-drafted review &bull; 1-tap post
                 </p>
                 {tableNumber && (
                   <span className="mt-2 text-[10px] font-mono px-2 py-0.5 rounded bg-zinc-200 font-semibold">
@@ -255,10 +280,10 @@ export default function PrintableStandee({ store }: Props) {
 
                 <div className="mt-2 space-y-1">
                   <p className="text-sm font-black text-zinc-900">
-                    Scan with Phone Camera to Rate
+                    Scan with Phone Camera for Menu &amp; Reviews
                   </p>
                   <p className="text-xs text-zinc-600 max-w-xs mx-auto leading-relaxed">
-                    ✨ Your 5-star review is already pre-drafted! Just tap dishes and copy.
+                    ✨ Live menu inside — and your 5-star review is pre-drafted! Tap, copy, post.
                   </p>
                 </div>
 
@@ -302,10 +327,10 @@ export default function PrintableStandee({ store }: Props) {
 
               <div className="mt-2 space-y-1">
                 <p className="text-base font-black text-zinc-900">
-                  Scan to Rate in 10 Seconds
+                  Scan for Menu &amp; Reviews
                 </p>
                 <p className="text-xs text-zinc-600 max-w-xs leading-relaxed">
-                  Point camera &bull; Pre-drafted 5-star review &bull; 1-tap post
+                  Point camera &bull; Live menu &bull; Pre-drafted 5-star review
                 </p>
               </div>
 

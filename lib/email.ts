@@ -24,25 +24,76 @@ export interface LowRatingEmailParams {
   message: string;
 }
 
-export async function sendLowRatingAlertEmail(params: LowRatingEmailParams): Promise<{ success: boolean; error?: string }> {
-  const { toEmails, storeName, rating, tableNumber, customerName, customerContact, message } = params;
-  const recipients = (toEmails || []).filter(Boolean);
+/**
+ * Escapes text before it is interpolated into the HTML email body.
+ *
+ * Customer-controlled fields (name, contact, table number, free-text message)
+ * reach this function verbatim from the public firewall form. Without
+ * escaping, a diner could inject arbitrary HTML/CSS into the owner's inbox —
+ * phishing links, tracking pixels, fake brand headers, or hidden markup used to
+ * bury or rewrite the alert.
+ */
+function escapeHtml(value: unknown): string {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
 
-  if (recipients.length === 0) {
-    console.warn("No owner email configured for this store. Email notification skipped.");
-    return { success: false, error: "Missing recipient email" };
-  }
+/**
+ * Coerces the caller-supplied rating to a bounded integer in [1, 5].
+ *
+ * The star row and the "n / 5 Stars" caption must be derived from the SAME
+ * normalized value. Deriving them separately is what allowed a non-numeric or
+ * out-of-range rating to be interpolated into the HTML raw (`repeat` of NaN
+ * yields an empty string, so the star row silently vanished while the caption
+ * still echoed the attacker's text).
+ */
+function normalizeRating(value: unknown): number {
+  const n =
+    typeof value === "number"
+      ? Math.trunc(value)
+      : Number.parseFloat(String(value ?? ""));
+  if (!Number.isFinite(n)) return 1;
+  return Math.min(5, Math.max(1, n));
+}
 
-  const resend = getResendClient();
-  if (!resend) {
-    return { success: false, error: "Resend not initialized" };
-  }
+/**
+ * Pure builder for the "Reputation Firewall" low-rating alert body.
+ *
+ * Extracted from {@link sendLowRatingAlertEmail} so the escaping guarantees can
+ * be asserted directly against real attacker payloads, without dispatching
+ * mail. This function performs no I/O and has no side effects.
+ *
+ * SECURITY CONTRACT: every value that originates from the public anonymous
+ * form (storeName, tableNumber, customerName, customerContact, message) plus
+ * the recipient list must pass through `escapeHtml` before interpolation.
+ * `rating` is never interpolated raw — it is normalized to a bounded integer
+ * first, so the numeric type in `LowRatingEmailParams` is not the only thing
+ * standing between a caller and an HTML injection.
+ */
+export function buildLowRatingAlertHtml(
+  params: LowRatingEmailParams,
+  recipients: string[]
+): string {
+  const { storeName, tableNumber, customerName, customerContact, message } = params;
 
-  const fromEmail = process.env.RESEND_FROM_EMAIL || "ReviewBoost Scanner <reviews@sayalabs.in>";
-  const stars = "⭐".repeat(Math.max(1, Math.min(5, rating)));
-  const tableLabel = tableNumber ? `Table #${tableNumber}` : "Dine-in Guest";
+  const rating = normalizeRating(params.rating);
+  const stars = "⭐".repeat(rating);
+  // Escaped once here, then reused as a plain-text fragment in the body copy.
+  const safeStoreName = escapeHtml(storeName);
+  const safeTableNumber = escapeHtml(tableNumber);
+  const safeCustomerName = escapeHtml(customerName);
+  const safeCustomerContact = escapeHtml(customerContact);
+  const safeMessage = escapeHtml(message);
+  const safeRecipientList = escapeHtml(
+    (Array.isArray(recipients) ? recipients : []).filter(Boolean).join(", ")
+  );
+  const tableLabel = tableNumber ? `Table #${safeTableNumber}` : "Dine-in Guest";
 
-  const html = `
+  return `
 <!DOCTYPE html>
 <html>
 <head>
@@ -85,7 +136,7 @@ export async function sendLowRatingAlertEmail(params: LowRatingEmailParams): Pro
       <table class="info-table">
         <tr>
           <td class="label">Restaurant:</td>
-          <td class="value"><strong>${storeName}</strong></td>
+          <td class="value"><strong>${safeStoreName}</strong></td>
         </tr>
         <tr>
           <td class="label">Location / Table:</td>
@@ -93,11 +144,11 @@ export async function sendLowRatingAlertEmail(params: LowRatingEmailParams): Pro
         </tr>
         <tr>
           <td class="label">Customer Name:</td>
-          <td class="value">${customerName || "Anonymous Diner"}</td>
+          <td class="value">${safeCustomerName || "Anonymous Diner"}</td>
         </tr>
         <tr>
           <td class="label">Customer Contact:</td>
-          <td class="value"><strong>${customerContact || "Not provided"}</strong></td>
+          <td class="value"><strong>${safeCustomerContact || "Not provided"}</strong></td>
         </tr>
         <tr>
           <td class="label">Time:</td>
@@ -107,7 +158,7 @@ export async function sendLowRatingAlertEmail(params: LowRatingEmailParams): Pro
 
       <div style="font-size: 13px; font-weight: 700; color: #09090b; text-transform: uppercase; letter-spacing: 0.5px;">Customer Feedback:</div>
       <div class="message-box">
-        "${message || "Customer selected low rating without custom note."}"
+        "${safeMessage || "Customer selected low rating without custom note."}"
       </div>
 
       <div class="cta-note">
@@ -116,18 +167,38 @@ export async function sendLowRatingAlertEmail(params: LowRatingEmailParams): Pro
     </div>
     <div class="footer">
       Powered by <strong>ReviewBoost Scanner</strong> &bull; Reputation Protection System<br>
-      Automated alert sent to ${recipients.join(", ")}
+      Automated alert sent to ${safeRecipientList}
     </div>
   </div>
 </body>
 </html>
   `.trim();
+}
+
+export async function sendLowRatingAlertEmail(params: LowRatingEmailParams): Promise<{ success: boolean; error?: string }> {
+  const { toEmails, storeName, rating, tableNumber } = params;
+  const recipients = (toEmails || []).filter(Boolean);
+
+  if (recipients.length === 0) {
+    console.warn("No owner email configured for this store. Email notification skipped.");
+    return { success: false, error: "Missing recipient email" };
+  }
+
+  const resend = getResendClient();
+  if (!resend) {
+    return { success: false, error: "Resend not initialized" };
+  }
+
+  const fromEmail = process.env.RESEND_FROM_EMAIL || "ReviewBoost Scanner <reviews@sayalabs.in>";
+  const html = buildLowRatingAlertHtml(params, recipients);
 
   try {
     const response = await resend.emails.send({
       from: fromEmail,
       to: recipients,
-      subject: `🚨 [Urgent] ${rating}★ Alert at ${storeName} (${tableLabel})`,
+      // Header-injection safe: Resend takes a plain string, and a subject is
+      // never rendered as markup, so the raw store name is fine here.
+      subject: `🚨 [Urgent] ${rating}★ Alert at ${storeName} (${tableNumber ? `Table #${tableNumber}` : "Dine-in Guest"})`,
       html,
     });
 

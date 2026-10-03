@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   Star,
   Copy,
@@ -9,18 +9,17 @@ import {
   RotateCcw,
   Edit3,
   ExternalLink,
-  ShieldCheck,
   Send,
   AlertCircle,
   ThumbsUp,
 } from "lucide-react";
 import confetti from "canvas-confetti";
-import { Store, ScanEventType } from "@/lib/types";
-import { generateOfflineReview } from "@/lib/ai";
+import { PublicStore, ScanEventType } from "@/lib/types";
+import { DEFAULT_CHIPS, generateUniqueReview } from "@/lib/ai";
 import { getGoogleReviewUrl, isDirectReviewUrl } from "@/lib/review-links";
 
 interface Props {
-  store: Store;
+  store: PublicStore;
   initialTable?: string;
 }
 
@@ -37,28 +36,62 @@ export default function CustomerReviewFlow({ store, initialTable = "" }: Props) 
   // Pre-selected 5 stars by default
   const [rating, setRating] = useState<number>(5);
 
+  // The store's own chips, or generic ones so every QR has a working flow.
+  const availableChips = store.chips && store.chips.length > 0 ? store.chips : DEFAULT_CHIPS;
+
   // Pick up to 2 default chips from the store
-  const defaultSelectedChips = (store.chips || []).slice(0, 2);
+  const defaultSelectedChips = availableChips.slice(0, 2);
   const [selectedChips, setSelectedChips] = useState<string[]>(defaultSelectedChips);
 
   // Variation seed for instant alternative drafts
-  const [seed, setSeed] = useState<number>(() => Math.floor(Math.random() * 100));
+  const [seed, setSeed] = useState<number>(() => Math.floor(Math.random() * 100_000));
 
-  // Current review text
+  // Drafts this visitor has already been shown — the generator never repeats one.
+  const seenDrafts = useRef<string[]>([]);
+
+  const tone = store.reviewTone ?? "punchy";
+
+  const generateDraft = (chips: string[], variationSeed: number): string => {
+    const draft = generateUniqueReview(
+      {
+        storeName: store.name,
+        category: store.category,
+        chips,
+        variationSeed,
+        tone,
+        templates: store.reviewTemplates,
+        keywords: store.signatureKeywords,
+      },
+      seenDrafts.current
+    );
+    seenDrafts.current = [...seenDrafts.current.slice(-11), draft];
+    return draft;
+  };
+
+  // Current review text. The very first draft is produced without touching the
+  // seen-history ref (refs must not be accessed during render); it is recorded
+  // by the mount effect below instead.
   const [reviewText, setReviewText] = useState<string>(() =>
-    generateOfflineReview({
+    generateUniqueReview({
       storeName: store.name,
       category: store.category,
       chips: defaultSelectedChips,
-      variationSeed: seed,
-      tone: "punchy",
+      variationSeed: Math.floor(Math.random() * 100_000),
+      tone,
       templates: store.reviewTemplates,
-    })
+      keywords: store.signatureKeywords,
+    }, [])
   );
+
+  // Record the initial draft as seen, so "Different wording" never repeats it.
+  useEffect(() => {
+    seenDrafts.current = [reviewText];
+    // Runs once on mount: the initial draft is the one being registered.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const [isEditing, setIsEditing] = useState<boolean>(false);
   const [copied, setCopied] = useState<boolean>(false);
-  const scanLogged = useRef<boolean>(false);
 
   // Private feedback state for 1-3 stars
   const [feedbackIssue, setFeedbackIssue] = useState<string>("");
@@ -77,22 +110,6 @@ export default function CustomerReviewFlow({ store, initialTable = "" }: Props) 
       } catch {}
     }
   };
-
-  // Log scan event once per visit
-  useEffect(() => {
-    if (scanLogged.current) return;
-    scanLogged.current = true;
-    fetch("/api/events", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        storeId: store.id,
-        type: "scan",
-        rating: 5,
-        chips: [],
-      }),
-    }).catch(() => {});
-  }, [store.id]);
 
   const logEvent = (type: ScanEventType, payload: { rating?: number; chips?: string[]; reviewText?: string } = {}) => {
     fetch("/api/events", {
@@ -116,14 +133,7 @@ export default function CustomerReviewFlow({ store, initialTable = "" }: Props) 
       : [...selectedChips, chip];
 
     setSelectedChips(updated);
-    const newText = generateOfflineReview({
-      storeName: store.name,
-      category: store.category,
-      chips: updated,
-      variationSeed: seed,
-      tone: "punchy",
-      templates: store.reviewTemplates,
-    });
+    const newText = generateDraft(updated, seed);
     setReviewText(newText);
     logEvent("chip_toggle", { chips: updated, reviewText: newText });
   };
@@ -133,14 +143,7 @@ export default function CustomerReviewFlow({ store, initialTable = "" }: Props) 
     triggerHaptic(15);
     const nextSeed = seed + 1;
     setSeed(nextSeed);
-    const newText = generateOfflineReview({
-      storeName: store.name,
-      category: store.category,
-      chips: selectedChips,
-      variationSeed: nextSeed,
-      tone: "punchy",
-      templates: store.reviewTemplates,
-    });
+    const newText = generateDraft(selectedChips, nextSeed);
     setReviewText(newText);
     logEvent("chip_toggle", { chips: selectedChips, reviewText: newText });
   };
@@ -184,7 +187,7 @@ export default function CustomerReviewFlow({ store, initialTable = "" }: Props) 
         particleCount: 75,
         spread: 60,
         origin: { y: 0.7 },
-        colors: ["#10B981", "#3B82F6", "#F59E0B", "#EF4444", "#8B5CF6"],
+        colors: ["#FF6B6B", "#FFD93D", "#C4B5FD", "#6BCB77", "#000000"],
       });
     } catch {}
 
@@ -236,40 +239,20 @@ export default function CustomerReviewFlow({ store, initialTable = "" }: Props) 
   };
 
   const isFirewallActive = rating <= 3;
-  const brandColor = store.brandColor || "#E11D48";
+
+  // The restaurant header (brand banner + "Verified Guest") is rendered by the
+  // CustomerScanExperience wrapper that hosts this flow — one header per scan
+  // page, never two.
 
   return (
-    <div className="w-full max-w-md mx-auto bg-white rounded-3xl shadow-xl border border-zinc-100 overflow-hidden text-zinc-900 transition-all font-sans">
-      {/* Clean Restaurant Header */}
-      <div
-        className="px-6 pt-6 pb-5 text-white relative overflow-hidden"
-        style={{ backgroundColor: brandColor }}
-      >
-        <div className="relative z-10 flex items-center justify-between">
-          <div className="pr-3">
-            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-white/20 backdrop-blur-sm tracking-wide uppercase">
-              <ShieldCheck className="w-3 h-3 text-white" />
-              Verified Guest
-            </span>
-            <h1 className="text-xl font-bold mt-1.5 tracking-tight text-white line-clamp-1">{store.name}</h1>
-            <p className="text-xs text-white/85 mt-0.5 line-clamp-1">
-              {store.address || store.tagline || store.category}
-            </p>
-          </div>
-          <div className="w-12 h-12 rounded-2xl bg-white/20 backdrop-blur-md border border-white/25 flex items-center justify-center font-black text-xl text-white shadow-inner shrink-0">
-            {store.name.charAt(0)}
-          </div>
-        </div>
-
-      </div>
-
-      <div className="p-6">
+    <div className="w-full border-4 border-black bg-white shadow-neo-md">
+      <div className="p-5 sm:p-6">
         {/* Step 1: Star Rating */}
-        <div className="text-center mb-6">
-          <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500 mb-2">
+        <div className="mb-6 text-center">
+          <p className="mb-3 inline-block border-2 border-black bg-neo-violet px-3 py-1 text-[11px] font-black uppercase tracking-widest text-black shadow-neo-xs">
             How was your experience today?
           </p>
-          <div className="flex items-center justify-center gap-2">
+          <div className="flex items-center justify-center gap-1.5 sm:gap-2.5">
             {[1, 2, 3, 4, 5].map((star) => (
               <button
                 key={star}
@@ -279,19 +262,21 @@ export default function CustomerReviewFlow({ store, initialTable = "" }: Props) 
                   setRating(star);
                   logEvent(star <= 3 ? "firewall_intercept" : "rating_change", { rating: star });
                 }}
-                className={`p-1.5 rounded-xl transition-all transform active:scale-90 ${
-                  rating >= star
-                    ? "text-amber-400 drop-shadow-sm scale-110"
-                    : "text-zinc-200 hover:text-zinc-300"
+                className={`rounded-none p-1 transition-all duration-100 ease-linear active:scale-90 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-neo-yellow ${
+                  rating >= star ? "scale-110" : "opacity-40 hover:opacity-80"
                 }`}
                 aria-label={`Rate ${star} stars`}
               >
-                <Star className="w-9 h-9 fill-current stroke-1" />
+                <Star
+                  className={`h-10 w-10 sm:h-11 sm:w-11 stroke-[1.5] ${
+                    rating >= star ? "fill-neo-yellow text-black" : "fill-white text-black"
+                  }`}
+                />
               </button>
             ))}
           </div>
 
-          <p className="text-xs text-zinc-500 mt-2 font-medium">
+          <p className="mt-3 inline-block border-2 border-black bg-white px-3 py-1 text-xs font-black uppercase tracking-wide text-black shadow-neo-xs">
             {rating === 5 && "⭐ 5/5 — Loved it!"}
             {rating === 4 && "👍 4/5 — Great experience"}
             {rating === 3 && "😐 3/5 — Average"}
@@ -302,31 +287,36 @@ export default function CustomerReviewFlow({ store, initialTable = "" }: Props) 
 
         {/* 1-3 Stars: Reputation Firewall (Private Manager Feedback) */}
         {isFirewallActive ? (
-          <div className="bg-amber-50/80 border border-amber-200/90 rounded-2xl p-5 text-left transition-all animate-fadeIn">
+          <div className="border-4 border-black bg-neo-violet p-5 shadow-neo transition-all">
             {feedbackSent ? (
-              <div className="text-center py-4">
-                <div className="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-3">
-                  <Check className="w-6 h-6 stroke-[2.5]" />
+              <div className="bg-white p-5 text-center shadow-neo-xs">
+                <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center border-[3px] border-black bg-neo-green">
+                  <Check className="h-6 w-6 text-black" strokeWidth={3.5} />
                 </div>
-                <h3 className="text-base font-bold text-zinc-900">Message Delivered to Management</h3>
-                <p className="text-xs text-zinc-600 mt-1.5 leading-relaxed">
-                  Thank you for letting us know directly. Our General Manager has been notified and will address this immediately.
+                <h3 className="text-base font-black uppercase tracking-wide text-black">
+                  Message delivered to management
+                </h3>
+                <p className="mt-1.5 text-xs font-bold leading-relaxed text-black/70">
+                  Thank you for letting us know directly. Our General Manager has been notified and
+                  will address this immediately.
                 </p>
               </div>
             ) : (
               <form onSubmit={handleSubmitFeedback} className="space-y-3">
-                <div className="flex items-start gap-2 mb-2">
-                  <AlertCircle className="w-4 h-4 text-amber-600 mt-0.5 shrink-0" />
+                <div className="mb-3 flex items-start gap-2 bg-white p-3 shadow-neo-xs">
+                  <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-black" strokeWidth={3} />
                   <div>
-                    <h3 className="text-xs font-bold text-zinc-900">We want to make this right</h3>
-                    <p className="text-[11px] text-zinc-600 mt-0.5">
+                    <h3 className="text-xs font-black uppercase tracking-wide text-black">
+                      We want to make this right
+                    </h3>
+                    <p className="mt-0.5 text-[11px] font-bold text-black/70">
                       Your note is private and goes straight to our General Manager.
                     </p>
                   </div>
                 </div>
 
                 {/* Quick Issue Chips */}
-                <div className="flex flex-wrap gap-1.5 pt-1">
+                <div className="flex flex-wrap gap-2 pt-1">
                   {COMMON_ISSUES.map((issue) => (
                     <button
                       key={issue}
@@ -335,10 +325,10 @@ export default function CustomerReviewFlow({ store, initialTable = "" }: Props) 
                         triggerHaptic(10);
                         setFeedbackIssue(feedbackIssue === issue ? "" : issue);
                       }}
-                      className={`text-[11px] px-2.5 py-1.5 rounded-lg font-medium transition-all text-left ${
+                      className={`border-[3px] border-black px-2.5 py-1.5 text-left text-[11px] font-bold transition-all duration-100 ease-linear shadow-neo-xs focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-white ${
                         feedbackIssue === issue
-                          ? "bg-amber-600 text-white shadow-sm"
-                          : "bg-white text-zinc-700 border border-amber-200 hover:bg-amber-100/60"
+                          ? "bg-black text-white active:translate-x-0.5 active:translate-y-0.5 active:shadow-none"
+                          : "bg-white text-black hover:bg-neo-yellow active:translate-x-0.5 active:translate-y-0.5 active:shadow-none cursor-pointer"
                       }`}
                     >
                       {issue}
@@ -352,55 +342,57 @@ export default function CustomerReviewFlow({ store, initialTable = "" }: Props) 
                   value={feedbackNote}
                   onChange={(e) => setFeedbackNote(e.target.value)}
                   placeholder="Tell our manager what happened..."
-                  className="w-full text-xs p-3 rounded-xl border border-amber-200 focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white placeholder-zinc-400"
+                  className="w-full border-[3px] border-black bg-white px-3 py-2.5 text-xs font-bold text-black placeholder-black/40 shadow-neo-xs transition-all duration-100 ease-linear focus:bg-neo-yellow focus:shadow-neo-sm focus:outline-none resize-none"
                 />
 
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-2 gap-3">
                   <input
                     type="text"
                     value={feedbackTable}
                     onChange={(e) => setFeedbackTable(e.target.value)}
                     placeholder="Table # (optional)"
-                    className="w-full text-xs px-3 py-2 rounded-xl border border-amber-200 focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white"
+                    className="w-full border-[3px] border-black bg-white px-3 py-2.5 text-xs font-bold text-black placeholder-black/40 shadow-neo-xs transition-all duration-100 ease-linear focus:bg-neo-yellow focus:shadow-neo-sm focus:outline-none"
                   />
                   <input
                     type="text"
                     value={feedbackContact}
                     onChange={(e) => setFeedbackContact(e.target.value)}
                     placeholder="Phone / Email (optional)"
-                    className="w-full text-xs px-3 py-2 rounded-xl border border-amber-200 focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white"
+                    className="w-full border-[3px] border-black bg-white px-3 py-2.5 text-xs font-bold text-black placeholder-black/40 shadow-neo-xs transition-all duration-100 ease-linear focus:bg-neo-yellow focus:shadow-neo-sm focus:outline-none"
                   />
                 </div>
 
                 <button
                   type="submit"
                   disabled={isSubmittingFeedback || (!feedbackNote.trim() && !feedbackIssue)}
-                  className="w-full py-3 px-4 rounded-xl bg-zinc-900 text-white font-semibold text-xs hover:bg-black disabled:opacity-50 transition-all flex items-center justify-center gap-1.5 shadow-sm"
+                  className="flex w-full items-center justify-center gap-1.5 border-[3px] border-black bg-black px-4 py-3 text-xs font-black uppercase tracking-widest text-white shadow-neo-sm transition-all duration-100 ease-linear hover:bg-neo-red hover:text-black disabled:cursor-not-allowed disabled:opacity-50 enabled:active:translate-x-1 enabled:active:translate-y-1 enabled:active:shadow-none cursor-pointer focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-white"
                 >
                   {isSubmittingFeedback ? (
                     "Sending to Manager..."
                   ) : (
                     <>
-                      <Send className="w-3.5 h-3.5" />
-                      <span>Send Privately to Manager</span>
+                      <Send className="h-3.5 w-3.5" strokeWidth={3} />
+                      <span>Send privately to manager</span>
                     </>
                   )}
                 </button>
 
                 {feedbackError && (
-                  <p className="text-[11px] text-rose-600 text-center font-medium">{feedbackError}</p>
+                  <p className="border-2 border-black bg-neo-red px-3 py-1.5 text-center text-[11px] font-black uppercase tracking-wide text-black">
+                    {feedbackError}
+                  </p>
                 )}
 
                 {/* Google Policy Compliance: Unrestricted access to Google Reviews */}
-                <div className="pt-2 text-center border-t border-amber-200/60">
+                <div className="border-t-[3px] border-black pt-3 text-center">
                   <a
                     href={googleReviewUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-[11px] text-zinc-500 hover:text-zinc-800 underline inline-flex items-center gap-1 transition-colors"
+                    className="inline-flex items-center gap-1 bg-white px-2 py-1 text-[11px] font-bold text-black underline decoration-2 underline-offset-2 transition-colors hover:bg-neo-yellow"
                   >
                     <span>Prefer to leave a public review on Google Maps instead?</span>
-                    <ExternalLink className="w-3 h-3 opacity-60" />
+                    <ExternalLink className="h-3 w-3" strokeWidth={3} />
                   </a>
                 </div>
               </form>
@@ -408,59 +400,59 @@ export default function CustomerReviewFlow({ store, initialTable = "" }: Props) 
           </div>
         ) : (
           /* 4-5 Stars: The 10-Second Google Review Flow */
-          <div className="space-y-4">
+          <div className="space-y-5">
             {/* Step 2: Highlight Chips (Tap what you loved) */}
-            {store.chips && store.chips.length > 0 && (
-              <div>
-                <p className="text-xs font-semibold text-zinc-700 mb-2 flex items-center gap-1">
-                  <ThumbsUp className="w-3.5 h-3.5 text-zinc-500" />
-                  Tap what you enjoyed:
-                </p>
-                <div className="flex flex-wrap gap-1.5">
-                  {store.chips.map((chip) => {
-                    const active = selectedChips.includes(chip);
-                    return (
-                      <button
-                        key={chip}
-                        type="button"
-                        onClick={() => toggleChip(chip)}
-                        className={`text-xs px-3 py-2 rounded-full font-medium transition-all flex items-center gap-1.5 ${
-                          active
-                            ? "bg-zinc-900 text-white shadow-sm scale-102"
-                            : "bg-zinc-100 text-zinc-700 hover:bg-zinc-200/80 active:scale-95"
-                        }`}
-                      >
-                        <span>{chip}</span>
-                        {active && <Check className="w-3.5 h-3.5 text-emerald-400 stroke-[3]" />}
-                      </button>
-                    );
-                  })}
-                </div>
+            <div>
+              <p className="mb-2.5 inline-block -rotate-1 border-2 border-black bg-neo-violet px-2.5 py-1 text-[11px] font-black uppercase tracking-widest text-black shadow-neo-xs">
+                <ThumbsUp className="mr-1 inline h-3 w-3" strokeWidth={3} />
+                Tap what you enjoyed:
+              </p>
+              <div className="flex flex-wrap gap-2.5">
+                {availableChips.map((chip, i) => {
+                  const active = selectedChips.includes(chip);
+                  return (
+                    <button
+                      key={chip}
+                      type="button"
+                      onClick={() => toggleChip(chip)}
+                      className={`border-[3px] border-black px-3 py-2 text-xs font-black uppercase tracking-wide transition-all duration-100 ease-linear shadow-neo-xs focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-neo-yellow ${
+                        active
+                          ? "-rotate-1 bg-black text-white"
+                          : `bg-white text-black hover:bg-neo-yellow active:translate-x-0.5 active:translate-y-0.5 active:shadow-none cursor-pointer ${
+                              i % 2 === 0 ? "rotate-0" : "rotate-1"
+                            } hover:rotate-0`
+                      }`}
+                    >
+                      <span>{chip}</span>
+                      {active && <Check className="ml-1.5 inline h-3.5 w-3.5 text-neo-yellow" strokeWidth={4} />}
+                    </button>
+                  );
+                })}
               </div>
-            )}
+            </div>
 
             {/* Step 3: Pre-drafted Review Preview Card */}
-            <div className="p-4 rounded-2xl bg-zinc-50 border border-zinc-200/80 text-left relative transition-all">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-[11px] font-bold text-zinc-500 uppercase tracking-wider flex items-center gap-1">
-                  <Sparkles className="w-3 h-3 text-amber-500" />
-                  Your Pre-Written Review:
+            <div className="border-4 border-black bg-neo-yellow p-4 shadow-neo transition-all">
+              <div className="mb-2.5 flex flex-wrap items-center justify-between gap-2">
+                <span className="inline-flex items-center gap-1.5 border-2 border-black bg-white px-2 py-0.5 text-[10px] font-black uppercase tracking-widest text-black shadow-neo-xs">
+                  <Sparkles className="h-3 w-3" strokeWidth={3} />
+                  Your pre-written review
                 </span>
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
                     onClick={handleNextWording}
-                    className="text-[11px] text-zinc-600 hover:text-zinc-900 font-semibold flex items-center gap-1 cursor-pointer"
+                    className="inline-flex items-center gap-1 border-2 border-black bg-white px-2 py-1 text-[10px] font-black uppercase tracking-widest text-black shadow-neo-xs transition-all duration-100 ease-linear hover:bg-black hover:text-white active:translate-x-0.5 active:translate-y-0.5 active:shadow-none cursor-pointer"
                   >
-                    <RotateCcw className="w-3 h-3 text-zinc-400" />
-                    Different wording
+                    <RotateCcw className="h-3 w-3" strokeWidth={3} />
+                    Reroll
                   </button>
                   <button
                     type="button"
                     onClick={() => setIsEditing(!isEditing)}
-                    className="text-[11px] text-zinc-600 hover:text-zinc-900 font-semibold flex items-center gap-1 cursor-pointer"
+                    className="inline-flex items-center gap-1 border-2 border-black bg-white px-2 py-1 text-[10px] font-black uppercase tracking-widest text-black shadow-neo-xs transition-all duration-100 ease-linear hover:bg-black hover:text-white active:translate-x-0.5 active:translate-y-0.5 active:shadow-none cursor-pointer"
                   >
-                    <Edit3 className="w-3 h-3 text-zinc-400" />
+                    <Edit3 className="h-3 w-3" strokeWidth={3} />
                     {isEditing ? "Done" : "Edit"}
                   </button>
                 </div>
@@ -471,60 +463,70 @@ export default function CustomerReviewFlow({ store, initialTable = "" }: Props) 
                   rows={3}
                   value={reviewText}
                   onChange={(e) => setReviewText(e.target.value)}
-                  className="w-full text-xs p-2.5 rounded-xl border border-zinc-300 bg-white focus:outline-none focus:ring-2 focus:ring-zinc-900 text-zinc-800 leading-relaxed resize-none"
+                  className="w-full resize-none border-[3px] border-black bg-white p-3 text-xs font-bold leading-relaxed text-black shadow-neo-xs transition-all duration-100 ease-linear focus:shadow-neo-sm focus:outline-none"
                 />
               ) : (
-                <p className="text-xs text-zinc-800 leading-relaxed italic bg-white p-3 rounded-xl border border-zinc-100 shadow-2xs">
+                <p className="border-[3px] border-black bg-white p-3 text-xs font-bold italic leading-relaxed text-black shadow-neo-xs">
                   &ldquo;{reviewText}&rdquo;
                 </p>
               )}
             </div>
 
             {/* Step 4: Big Hero Action Button */}
-            <div className="pt-2">
+            <div className="pt-1">
               <a
                 href={googleReviewUrl}
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={handleOpenGoogle}
-                className="w-full py-4 px-5 rounded-2xl bg-zinc-900 hover:bg-black text-white font-bold text-sm transition-all transform active:scale-98 flex items-center justify-center gap-2 shadow-lg shadow-zinc-900/20"
+                className="flex w-full items-center justify-center gap-2 border-4 border-black bg-neo-red px-5 py-4 text-sm font-black uppercase tracking-widest text-white shadow-neo transition-all duration-100 ease-linear hover:bg-black hover:text-white active:translate-x-1.5 active:translate-y-1.5 active:shadow-none cursor-pointer focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-neo-yellow"
               >
                 {copied ? (
                   <>
-                    <Check className="w-5 h-5 text-emerald-400 stroke-[3]" />
+                    <Check className="h-5 w-5 text-neo-green" strokeWidth={3.5} />
                     <span>Copied! Opening Google Reviews...</span>
                   </>
                 ) : (
                   <>
-                    <Copy className="w-4 h-4 text-amber-300" />
+                    <Copy className="h-4 w-4" strokeWidth={3} />
                     <span>
                       {isDirectReviewUrl(store.googlePlaceId)
-                        ? "Copy Review & Open 5★ Review Box"
-                        : "Copy Review & Open Google Reviews"}
+                        ? "Copy review & open 5★ review box"
+                        : "Copy review & open Google Reviews"}
                     </span>
-                    <ExternalLink className="w-4 h-4 ml-0.5 opacity-60" />
+                    <ExternalLink className="ml-0.5 h-4 w-4 opacity-70" />
                   </>
                 )}
               </a>
 
               {/* 3-Step Clear Paste Guidance */}
-              <div className="mt-3">
+              <div className="mt-4">
                 {copied ? (
-                  <div className="p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200 text-left animate-in fade-in slide-in-from-top-1 duration-200">
-                    <div className="flex items-center gap-2 font-bold text-xs text-emerald-950">
-                      <Check className="w-4 h-4 text-emerald-600 stroke-[3]" />
+                  <div className="border-[3px] border-black bg-neo-green p-4 text-left shadow-neo-sm">
+                    <div className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-black">
+                      <Check className="h-4 w-4" strokeWidth={4} />
                       <span>Review copied to clipboard!</span>
                     </div>
-                    <div className="mt-2 space-y-1 text-[11px] text-emerald-900 font-medium">
-                      <p>1. Tap the <strong>5th star ⭐</strong> on Google</p>
-                      <p>2. Tap in the review box &amp; tap <strong>Paste 📋</strong></p>
-                      <p>3. Tap <strong>Post 🚀</strong> — done in 3 seconds!</p>
+                    <div className="mt-3 space-y-2 text-[11px] font-bold text-black">
+                      <p className="flex items-center gap-2">
+                        <span className="inline-flex h-5 w-5 items-center justify-center border-2 border-black bg-white text-[10px] font-black">1</span>
+                        Tap the <strong>5th star ⭐</strong> on Google
+                      </p>
+                      <p className="flex items-center gap-2">
+                        <span className="inline-flex h-5 w-5 items-center justify-center border-2 border-black bg-white text-[10px] font-black">2</span>
+                        Tap the review box &amp; tap <strong>Paste 📋</strong>
+                      </p>
+                      <p className="flex items-center gap-2">
+                        <span className="inline-flex h-5 w-5 items-center justify-center border-2 border-black bg-white text-[10px] font-black">3</span>
+                        Tap <strong>Post 🚀</strong> — done in 3 seconds!
+                      </p>
                     </div>
                   </div>
                 ) : (
-                  <div className="p-2.5 rounded-xl bg-zinc-50 border border-zinc-200/60 text-center">
-                    <p className="text-[11px] text-zinc-600 font-medium">
-                      <strong>1 Tap:</strong> Copies your review &amp; opens Google Reviews. Just tap Paste!
+                  <div className="border-2 border-dashed border-black bg-cream px-3 py-2.5 text-center">
+                    <p className="text-[11px] font-bold text-black/70">
+                      <strong className="text-black">1 TAP:</strong> copies your review &amp; opens
+                      Google Reviews. Just tap paste!
                     </p>
                   </div>
                 )}

@@ -11,6 +11,8 @@ import { AlertDelivery, FeedbackSubmission } from "@/lib/types";
 import { parseRating, sanitizeEmailList } from "@/lib/validation";
 import { sendLowRatingAlertEmail } from "@/lib/email";
 import { assertAdminAuth, hasStoreAccess, scopedStoreIds } from "@/lib/auth";
+import { clientIdentifier, rateLimit } from "@/lib/rate-limit";
+import { isSameOriginRequest } from "@/lib/csrf";
 
 const VALID_STATUSES: FeedbackSubmission["status"][] = ["new", "reviewed", "resolved"];
 
@@ -45,6 +47,17 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
+  // Every accepted low-rating complaint dispatches an outbound Resend email to
+  // the store owners, so this is a money-and-abuse surface, not just storage.
+  // Five complaints per IP per ten minutes is well above what a real diner does.
+  const limiter = rateLimit(`feedback:${clientIdentifier(req)}`, 5, 10 * 60_000);
+  if (limiter.limited) {
+    return NextResponse.json(
+      { error: "Too many messages sent. Please speak with your manager directly." },
+      { status: 429, headers: { "Retry-After": String(limiter.retryAfter) } }
+    );
+  }
+
   let body: Record<string, unknown>;
   try {
     body = await req.json();
@@ -129,6 +142,11 @@ export async function POST(req: Request) {
 }
 
 export async function PATCH(req: Request) {
+  // Cookie-authenticated mutation: reject cross-site callers outright.
+  if (!isSameOriginRequest(req)) {
+    return NextResponse.json({ error: "Cross-origin request rejected" }, { status: 403 });
+  }
+
   const auth = await assertAdminAuth();
   if (!auth.authorized || !auth.user) {
     return NextResponse.json({ error: auth.error }, { status: auth.status || 401 });

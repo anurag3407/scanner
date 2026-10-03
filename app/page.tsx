@@ -28,7 +28,7 @@ export default async function HomePage() {
     null;
 
   return (
-    <main className="min-h-screen bg-[#0B0B0E] text-white">
+    <main className="min-h-screen bg-cream text-black">
       <LandingPageClient
         sampleStore={sampleStore}
         totalStoresCount={stores.length || 103}
