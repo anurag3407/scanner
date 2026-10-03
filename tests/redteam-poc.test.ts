@@ -78,18 +78,24 @@ const mockRedteamCreateClerkClient = () => ({ users: { getUser: async () => null
 
 mock.module("server-only", { exports: {} });
 
-mock.module("@clerk/nextjs/server", {
-  exports: {
+const clerkRedteamMockExports = {
+  auth: mockRedteamAuth,
+  currentUser: mockRedteamCurrentUser,
+  createClerkClient: mockRedteamCreateClerkClient,
+  default: {
     auth: mockRedteamAuth,
     currentUser: mockRedteamCurrentUser,
     createClerkClient: mockRedteamCreateClerkClient,
-    default: {
-      auth: mockRedteamAuth,
-      currentUser: mockRedteamCurrentUser,
-      createClerkClient: mockRedteamCreateClerkClient,
-    },
   },
-});
+};
+
+mock.module("@clerk/nextjs/server", { exports: clerkRedteamMockExports });
+try {
+  mock.module(import.meta.resolve("@clerk/nextjs/server"), { exports: clerkRedteamMockExports });
+} catch {}
+try {
+  mock.module(require.resolve("@clerk/nextjs/server"), { exports: clerkRedteamMockExports });
+} catch {}
 
 /* Fixtures: two separate tenants + one legitimate store admin */
 let VICTIM;

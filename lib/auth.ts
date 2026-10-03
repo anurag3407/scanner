@@ -81,7 +81,18 @@ async function resolveSessionUser(): Promise<AuthResult> {
     };
   }
 
-  const { userId } = await auth();
+  let userId: string | null = null;
+  try {
+    const authResult = await auth();
+    userId = authResult?.userId || null;
+  } catch {
+    return {
+      authorized: false,
+      status: 401,
+      error: "Authentication required. Please sign in.",
+    };
+  }
+
   if (!userId) {
     return {
       authorized: false,

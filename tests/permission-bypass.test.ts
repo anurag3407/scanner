@@ -80,18 +80,24 @@ const mockCreateClerkClient = () => ({ users: { getUser: async () => null } });
 
 mock.module("server-only", { exports: {} });
 
-mock.module("@clerk/nextjs/server", {
-  exports: {
+const clerkMockExports = {
+  auth: mockAuth,
+  currentUser: mockCurrentUser,
+  createClerkClient: mockCreateClerkClient,
+  default: {
     auth: mockAuth,
     currentUser: mockCurrentUser,
     createClerkClient: mockCreateClerkClient,
-    default: {
-      auth: mockAuth,
-      currentUser: mockCurrentUser,
-      createClerkClient: mockCreateClerkClient,
-    },
   },
-});
+};
+
+mock.module("@clerk/nextjs/server", { exports: clerkMockExports });
+try {
+  mock.module(import.meta.resolve("@clerk/nextjs/server"), { exports: clerkMockExports });
+} catch {}
+try {
+  mock.module(require.resolve("@clerk/nextjs/server"), { exports: clerkMockExports });
+} catch {}
 
 /* -------------------------------------------------------------------------- */
 /* Fixtures                                                                  */
