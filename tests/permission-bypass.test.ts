@@ -99,6 +99,11 @@ try {
   mock.module(require.resolve("@clerk/nextjs/server"), { exports: clerkMockExports });
 } catch {}
 
+(globalThis as any).__mockClerk = {
+  auth: mockAuth,
+  currentUser: mockCurrentUser,
+};
+
 /* -------------------------------------------------------------------------- */
 /* Fixtures                                                                  */
 /* -------------------------------------------------------------------------- */

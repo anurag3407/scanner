@@ -55,6 +55,30 @@ function isUsableStoreId(id: unknown): id is string {
   return typeof id === "string" && id.length > 0 && id.length <= 128 && /^[A-Za-z0-9_-]+$/.test(id);
 }
 
+async function getAuthSession(): Promise<{ userId: string | null }> {
+  if (process.env.NODE_ENV === "test" && (globalThis as any).__mockClerk?.auth) {
+    return (globalThis as any).__mockClerk.auth();
+  }
+  try {
+    const res = await auth();
+    return { userId: res?.userId || null };
+  } catch {
+    return { userId: null };
+  }
+}
+
+async function getAuthCurrentUser(): Promise<any> {
+  if (process.env.NODE_ENV === "test" && (globalThis as any).__mockClerk?.currentUser) {
+    return (globalThis as any).__mockClerk.currentUser();
+  }
+  try {
+    return await currentUser();
+  } catch (err) {
+    console.error("currentUser() check failed in resolveSessionUser:", err);
+    return null;
+  }
+}
+
 /**
  * Resolves the signed-in Clerk user into a console identity:
  *   - the ADMIN_ALLOWED_EMAIL account is always the platform super admin
@@ -81,18 +105,7 @@ async function resolveSessionUser(): Promise<AuthResult> {
     };
   }
 
-  let userId: string | null = null;
-  try {
-    const authResult = await auth();
-    userId = authResult?.userId || null;
-  } catch {
-    return {
-      authorized: false,
-      status: 401,
-      error: "Authentication required. Please sign in.",
-    };
-  }
-
+  const { userId } = await getAuthSession();
   if (!userId) {
     return {
       authorized: false,
@@ -101,12 +114,7 @@ async function resolveSessionUser(): Promise<AuthResult> {
     };
   }
 
-  let user = null;
-  try {
-    user = await currentUser();
-  } catch (err) {
-    console.error("currentUser() check failed in resolveSessionUser:", err);
-  }
+  let user = await getAuthCurrentUser();
 
   if (!user && process.env.CLERK_SECRET_KEY) {
     try {

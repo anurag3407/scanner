@@ -97,6 +97,11 @@ try {
   mock.module(require.resolve("@clerk/nextjs/server"), { exports: clerkRedteamMockExports });
 } catch {}
 
+(globalThis as any).__mockClerk = {
+  auth: mockRedteamAuth,
+  currentUser: mockRedteamCurrentUser,
+};
+
 /* Fixtures: two separate tenants + one legitimate store admin */
 let VICTIM;
 let OTHER;
