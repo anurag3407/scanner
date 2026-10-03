@@ -6,7 +6,7 @@ import LandingPageClient from "@/components/LandingPageClient";
 export const dynamic = "force-dynamic";
 
 export const metadata = {
-  title: "ReviewBoost | Turn Table Diners into 5-Star Google Reviews in 10s",
+  title: "Credo | Turn Table Diners into 5-Star Google Reviews in 10s",
   description:
     "Zero-friction 5-star Google Review engine, interactive feature chips, 1-tap Google hand-off, and intelligent reputation firewall for restaurants.",
 };

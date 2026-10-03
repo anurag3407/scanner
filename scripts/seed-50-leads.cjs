@@ -8,9 +8,24 @@ const fs = require("fs");
 const path = require("path");
 const XLSX = require("xlsx");
 
-const DATABASE_URL =
-  process.env.DATABASE_URL ||
-  "postgresql://postgres.zbzafswcxdcwmgrfmgqe:Anurag%403407@aws-0-ap-south-1.pooler.supabase.com:5432/postgres";
+// Resolve the connection string from the environment ONLY.
+//
+// This file previously carried a committed fallback pointing at the live
+// Supabase project as the `postgres` superuser, password inline. Because it was
+// a `||` fallback it was also the default: any local run with DATABASE_URL
+// unset silently connected to production. A production credential must never
+// have a source-controlled default, so there is no fallback at all now.
+// Unlike seed-patna-leads.cjs this script does not read .env.local/.dev.vars, so
+// export DATABASE_URL in the shell before running it.
+const DATABASE_URL = process.env.DATABASE_URL;
+if (!DATABASE_URL) {
+  console.error(
+    "DATABASE_URL is not set. Export it in the shell before running this seed " +
+      "script (this script does not read .env.local/.dev.vars).\n" +
+      "Refusing to run: this script writes to a real database."
+  );
+  process.exit(1);
+}
 
 const APP_ORIGIN = "https://scanner.sayalabs.in";
 
@@ -844,7 +859,7 @@ Can I send a printed 4x6" acrylic table standee over to your manager to test thi
 
 Best regards,
 Anurag Mishra
-Sayalabs & ReviewBoost (scanner.sayalabs.in)`.trim();
+Sayalabs & Credo (scanner.sayalabs.in)`.trim();
 }
 
 async function main() {

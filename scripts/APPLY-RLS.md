@@ -32,7 +32,7 @@ Your server keeps full access via `SUPABASE_SECRET_KEY`, which bypasses RLS.
 ## Take a backup first
 
 ```bash
-pg_dump "$DATABASE_URL" -Fc -f ~/reviewboost-$(date +%Y%m%d-%H%M).dump
+pg_dump "$DATABASE_URL" -Fc -f ~/credo-$(date +%Y%m%d-%H%M).dump
 ```
 
 ## Run it
@@ -66,5 +66,5 @@ The migration is transactional, so a failure leaves the database untouched.
 Restore from the dump with:
 
 ```bash
-pg_restore -d "$DATABASE_URL" --clean --if-exists ~/reviewboost-<timestamp>.dump
+pg_restore -d "$DATABASE_URL" --clean --if-exists ~/credo-<timestamp>.dump
 ```

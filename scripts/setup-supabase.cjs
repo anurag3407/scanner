@@ -1,5 +1,5 @@
 /**
- * Creates the ReviewBoost schema in a Supabase Postgres database.
+ * Creates the Credo schema in a Supabase Postgres database.
  *
  * Usage:
  *   DATABASE_URL="postgresql://postgres:<password>@db.<project-ref>.supabase.co:5432/postgres" \

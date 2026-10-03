@@ -290,7 +290,7 @@ export default function PrintableStandee({ store }: Props) {
                 <div className="mt-4 pt-3 border-t border-zinc-200/80 w-full flex items-center justify-between text-[10px] text-zinc-400 font-mono">
                   <span>Google Reviews</span>
                   {tableNumber && <span>Table #{tableNumber}</span>}
-                  <span>ReviewBoost</span>
+                  <span>Credo</span>
                 </div>
               </div>
             </div>

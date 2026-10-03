@@ -24,7 +24,7 @@ const anton = Anton({
 });
 
 export const metadata: Metadata = {
-  title: "ReviewBoost | Turn Table Diners into 5-Star Google Reviews in 10s",
+  title: "Credo | Turn Table Diners into 5-Star Google Reviews in 10s",
   description:
     "AI pre-drafted reviews, interactive feature chips, 1-tap Google hand-off, and intelligent reputation firewall for restaurants and retail.",
 };

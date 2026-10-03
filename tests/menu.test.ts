@@ -15,8 +15,8 @@ import { MenuItem } from "../lib/types";
 // Isolated file stores — never the production Supabase database.
 process.env.NODE_ENV = "test";
 process.env.AUTH_BYPASS_TESTS = "true";
-const TEST_DATA_FILE = path.join(os.tmpdir(), `reviewboost-menu-test-${process.pid}.json`);
-const TEST_MENU_FILE = path.join(os.tmpdir(), `reviewboost-menu-items-${process.pid}.json`);
+const TEST_DATA_FILE = path.join(os.tmpdir(), `credo-menu-test-${process.pid}.json`);
+const TEST_MENU_FILE = path.join(os.tmpdir(), `credo-menu-items-${process.pid}.json`);
 process.env.STORE_DATA_FILE = TEST_DATA_FILE;
 process.env.MENU_DATA_FILE = TEST_MENU_FILE;
 delete process.env.NEXT_PUBLIC_SUPABASE_URL;

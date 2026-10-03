@@ -1,4 +1,4 @@
-# ReviewBoost Scanner ⚡
+# Credo Scanner ⚡
 
 > **The Zero-Friction Restaurant Review Engine & Reputation Firewall**  
 > Turn table diners into verified 5-star Google Reviews in 10 seconds flat.

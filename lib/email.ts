@@ -166,7 +166,7 @@ export function buildLowRatingAlertHtml(
       </div>
     </div>
     <div class="footer">
-      Powered by <strong>ReviewBoost Scanner</strong> &bull; Reputation Protection System<br>
+      Powered by <strong>Credo Scanner</strong> &bull; Reputation Protection System<br>
       Automated alert sent to ${safeRecipientList}
     </div>
   </div>
@@ -189,7 +189,7 @@ export async function sendLowRatingAlertEmail(params: LowRatingEmailParams): Pro
     return { success: false, error: "Resend not initialized" };
   }
 
-  const fromEmail = process.env.RESEND_FROM_EMAIL || "ReviewBoost Scanner <reviews@sayalabs.in>";
+  const fromEmail = process.env.RESEND_FROM_EMAIL || "Credo Scanner <reviews@sayalabs.in>";
   const html = buildLowRatingAlertHtml(params, recipients);
 
   try {

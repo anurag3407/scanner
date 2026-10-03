@@ -9,7 +9,7 @@ import MenuManagerClient from "@/components/MenuManagerClient";
 export const dynamic = "force-dynamic";
 
 export const metadata = {
-  title: "Live Menu | ReviewBoost Scanner",
+  title: "Live Menu | Credo Scanner",
   description: "Update your digital menu in real time — same QR, zero reprints.",
 };
 

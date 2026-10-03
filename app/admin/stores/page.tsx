@@ -6,7 +6,7 @@ import { getSessionUser, scopedStoreIds } from "@/lib/auth";
 import StoreManagementClient from "@/components/StoreManagementClient";
 
 export const metadata = {
-  title: "Restaurant Locations & Standees | ReviewBoost Admin",
+  title: "Restaurant Locations & Standees | Credo Admin",
   description: "Manage dining locations, customize chips, and print 4x6 table tents.",
 };
 

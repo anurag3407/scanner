@@ -6,7 +6,7 @@ import path from "node:path";
 
 // Isolated file store — never the production Supabase database.
 process.env.NODE_ENV = "test";
-const TEST_DATA_FILE = path.join(os.tmpdir(), `reviewboost-security-${process.pid}.json`);
+const TEST_DATA_FILE = path.join(os.tmpdir(), `credo-security-${process.pid}.json`);
 process.env.STORE_DATA_FILE = TEST_DATA_FILE;
 delete process.env.NEXT_PUBLIC_SUPABASE_URL;
 delete process.env.SUPABASE_URL;

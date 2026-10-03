@@ -61,7 +61,7 @@ export default async function CustomerScanPage({ params, searchParams }: Props) 
               href="/"
               className="inline-flex items-center gap-1.5 border-2 border-black bg-white px-3 py-2 text-xs font-black uppercase tracking-widest text-black shadow-neo-xs transition-all duration-100 ease-linear hover:bg-neo-yellow active:translate-x-0.5 active:translate-y-0.5 active:shadow-none"
             >
-              <ArrowLeft className="h-3.5 w-3.5" strokeWidth={3} /> Back to ReviewBoost
+              <ArrowLeft className="h-3.5 w-3.5" strokeWidth={3} /> Back to Credo
             </Link>
           </div>
         </div>
@@ -88,7 +88,7 @@ export default async function CustomerScanPage({ params, searchParams }: Props) 
           href="/"
           className="inline-flex items-center gap-1 border-2 border-black bg-white px-2.5 py-1 text-[11px] font-black uppercase tracking-widest text-black shadow-neo-xs transition-all duration-100 ease-linear hover:bg-neo-yellow active:translate-x-0.5 active:translate-y-0.5 active:shadow-none"
         >
-          <ArrowLeft className="h-3.5 w-3.5" strokeWidth={3} /> ReviewBoost
+          <ArrowLeft className="h-3.5 w-3.5" strokeWidth={3} /> Credo
         </Link>
         {table && (
           <span className="rotate-2 border-2 border-black bg-neo-yellow px-2.5 py-1 font-mono text-[11px] font-black uppercase tracking-widest text-black shadow-neo-xs">

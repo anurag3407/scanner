@@ -30,7 +30,7 @@ import { ScanEvent } from "../lib/types";
 
 // Tests must never touch the production Supabase database or the developer's
 // local data file. They run against an isolated temp file.
-const TEST_DATA_FILE = path.join(os.tmpdir(), `reviewboost-store-test-${process.pid}.json`);
+const TEST_DATA_FILE = path.join(os.tmpdir(), `credo-store-test-${process.pid}.json`);
 process.env.STORE_DATA_FILE = TEST_DATA_FILE;
 delete process.env.NEXT_PUBLIC_SUPABASE_URL;
 delete process.env.SUPABASE_URL;

@@ -6,7 +6,7 @@ import { getSessionUser, scopedStoreIds } from "@/lib/auth";
 import FeedbackInboxClient from "@/components/FeedbackInboxClient";
 
 export const metadata = {
-  title: "Reputation Firewall Inbox | ReviewBoost Admin",
+  title: "Reputation Firewall Inbox | Credo Admin",
   description: "Private manager feedback inbox intercepting 1-3 star negative complaints before Google Reviews.",
 };
 

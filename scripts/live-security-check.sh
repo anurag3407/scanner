@@ -15,8 +15,8 @@ set -uo pipefail
 PORT="${PORT:-3999}"
 BASE="http://127.0.0.1:$PORT"
 BASE_HOST="127.0.0.1:$PORT"
-TMP_STORE="$(mktemp -t reviewboost-live-XXXXXX).json"
-LOG="/tmp/reviewboost-live.log"
+TMP_STORE="$(mktemp -t credo-live-XXXXXX).json"
+LOG="/tmp/credo-live.log"
 FAILED=0
 
 cleanup() {

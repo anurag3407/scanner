@@ -216,7 +216,7 @@ export default function LandingPageClient({ sampleStore, totalStoresCount = 103 
               <Sparkles className="h-4 w-4" strokeWidth={3} />
             </span>
             <span className="font-display text-2xl uppercase tracking-tight text-black">
-              REVIEWBOOST
+              CREDO
             </span>
           </Link>
 
@@ -448,7 +448,7 @@ export default function LandingPageClient({ sampleStore, totalStoresCount = 103 
             HOW IT TURNS DINERS INTO REVIEWS
           </h2>
           <p className="text-xs font-bold text-black/70 sm:text-sm">
-            Traditional review requests get ignored because writing a review takes work. ReviewBoost
+            Traditional review requests get ignored because writing a review takes work. Credo
             makes it effortless.
           </p>
         </div>
@@ -534,7 +534,7 @@ export default function LandingPageClient({ sampleStore, totalStoresCount = 103 
           </h3>
 
           <p className="mx-auto max-w-xl text-xs font-bold text-black/70">
-            From youth cafes in Patna and Bihta to bustling bistros in Bengaluru and Pune, ReviewBoost
+            From youth cafes in Patna and Bihta to bustling bistros in Bengaluru and Pune, Credo
             is running on live dining tables every day.
           </p>
 
@@ -607,7 +607,7 @@ export default function LandingPageClient({ sampleStore, totalStoresCount = 103 
               <div className="flex h-7 w-7 -rotate-6 items-center justify-center border-2 border-black bg-neo-yellow">
                 <Sparkles className="h-3.5 w-3.5" strokeWidth={3} />
               </div>
-              <span className="font-display text-lg uppercase text-black">REVIEWBOOST</span>
+              <span className="font-display text-lg uppercase text-black">CREDO</span>
             </div>
             <p className="text-xs font-bold text-black/60">
               The 10-Second Table-to-Google Review Engine for Restaurants &amp; Cafes.

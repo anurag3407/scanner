@@ -4,7 +4,7 @@ import Link from "next/link";
 import { ExternalLink } from "lucide-react";
 
 export const metadata = {
-  title: "SaaS Investment & Pitch Prospectus | ReviewBoost Admin",
+  title: "SaaS Investment & Pitch Prospectus | Credo Admin",
   description: "Comprehensive B2B SaaS prospectus: unit economics, TAM, restaurant ROI, and viral QR distribution flywheel.",
 };
 

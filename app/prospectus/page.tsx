@@ -4,7 +4,7 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 
 export const metadata = {
-  title: "SaaS Investment & Pitch Prospectus | ReviewBoost",
+  title: "SaaS Investment & Pitch Prospectus | Credo",
   description: "Institutional B2B SaaS prospectus: unit economics, TAM, restaurant ROI, viral QR loop, and market valuation.",
 };
 
@@ -18,7 +18,7 @@ export default function PublicProspectusPage() {
             <span className="w-8 h-8 border-[3px] border-black bg-neo-yellow text-black flex items-center justify-center font-black text-sm shadow-neo-xs">
               ⚡
             </span>
-            <span>ReviewBoost</span>
+            <span>Credo</span>
           </Link>
 
           <div className="flex items-center gap-3">
@@ -45,7 +45,7 @@ export default function PublicProspectusPage() {
 
       {/* Footer */}
       <footer className="border-t-[3px] border-black py-6 px-4 bg-white text-center text-xs font-black uppercase tracking-widest text-black/60 print:hidden">
-        <p>ReviewBoost SaaS Platform • Confidential Investment Prospectus &amp; Enterprise Overview</p>
+        <p>Credo SaaS Platform • Confidential Investment Prospectus &amp; Enterprise Overview</p>
       </footer>
     </div>
   );

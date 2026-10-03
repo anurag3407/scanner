@@ -8,7 +8,7 @@ import TeamManagementClient from "@/components/TeamManagementClient";
 export const dynamic = "force-dynamic";
 
 export const metadata = {
-  title: "Team & Store Access | ReviewBoost Admin",
+  title: "Team & Store Access | Credo Admin",
   description: "Invite store admins and control which restaurant locations they can manage.",
 };
 

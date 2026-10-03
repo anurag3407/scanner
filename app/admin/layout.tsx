@@ -17,7 +17,7 @@ import {
 export const dynamic = "force-dynamic";
 
 export const metadata = {
-  title: "Admin Dashboard | ReviewBoost Scanner",
+  title: "Admin Dashboard | Credo Scanner",
   description: "Manage restaurant QR standees, live menus, review keywords, and intercept negative reviews.",
 };
 
@@ -82,7 +82,7 @@ export default async function AdminLayout({
                 ⚡
               </span>
               <span className="text-base font-black uppercase leading-none tracking-tight">
-                ReviewBoost
+                Credo
                 <span className="block pt-0.5 text-[10px] font-bold tracking-widest text-white/60">
                   Review Console
                 </span>

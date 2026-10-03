@@ -20,11 +20,11 @@ import { mock } from "node:test";
 /* -------------------------------------------------------------------------- */
 process.env.NODE_ENV = "test";
 delete process.env.AUTH_BYPASS_TESTS;
-const TEST_DATA_FILE = path.join(os.tmpdir(), `reviewboost-bypass-${process.pid}.json`);
+const TEST_DATA_FILE = path.join(os.tmpdir(), `credo-bypass-${process.pid}.json`);
 process.env.STORE_DATA_FILE = TEST_DATA_FILE;
 // The menu data layer writes to its own file — point it at tmpdir too, or a
 // test run would create/modify .data/menu-data.json in the repository.
-const TEST_MENU_DATA_FILE = path.join(os.tmpdir(), `reviewboost-bypass-menu-${process.pid}.json`);
+const TEST_MENU_DATA_FILE = path.join(os.tmpdir(), `credo-bypass-menu-${process.pid}.json`);
 process.env.MENU_DATA_FILE = TEST_MENU_DATA_FILE;
 delete process.env.NEXT_PUBLIC_SUPABASE_URL;
 delete process.env.SUPABASE_URL;

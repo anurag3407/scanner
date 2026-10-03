@@ -16,7 +16,7 @@ import {
 import { isClerkConfigured } from "@/lib/clerk";
 
 export const metadata = {
-  title: "Sign in | ReviewBoost Admin",
+  title: "Sign in | Credo Admin",
   description: "Sign in to manage restaurant locations, standees, and reputation firewall feedback.",
 };
 
@@ -62,7 +62,7 @@ export default async function SignInPage() {
             <span className="flex h-10 w-10 -rotate-6 items-center justify-center border-4 border-white bg-neo-yellow text-base font-black text-black shadow-neo-white-sm">
               ⚡
             </span>
-            ReviewBoost
+            Credo
           </Link>
           <p className="mt-2 text-[11px] font-black uppercase tracking-[0.2em] text-white/60">
             Review operations console
@@ -125,7 +125,7 @@ export default async function SignInPage() {
               <span className="flex h-9 w-9 -rotate-6 items-center justify-center border-[3px] border-black bg-neo-yellow text-sm font-black shadow-neo-xs">
                 ⚡
               </span>
-              ReviewBoost
+              Credo
             </div>
           </div>
 
@@ -198,7 +198,7 @@ export default async function SignInPage() {
               href="/"
               className="inline-flex items-center gap-1.5 border-2 border-black bg-white px-3 py-1.5 text-xs font-black uppercase tracking-widest text-black shadow-neo-xs transition-all duration-100 ease-linear hover:bg-neo-yellow active:translate-x-0.5 active:translate-y-0.5 active:shadow-none"
             >
-              <ArrowLeft className="h-3.5 w-3.5" strokeWidth={3} /> Back to ReviewBoost home
+              <ArrowLeft className="h-3.5 w-3.5" strokeWidth={3} /> Back to Credo home
             </Link>
           </div>
         </div>

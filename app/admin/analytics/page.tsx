@@ -8,7 +8,7 @@ import AnalyticsClient from "./AnalyticsClient";
 export const dynamic = "force-dynamic";
 
 export const metadata = {
-  title: "Live Review & QR Analytics | ReviewBoost Admin",
+  title: "Live Review & QR Analytics | Credo Admin",
   description: "Track customer scans, chip selections, redirection conversion rates, and reputation firewall metrics from real database events.",
 };
 
