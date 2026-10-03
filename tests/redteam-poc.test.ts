@@ -76,6 +76,8 @@ const mockRedteamCurrentUser = async () => {
 };
 const mockRedteamCreateClerkClient = () => ({ users: { getUser: async () => null } });
 
+mock.module("server-only", { exports: {} });
+
 mock.module("@clerk/nextjs/server", {
   exports: {
     auth: mockRedteamAuth,

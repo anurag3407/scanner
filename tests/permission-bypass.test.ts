@@ -78,6 +78,8 @@ const mockCurrentUser = async () => {
 
 const mockCreateClerkClient = () => ({ users: { getUser: async () => null } });
 
+mock.module("server-only", { exports: {} });
+
 mock.module("@clerk/nextjs/server", {
   exports: {
     auth: mockAuth,
