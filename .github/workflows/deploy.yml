@@ -24,7 +24,7 @@ jobs:
           # >= 22.3: the security suite uses the experimental, flag-gated
           # `mock.module` API to forge Clerk identities. On an older runtime the
           # bypass tests cannot load and the whole file errors out.
-          node-version: "22.3"
+          node-version: 22
           cache: "npm"
 
       - name: Install dependencies

@@ -69,14 +69,23 @@ function signOut() {
   forgedUser = null;
 }
 
+const mockRedteamAuth = async () => ({ userId: forgedUser ? "user_redteam" : null });
+const mockRedteamCurrentUser = async () => {
+  if (!forgedUser) return null;
+  return { id: "user_redteam", ...forgedUser };
+};
+const mockRedteamCreateClerkClient = () => ({ users: { getUser: async () => null } });
+
 mock.module("@clerk/nextjs/server", {
   exports: {
-    auth: async () => ({ userId: forgedUser ? "user_redteam" : null }),
-    currentUser: async () => {
-      if (!forgedUser) return null;
-      return { id: "user_redteam", ...forgedUser };
+    auth: mockRedteamAuth,
+    currentUser: mockRedteamCurrentUser,
+    createClerkClient: mockRedteamCreateClerkClient,
+    default: {
+      auth: mockRedteamAuth,
+      currentUser: mockRedteamCurrentUser,
+      createClerkClient: mockRedteamCreateClerkClient,
     },
-    createClerkClient: () => ({ users: { getUser: async () => null } }),
   },
 });
 

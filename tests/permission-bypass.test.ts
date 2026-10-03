@@ -59,29 +59,35 @@ interface ForgedClerkUser {
 /** Lets a test hand the mocked Clerk server an arbitrary user object. */
 let forgedUserShape: ForgedClerkUser | null = null;
 
+const mockAuth = async () => {
+  if (forgedUserShape) return { userId: "user_forged" };
+  const email = process.env.CURRENT_USER_EMAIL || "";
+  return { userId: email ? "user_forged" : null };
+};
+
+const mockCurrentUser = async () => {
+  if (forgedUserShape) return forgedUserShape;
+  const email = process.env.CURRENT_USER_EMAIL || "";
+  if (!email) return null;
+  return {
+    id: "user_forged",
+    primaryEmailAddress: { emailAddress: email, verification: { status: "verified" } },
+    emailAddresses: [{ emailAddress: email, verification: { status: "verified" } }],
+  };
+};
+
+const mockCreateClerkClient = () => ({ users: { getUser: async () => null } });
+
 mock.module("@clerk/nextjs/server", {
   exports: {
-    auth: async () => {
-      // A forged shape also implies a live session; otherwise resolveSessionUser
-      // short-circuits on `userId` and the owner check is never reached.
-      if (forgedUserShape) return { userId: "user_forged" };
-      const email = process.env.CURRENT_USER_EMAIL || "";
-      return { userId: email ? "user_forged" : null };
+    auth: mockAuth,
+    currentUser: mockCurrentUser,
+    createClerkClient: mockCreateClerkClient,
+    default: {
+      auth: mockAuth,
+      currentUser: mockCurrentUser,
+      createClerkClient: mockCreateClerkClient,
     },
-    currentUser: async () => {
-      if (forgedUserShape) return forgedUserShape;
-      const email = process.env.CURRENT_USER_EMAIL || "";
-      if (!email) return null;
-      // Clerk always reports a verification status. Model a verified account
-      // here; the unverified-secondary-address attack is covered explicitly in
-      // tests/redteam-poc.test.ts.
-      return {
-        id: "user_forged",
-        primaryEmailAddress: { emailAddress: email, verification: { status: "verified" } },
-        emailAddresses: [{ emailAddress: email, verification: { status: "verified" } }],
-      };
-    },
-    createClerkClient: () => ({ users: { getUser: async () => null } }),
   },
 });
 
