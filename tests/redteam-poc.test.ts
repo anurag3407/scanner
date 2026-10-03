@@ -97,7 +97,7 @@ try {
   mock.module(require.resolve("@clerk/nextjs/server"), { exports: clerkRedteamMockExports });
 } catch {}
 
-(globalThis as any).__mockClerk = {
+(globalThis as unknown as { __mockClerk?: { auth: unknown; currentUser: unknown } }).__mockClerk = {
   auth: mockRedteamAuth,
   currentUser: mockRedteamCurrentUser,
 };

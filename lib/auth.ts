@@ -55,9 +55,20 @@ function isUsableStoreId(id: unknown): id is string {
   return typeof id === "string" && id.length > 0 && id.length <= 128 && /^[A-Za-z0-9_-]+$/.test(id);
 }
 
+type ClerkUser = Awaited<ReturnType<typeof currentUser>>;
+
+interface MockClerkHooks {
+  auth?: () => Promise<{ userId: string | null }>;
+  currentUser?: () => Promise<ClerkUser | unknown>;
+}
+
+declare global {
+  var __mockClerk: MockClerkHooks | undefined;
+}
+
 async function getAuthSession(): Promise<{ userId: string | null }> {
-  if ((globalThis as any).__mockClerk?.auth) {
-    return (globalThis as any).__mockClerk.auth();
+  if (globalThis.__mockClerk?.auth) {
+    return globalThis.__mockClerk.auth();
   }
   try {
     const res = await auth();
@@ -67,9 +78,9 @@ async function getAuthSession(): Promise<{ userId: string | null }> {
   }
 }
 
-async function getAuthCurrentUser(): Promise<any> {
-  if ((globalThis as any).__mockClerk?.currentUser) {
-    return (globalThis as any).__mockClerk.currentUser();
+async function getAuthCurrentUser(): Promise<ClerkUser> {
+  if (globalThis.__mockClerk?.currentUser) {
+    return (await globalThis.__mockClerk.currentUser()) as ClerkUser;
   }
   try {
     return await currentUser();
