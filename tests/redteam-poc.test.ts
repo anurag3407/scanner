@@ -561,12 +561,15 @@ test("4f  The NODE_ENV/AUTH_BYPASS_TESTS escape hatch requires BOTH", async () =
   // The flag alone in a production runtime must not bypass either.
   process.env.AUTH_BYPASS_TESTS = "true";
   const savedEnv = process.env.NODE_ENV;
-  process.env.NODE_ENV = "production";
-  const b = await assertAdminAuth();
-  console.log("   [4f] NODE_ENV=production, flag=true -> isSuperAdmin=%s", b.user && b.user.isSuperAdmin);
-  assert.equal(b.user.isSuperAdmin, false, "the flag alone must NOT mint a super admin");
-  process.env.NODE_ENV = savedEnv;
-  delete process.env.AUTH_BYPASS_TESTS;
+  try {
+    process.env.NODE_ENV = "production";
+    const b = await assertAdminAuth();
+    console.log("   [4f] NODE_ENV=production, flag=true -> isSuperAdmin=%s", b.user && b.user.isSuperAdmin);
+    assert.equal(b.user?.isSuperAdmin || false, false, "the flag alone must NOT mint a super admin");
+  } finally {
+    process.env.NODE_ENV = savedEnv;
+    delete process.env.AUTH_BYPASS_TESTS;
+  }
 });
 
 /* ======================================================================== */

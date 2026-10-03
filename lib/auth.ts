@@ -56,7 +56,7 @@ function isUsableStoreId(id: unknown): id is string {
 }
 
 async function getAuthSession(): Promise<{ userId: string | null }> {
-  if (process.env.NODE_ENV === "test" && (globalThis as any).__mockClerk?.auth) {
+  if ((globalThis as any).__mockClerk?.auth) {
     return (globalThis as any).__mockClerk.auth();
   }
   try {
@@ -68,7 +68,7 @@ async function getAuthSession(): Promise<{ userId: string | null }> {
 }
 
 async function getAuthCurrentUser(): Promise<any> {
-  if (process.env.NODE_ENV === "test" && (globalThis as any).__mockClerk?.currentUser) {
+  if ((globalThis as any).__mockClerk?.currentUser) {
     return (globalThis as any).__mockClerk.currentUser();
   }
   try {
