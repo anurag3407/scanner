@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256" role="img" aria-labelledby="title-b">
+  <title id="title-b">Credo - Concept B: The Reputation Firewall</title>
+  <!-- Fortified shield silhouette with negative-space 4-point review star -->
+  <path fill="#000000" fill-rule="evenodd" d="
+    M 128 24
+    L 216 56
+    V 136
+    C 216 188 178 224 128 238
+    C 78 224 40 188 40 136
+    V 56
+    Z
+    M 128 72
+    C 128 102 108 126 78 126
+    C 108 126 128 150 128 180
+    C 128 150 148 126 178 126
+    C 148 126 128 102 128 72
+    Z
+  "/>
+</svg>

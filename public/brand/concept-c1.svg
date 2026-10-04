@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256" role="img" aria-labelledby="title-c1">
+  <title id="title-c1">Credo - Concept C: The 10-Second Velocity Pulse</title>
+  <!-- Dynamic dual-arc C: physical scan arc + digital 5-star trajectory -->
+  <path fill="#000000" fill-rule="evenodd" d="
+    M 144 32
+    C 80 32 32 80 32 144
+    C 32 196 68 232 120 232
+    C 160 232 192 208 204 176
+    L 164 164
+    C 156 184 140 196 120 196
+    C 88 196 68 172 68 144
+    C 68 104 100 68 144 68
+    C 172 68 196 84 208 108
+    L 240 84
+    C 220 52 184 32 144 32
+    Z
+    M 188 128
+    L 216 100
+    L 244 128
+    L 216 156
+    Z
+  "/>
+</svg>

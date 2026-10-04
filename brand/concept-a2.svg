@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256" role="img" aria-labelledby="title-a2">
+  <title id="title-a2">Credo - Concept A: The Negative-Space Star Monogram</title>
+  <!-- Bold C with an iconic 4-point star cut out of the solid left crescent -->
+  <path fill="#000000" fill-rule="evenodd" d="
+    M 184 48
+    A 96 96 0 1 0 184 208
+    L 184 156
+    A 48 48 0 1 1 184 100
+    L 184 48
+    Z
+    M 78 128
+    C 88 128 94 122 94 112
+    C 94 122 100 128 110 128
+    C 100 128 94 134 94 144
+    C 94 134 88 128 78 128
+    Z
+  "/>
+</svg>

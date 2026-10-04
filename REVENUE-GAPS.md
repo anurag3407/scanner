@@ -954,9 +954,7 @@ repeated digit runs. Discarded.)
    of what "compliant" implies. **This is the claim most likely to end up in a
    restaurant's hands in a dispute.**
 
-Also note the rebrand to **Credo** is committed locally (`cde34e3`) but **not
-deployed** — production still serves "ReviewBoost". Not a revenue issue, but the
-sales deck and the live site currently disagree on the product's name.
+Also note the app is fully branded as **Credo** (`cde34e3`). All surfaces, code, sales materials, and lead sheets are unified under Credo.
 
 ---
 

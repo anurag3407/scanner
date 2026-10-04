@@ -4,6 +4,7 @@ import { ArrowLeft, Check, ShieldCheck, Zap, IndianRupee } from "lucide-react";
 import { getActivePlansOrDefaults } from "@/lib/billing-data";
 import { paiseToRupees } from "@/lib/billing";
 import { withGst } from "@/lib/plans";
+import { CredoSymbol } from "@/components/CredoLogo";
 
 // Prices are super-admin controlled and can change at any time, so this page
 // reads the catalogue at request time rather than baking build-time numbers
@@ -31,8 +32,8 @@ export default async function PricingPage() {
       <nav className="sticky top-0 z-50 border-b-4 border-black bg-white px-4 py-3.5 sm:px-8">
         <div className="mx-auto flex max-w-6xl items-center justify-between">
           <Link href="/" className="flex items-center gap-2 text-lg font-black tracking-tight">
-            <span className="flex h-8 w-8 items-center justify-center border-[3px] border-black bg-neo-yellow font-black shadow-neo-xs">
-              ⚡
+            <span className="flex h-8 w-8 items-center justify-center border-[3px] border-black bg-neo-yellow shadow-neo-xs">
+              <CredoSymbol colorMode="black" className="h-4 w-4" />
             </span>
             <span>Credo</span>
           </Link>

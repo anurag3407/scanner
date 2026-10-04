@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256" role="img" aria-labelledby="title-a">
+  <title id="title-a">Credo - Concept A: The Radiant Monogram</title>
+  <!-- Single unified path: bold C framing a 4-point diamond star in its aperture -->
+  <path fill="#000000" fill-rule="evenodd" d="
+    M 172 40
+    A 104 104 0 1 0 172 216
+    L 172 166
+    A 56 56 0 1 1 172 90
+    L 172 40
+    Z
+    M 172 88
+    L 194 128
+    L 234 128
+    L 202 148
+    L 214 186
+    L 182 162
+    L 172 166
+    Z
+  "/>
+</svg>

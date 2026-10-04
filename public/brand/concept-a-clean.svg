@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256" role="img" aria-labelledby="title-a">
+  <title id="title-a">Credo - Concept A: The Star-Core Monogram</title>
+  <path fill="#000000" fill-rule="evenodd" d="
+    M 188 68
+    A 92 92 0 1 0 188 188
+    L 150 150
+    A 38 38 0 1 1 150 106
+    Z
+    M 196 128
+    C 196 142 184 154 170 154
+    C 184 154 196 166 196 180
+    C 196 166 208 154 222 154
+    C 208 154 196 142 196 128
+    Z
+  "/>
+</svg>

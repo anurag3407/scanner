@@ -1,0 +1,24 @@
+<svg fill="#ffffff" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256" role="img" aria-labelledby="title-c"><title>Credo Logo</title>
+  <title id="title-c">Credo - Concept C: The Standee Velocity Monogram</title>
+  <!-- Architectural neo-brutalist C evoking table standee fold and review pulse -->
+  <path fill="#ffffff" fill-rule="evenodd" d="
+    M 216 48
+    H 88
+    L 40 96
+    V 160
+    L 88 208
+    H 216
+    L 176 168
+    H 104
+    L 80 144
+    V 112
+    L 104 88
+    H 176
+    Z
+    M 172 128
+    L 194 106
+    L 216 128
+    L 194 150
+    Z
+  "/>
+</svg>

@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256" role="img" aria-labelledby="title-b2">
+  <title id="title-b2">Credo - Concept B2: The Trust Shield</title>
+  <!-- Shield perimeter with 4-point diamond star in negative space -->
+  <path fill="#000000" fill-rule="evenodd" d="
+    M 128 24
+    L 216 56
+    V 136
+    C 216 188 178 224 128 240
+    C 78 224 40 188 40 136
+    V 56
+    Z
+    M 128 72
+    C 128 102 110 128 80 128
+    C 110 128 128 154 128 184
+    C 128 154 146 128 176 128
+    C 146 128 128 102 128 72
+    Z
+  "/>
+</svg>

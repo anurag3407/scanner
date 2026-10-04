@@ -3,6 +3,7 @@ import ProspectusClient from "@/components/ProspectusClient";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { getActivePlansOrDefaults } from "@/lib/billing-data";
+import { CredoSymbol } from "@/components/CredoLogo";
 
 // Plan prices are super-admin controlled and can change at any time, so the
 // deck reads the catalogue at request time rather than baking a build-time
@@ -23,8 +24,8 @@ export default async function PublicProspectusPage() {
       <nav className="w-full border-b-4 border-black bg-white sticky top-0 z-50 py-3.5 px-4 sm:px-8 print:hidden">
         <div className="max-w-6xl mx-auto flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2 font-black text-lg text-zinc-900 tracking-tight">
-            <span className="w-8 h-8 border-[3px] border-black bg-neo-yellow text-black flex items-center justify-center font-black text-sm shadow-neo-xs">
-              ⚡
+            <span className="w-8 h-8 border-[3px] border-black bg-neo-yellow flex items-center justify-center shadow-neo-xs">
+              <CredoSymbol colorMode="black" className="w-4 h-4" />
             </span>
             <span>Credo</span>
           </Link>

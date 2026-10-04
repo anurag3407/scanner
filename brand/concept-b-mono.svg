@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256" role="img" aria-labelledby="title-b-mono">
+  <title id="title-b-mono">Credo - Concept B: The Fortified Monogram</title>
+  <path fill="#000000" fill-rule="evenodd" d="
+    M 128 28
+    L 208 58
+    V 102
+    L 164 102
+    V 84
+    L 128 70
+    L 76 90
+    V 140
+    C 76 174 98 200 128 212
+    L 164 196
+    V 178
+    L 208 178
+    V 222
+    L 128 252
+    C 62 232 32 186 32 136
+    V 64
+    Z
+    M 160 114
+    C 160 128 148 140 134 140
+    C 148 140 160 152 160 166
+    C 160 152 172 140 186 140
+    C 172 140 160 128 160 114
+    Z
+  "/>
+</svg>

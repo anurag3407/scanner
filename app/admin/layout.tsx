@@ -15,6 +15,7 @@ import {
   IndianRupee,
   CreditCard,
 } from "lucide-react";
+import { CredoSymbol } from "@/components/CredoLogo";
 
 export const dynamic = "force-dynamic";
 
@@ -80,8 +81,8 @@ export default async function AdminLayout({
           {/* Logo & Brand Header */}
           <div className="flex items-center justify-between border-b-4 border-white/20 p-5">
             <Link href="/admin" className="flex items-center gap-2.5">
-              <span className="flex h-9 w-9 -rotate-6 items-center justify-center border-4 border-white bg-neo-yellow text-sm font-black text-black shadow-neo-white-sm">
-                ⚡
+              <span className="flex h-9 w-9 -rotate-3 items-center justify-center border-4 border-white bg-neo-yellow shadow-neo-white-sm">
+                <CredoSymbol colorMode="black" className="h-5 w-5" />
               </span>
               <span className="text-base font-black uppercase leading-none tracking-tight">
                 Credo

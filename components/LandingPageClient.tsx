@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import confetti from "canvas-confetti";
 import { Store } from "@/lib/types";
+import { CredoSymbol } from "@/components/CredoLogo";
 
 interface Props {
   sampleStore: Store | null;
@@ -213,8 +214,8 @@ export default function LandingPageClient({ sampleStore, totalLocationsCount = 0
         <header className="flex items-center justify-between border-4 border-black bg-white px-4 py-3 shadow-neo-md sm:px-6">
           {/* Brand Logo */}
           <Link href="/" className="group flex items-center gap-2.5">
-            <span className="flex h-9 w-9 -rotate-6 items-center justify-center border-[3px] border-black bg-neo-yellow shadow-neo-xs transition-transform group-hover:rotate-6">
-              <Sparkles className="h-4 w-4" strokeWidth={3} />
+            <span className="flex h-9 w-9 -rotate-3 items-center justify-center border-[3px] border-black bg-neo-yellow shadow-neo-xs transition-transform group-hover:rotate-3">
+              <CredoSymbol colorMode="black" className="h-5 w-5" />
             </span>
             <span className="font-display text-2xl uppercase tracking-tight text-black">
               CREDO
@@ -606,8 +607,8 @@ export default function LandingPageClient({ sampleStore, totalLocationsCount = 0
           {/* Brand Info */}
           <div className="space-y-1.5">
             <div className="flex items-center justify-center gap-2 md:justify-start">
-              <div className="flex h-7 w-7 -rotate-6 items-center justify-center border-2 border-black bg-neo-yellow">
-                <Sparkles className="h-3.5 w-3.5" strokeWidth={3} />
+              <div className="flex h-7 w-7 -rotate-3 items-center justify-center border-2 border-black bg-neo-yellow">
+                <CredoSymbol colorMode="black" className="h-4 w-4" />
               </div>
               <span className="font-display text-lg uppercase text-black">CREDO</span>
             </div>

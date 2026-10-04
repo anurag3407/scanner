@@ -14,6 +14,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { isClerkConfigured } from "@/lib/clerk";
+import { CredoSymbol } from "@/components/CredoLogo";
 
 export const metadata = {
   title: "Sign in | Credo Admin",
@@ -59,8 +60,8 @@ export default async function SignInPage() {
 
         <div className="relative">
           <Link href="/" className="inline-flex items-center gap-2.5 text-lg font-black uppercase tracking-tight">
-            <span className="flex h-10 w-10 -rotate-6 items-center justify-center border-4 border-white bg-neo-yellow text-base font-black text-black shadow-neo-white-sm">
-              ⚡
+            <span className="flex h-10 w-10 -rotate-3 items-center justify-center border-4 border-white bg-neo-yellow shadow-neo-white-sm">
+              <CredoSymbol colorMode="black" className="h-6 w-6" />
             </span>
             Credo
           </Link>

@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256" role="img" aria-labelledby="title-b1">
+  <title id="title-b1">Credo - Concept B: The Reputation Firewall</title>
+  <!-- Protective Shield enclosing a 5-star diamond / C core via negative space -->
+  <path fill="#000000" fill-rule="evenodd" d="
+    M 128 24
+    L 216 56
+    V 136
+    C 216 188 178 224 128 240
+    C 78 224 40 188 40 136
+    V 56
+    Z
+    M 128 68
+    C 161 68 184 91 184 124
+    H 146
+    C 146 112 138 104 128 104
+    C 114 104 104 114 104 128
+    C 104 142 114 152 128 152
+    C 138 152 146 144 146 132
+    H 184
+    C 184 165 161 188 128 188
+    C 95 188 68 161 68 128
+    C 68 95 95 68 128 68
+    Z
+  "/>
+</svg>
