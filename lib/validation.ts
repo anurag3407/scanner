@@ -1,4 +1,8 @@
-import { ReviewTemplateSet, ReviewTone } from "./types";
+import { ReviewTemplateSet, ReviewTone, Subscription, SubscriptionStatus, BillingPeriod } from "./types";
+
+const SUBSCRIPTION_STATUSES = ["lead", "trial", "active", "paused", "churned"] as const;
+/** Upper bound on a monthly recurring amount: Rs 10,00,000. */
+const MAX_MRR_RUPEES = 1_000_000;
 
 const MAX_CHIPS = 40;
 const MAX_CHIP_LENGTH = 60;
@@ -247,4 +251,111 @@ export function sanitizeMenuItemInput(
   }
 
   return { ok: true, value };
+}
+
+/**
+ * A GSTIN is 15 characters: 2-digit state code, 10-character PAN, 1 entity code,
+ * 1 'Z', 1 checksum character. Validated before it is stored because it goes on
+ * a tax invoice, and an invalid GSTIN there is a filing problem, not a typo.
+ */
+const GSTIN_PATTERN = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
+
+export function isValidGstin(value: string): boolean {
+  return GSTIN_PATTERN.test(value.trim().toUpperCase());
+}
+
+
+/**
+ * Parses an optional end date, defaulting to now for a fresh churn.
+ *
+ * An unparseable value must not silently become "never churned" — a caller
+ * that passes garbage is trying to record an end, so fall back to now rather
+ * than dropping the signal.
+ */
+function parseEndedAt(value: unknown): string {
+  if (typeof value === "string" && value.trim()) {
+    const parsed = new Date(value);
+    if (!Number.isNaN(parsed.getTime())) return parsed.toISOString();
+  }
+  return new Date().toISOString();
+}
+
+/**
+ * Validates the body of a manual subscription record.
+ *
+ * The amount arrives from a form field as rupees in decimal ("999", "999.50")
+ * and is stored as integer paise. Money never round-trips through a float, so
+ * the conversion happens exactly once, here.
+ */
+export function normalizeSubscriptionInput(
+  body: Record<string, unknown>
+):
+  | { ok: true; value: Omit<Subscription, "id" | "createdAt" | "updatedAt"> & { id?: string } }
+  | { ok: false; error: string } {
+  const storeId = typeof body.storeId === "string" ? body.storeId.trim() : "";
+  if (!/^[A-Za-z0-9_-]{1,128}$/.test(storeId)) {
+    return { ok: false, error: "A valid storeId is required" };
+  }
+
+  const plan = typeof body.plan === "string" && body.plan.trim() ? body.plan.trim() : "solo";
+  if (plan.length > 40) {
+    return { ok: false, error: "Plan name is too long" };
+  }
+
+  const rawStatus = typeof body.status === "string" ? body.status.trim() : "active";
+  const status = (SUBSCRIPTION_STATUSES as readonly string[]).includes(rawStatus)
+    ? (rawStatus as SubscriptionStatus)
+    : "active";
+
+  // Accept rupees in decimal; reject anything that is not a plain positive
+  // amount. NaN/Infinity would otherwise become a silent zero.
+  const rupees = body.mrrRupees === undefined || body.mrrRupees === null || body.mrrRupees === ""
+    ? 0
+    : Number(body.mrrRupees);
+  if (!Number.isFinite(rupees) || rupees < 0) {
+    return { ok: false, error: "Amount must be a positive number" };
+  }
+  if (rupees > MAX_MRR_RUPEES) {
+    return { ok: false, error: "Amount is implausibly large" };
+  }
+  // Round rather than truncate: ₹999.50 must not silently become ₹999.
+  const mrrInr = Math.round(rupees * 100);
+
+  const rawPeriod = typeof body.billingPeriod === "string" ? body.billingPeriod.trim() : "monthly";
+  const billingPeriod: BillingPeriod = rawPeriod === "annual" ? "annual" : "monthly";
+
+  let gstin: string | undefined;
+  if (typeof body.gstin === "string" && body.gstin.trim()) {
+    const candidate = body.gstin.trim().toUpperCase();
+    if (!isValidGstin(candidate)) {
+      return { ok: false, error: "GSTIN must be a valid 15-character GSTIN" };
+    }
+    gstin = candidate;
+  }
+
+  let cancelReason: string | undefined;
+  if (typeof body.cancelReason === "string" && body.cancelReason.trim()) {
+    cancelReason = body.cancelReason.trim().slice(0, 200);
+  }
+
+  return {
+    ok: true,
+    value: {
+      storeId,
+      plan,
+      status,
+      mrrInr,
+      billingPeriod,
+      gstin,
+      startedAt: new Date().toISOString(),
+      // Honour a supplied end date. Without this a "churned" row kept
+      // ended_at = NULL, so `churnedLast30Days` could never be non-zero and
+      // the 30-day churn figure on /admin/revenue was permanently dead.
+      // A churned subscription must carry an end date — otherwise it is
+      // indistinguishable from one that ended years ago.
+      endedAt:
+        status === "churned" ? parseEndedAt(body.endedAt) : undefined,
+      cancelReason,
+    },
+  };
 }

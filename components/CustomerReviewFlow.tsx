@@ -58,6 +58,10 @@ export default function CustomerReviewFlow({ store, initialTable = "" }: Props) 
         category: store.category,
         chips,
         variationSeed,
+        // Pass the rating through. Without this the generator cannot know the
+        // diner tapped 4 rather than 5, so a 4-star guest is handed "Five stars
+        // all around" — the integrity defect recorded as Gap 4.
+        rating,
         tone,
         templates: store.reviewTemplates,
         keywords: store.signatureKeywords,

@@ -1,7 +1,7 @@
 import React from "react";
 import { connection } from "next/server";
 import { redirect } from "next/navigation";
-import { getAllStores, getStoresByIds, getAnalytics, getFeedbacks } from "@/lib/store";
+import { getAllStores, getStoresByIds, getAnalytics, getFeedbacks, getRevenueSummary } from "@/lib/store";
 import { getSessionUser, scopedStoreIds } from "@/lib/auth";
 import Link from "next/link";
 import {
@@ -9,6 +9,7 @@ import {
   Star,
   Printer,
   QrCode,
+  IndianRupee,
   ExternalLink,
   Plus,
   Mail,
@@ -30,23 +31,37 @@ export default async function AdminOverviewPage() {
   // Super admins see the whole platform; store admins only their locations.
   const scope = scopedStoreIds(user);
 
-  const [stores, analytics, feedbacks] = await Promise.all([
+  const [stores, analytics, feedbacks, revenue] = await Promise.all([
     scope === null ? getAllStores() : getStoresByIds(scope),
     scope === null ? getAnalytics() : getAnalytics(undefined, scope),
     scope === null ? getFeedbacks() : getFeedbacks(undefined, scope),
+    // Scoped exactly like every other read here — a store admin never sees
+    // revenue for locations they are not assigned to.
+    getRevenueSummary(scope),
   ]);
+
+  // Indian numbering, because these are rupee amounts and the market is India.
+  const formatInr = (rupees: number) =>
+    new Intl.NumberFormat("en-IN", {
+      style: "currency",
+      currency: "INR",
+      maximumFractionDigits: 0,
+    }).format(rupees);
 
   const recentFeedbacks = feedbacks.slice(0, 5);
   const isSuperAdmin = user.isSuperAdmin;
 
   const metrics = [
     {
-      label: "Restaurants",
-      value: String(stores.length),
-      sub: "Active outlets",
-      note: "Live table standees deployed",
+      // The only card on this page computed from recorded payments rather
+      // than telemetry. It reads Rs 0 until a subscription is recorded,
+      // which is the honest state of the business today.
+      label: "Monthly Revenue",
+      value: revenue.payingLocations > 0 ? formatInr(revenue.mrrRupees) : "Rs 0",
+      sub: `${revenue.payingLocations} paying ${revenue.payingLocations === 1 ? "location" : "locations"}`,
+      note: `Annualised ${formatInr(revenue.arrInr / 100)} · ${revenue.churnedLast30Days} churned (30d)`,
       bg: "bg-neo-yellow",
-      icon: <QrCode className="h-5 w-5" strokeWidth={2.5} />,
+      icon: <IndianRupee className="h-5 w-5" strokeWidth={2.5} />,
       rotate: "-rotate-1",
     },
     {

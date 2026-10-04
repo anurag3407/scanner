@@ -26,6 +26,10 @@ process.env.STORE_DATA_FILE = TEST_DATA_FILE;
 // test run would create/modify .data/menu-data.json in the repository.
 const TEST_MENU_DATA_FILE = path.join(os.tmpdir(), `credo-bypass-menu-${process.pid}.json`);
 process.env.MENU_DATA_FILE = TEST_MENU_DATA_FILE;
+// Billing records (plans, coupons, payments, subscriptions' period) live in
+// their own file — sharing one would let a store write clobber the ledger.
+const TEST_BILLING_DATA_FILE = path.join(os.tmpdir(), `credo-bypass-billing-${process.pid}.json`);
+process.env.BILLING_DATA_FILE = TEST_BILLING_DATA_FILE;
 delete process.env.NEXT_PUBLIC_SUPABASE_URL;
 delete process.env.SUPABASE_URL;
 delete process.env.SUPABASE_SECRET_KEY;
@@ -120,6 +124,7 @@ const json = (url: string, method: string, body: unknown, headers: Record<string
 
 before(async () => {
   const { createStore, createTeamMember } = await import("../lib/store");
+  const { beginTrial } = await import("../lib/billing-service");
 
   VICTIM_STORE = await createStore({
     name: "Victim Bistro",
@@ -151,6 +156,13 @@ before(async () => {
     tableCount: 3,
   });
 
+  // Both fixtures are on the free trial, exactly as a location created through
+  // POST /api/stores would be. Without this the menu gate would refuse the
+  // control case for a billing reason and mask the authorization behaviour
+  // these tests exist to prove.
+  await beginTrial(VICTIM_STORE.id, 30);
+  await beginTrial(OTHER_STORE.id, 30);
+
   // A legitimate store admin, assigned ONLY to VICTIM_STORE.
   await createTeamMember({
     email: STORE_ADMIN_EMAIL,
@@ -163,6 +175,7 @@ before(async () => {
 after(() => {
   fs.rmSync(TEST_DATA_FILE, { force: true });
   fs.rmSync(TEST_MENU_DATA_FILE, { force: true });
+  fs.rmSync(TEST_BILLING_DATA_FILE, { force: true });
 });
 
 /** Creates a team member straight through the data layer for test setup. */
@@ -887,6 +900,13 @@ test("Every admin API route is covered by the proxy matcher AND by its own handl
     { route: "app/api/feedback/route.ts", gate: "assertAdminAuth" },
     { route: "app/api/team/route.ts", gate: "assertSuperAdmin" },
     { route: "app/api/team/[id]/route.ts", gate: "assertSuperAdmin" },
+    { route: "app/api/billing/plans/route.ts", gate: "assertSuperAdmin" },
+    { route: "app/api/billing/coupons/route.ts", gate: "assertSuperAdmin" },
+    { route: "app/api/billing/checkout/route.ts", gate: "assertStoreAccess" },
+    { route: "app/api/billing/verify/route.ts", gate: "assertStoreAccess" },
+    { route: "app/api/billing/subscription/route.ts", gate: "assertStoreAccess" },
+    { route: "app/api/revenue/route.ts", gate: "assertAdminAuth" },
+    { route: "app/api/revenue/invoice/route.ts", gate: "assertAdminAuth" },
   ];
 
   for (const { route, gate } of adminApis) {
@@ -906,12 +926,34 @@ test("Every admin API route is covered by the proxy matcher AND by its own handl
     /"\/api\/menu\(\.\*\)"/.test(proxySrc),
     "proxy.ts must protect /api/menu(.*) (owner menu writes) as defense-in-depth"
   );
+  assert.ok(
+    /"\/api\/billing\/plans\(\.\*\)"/.test(proxySrc),
+    "proxy.ts must protect the billing console behind Clerk as defense-in-depth"
+  );
+  assert.ok(
+    /"\/api\/revenue\(\.\*\)"/.test(proxySrc),
+    "proxy.ts must protect /api/revenue(.*) as defense-in-depth"
+  );
+  // The webhook authenticates with Razorpay's HMAC, not a session, so it must
+  // NOT be swallowed by the Clerk matcher — prose statement plus a check that
+  // no billing matcher covers /api/billing/webhook.
+  assert.ok(
+    proxySrc.includes("Razorpay cannot present a Clerk session"),
+    "proxy.ts must document why the webhook stays public"
+  );
+  assert.equal(
+    /"\/api\/billing\(\.\*\)"/.test(proxySrc),
+    false,
+    "a blanket /api/billing matcher would break the webhook"
+  );
 
   // Public endpoints must stay reachable without a session.
   for (const publicRoute of [
     "app/api/events/route.ts",
     "app/api/generate-review/route.ts",
     "app/api/public/menu/[key]/route.ts",
+    // Authenticated by HMAC inside the handler, never by a Clerk session.
+    "app/api/billing/webhook/route.ts",
   ]) {
     const src = fs.readFileSync(path.join(process.cwd(), publicRoute), "utf8");
     assert.ok(
@@ -1482,4 +1524,57 @@ test("No client component can query Supabase, so the publishable key stays serve
     !/SUPABASE_PUBLISHABLE_KEY[^A-Z_]/.test(supabaseSrc.replace(/NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY/g, "")),
     "lib/supabase.ts must not fall back to a publishable key"
   );
+});
+
+/* -------------------------------------------------------------------------- */
+/* Billing writes are platform-owner only                                     */
+/* -------------------------------------------------------------------------- */
+
+test("A store admin cannot write their own subscription into the revenue ledger", async () => {
+  // The revenue page hides the record form from store admins, but hiding a
+  // control is not access control. Billing IS the platform's revenue ledger,
+  // so POST /api/revenue must be owner-only — the same rule as creating a
+  // location. Without this, any invited store admin could inflate MRR.
+  const { POST: postRevenue } = await import("../app/api/revenue/route");
+  const { getRevenueSummary } = await import("../lib/store");
+
+  signInAs(STORE_ADMIN_EMAIL);
+  try {
+    const before = await getRevenueSummary(null);
+
+    const res = await postRevenue(
+      new Request("http://localhost/api/revenue", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Origin: "http://localhost" },
+        body: JSON.stringify({ storeId: VICTIM_STORE.id, plan: "agency", mrrRupees: 999999 }),
+      })
+    );
+    assert.equal(res.status, 403, "a store admin must not be able to book revenue");
+
+    const after = await getRevenueSummary(null);
+    assert.equal(after.mrrInr, before.mrrInr, "MRR must be unchanged after a refused write");
+  } finally {
+    signOut();
+  }
+});
+
+test("A store admin CAN read their own revenue", async () => {
+  // The point of showing revenue to an owner is that it is meaningful to them,
+  // so reads stay scoped-and-allowed while writes stay owner-only.
+  const { GET: getRevenue } = await import("../app/api/revenue/route");
+
+  signInAs(STORE_ADMIN_EMAIL);
+  try {
+    const res = await getRevenue();
+    assert.equal(res.status, 200);
+    const data = await res.json();
+    for (const sub of data.subscriptions) {
+      assert.ok(
+        [VICTIM_STORE.id].includes(sub.storeId),
+        "a store admin must only ever see their own locations"
+      );
+    }
+  } finally {
+    signOut();
+  }
 });

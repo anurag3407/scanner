@@ -11,6 +11,7 @@ import { GET as getFeedbackRoute, POST as submitFeedbackRoute, PATCH as patchFee
 import { GET as getAnalyticsRoute } from "../app/api/analytics/route";
 import { GET as getTeamRoute, POST as createTeamMemberRoute } from "../app/api/team/route";
 import { PUT as updateTeamMemberRoute, DELETE as deleteTeamMemberRoute } from "../app/api/team/[id]/route";
+import { getStoreById, getScanEvents } from "../lib/store";
 
 // Isolated file store — never the production Supabase database.
 process.env.NODE_ENV = "test";
@@ -467,4 +468,30 @@ test("Security: NODE_ENV=test alone must NOT bypass authentication", async () =>
       process.env.AUTH_BYPASS_TESTS = originalFlag;
     }
   }
+});
+
+test("POST /api/events cannot inflate a store's public review count", async () => {
+  // Regression guard for a forgeable headline metric.
+  //
+  // `reviewCount` is shown to owners as the outcome of the product. It used to
+  // be incremented whenever a `copy_open` event was logged, and /api/events is
+  // anonymous and publicly writable — so any diner (or competitor) could inflate
+  // a store's number just by POSTing. The counter must now be admin-set only.
+  const store = await createTestStore({ ...validStorePayload, slug: "forge-events-bistro" });
+
+  for (let i = 0; i < 10; i++) {
+    const req = new Request("http://localhost/api/events", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ storeId: store.id, type: "copy_open", rating: 5, chips: [] }),
+    });
+    assert.equal((await logEventRoute(req)).status, 200);
+  }
+
+  const after = await getStoreById(store.id);
+  assert.equal(after?.reviewCount, 0, "anonymous events must not move the counter");
+
+  // The telemetry is still captured — the conversion funnel reads scan_events,
+  // which is auditable, rather than a mutable column on the store row.
+  assert.equal((await getScanEvents(store.id)).length, 10);
 });

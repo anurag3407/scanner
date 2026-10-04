@@ -2,13 +2,18 @@ import React from "react";
 import ProspectusClient from "@/components/ProspectusClient";
 import Link from "next/link";
 import { ExternalLink } from "lucide-react";
+import { getActivePlansOrDefaults } from "@/lib/billing-data";
+
+export const dynamic = "force-dynamic";
 
 export const metadata = {
   title: "SaaS Investment & Pitch Prospectus | Credo Admin",
   description: "Comprehensive B2B SaaS prospectus: unit economics, TAM, restaurant ROI, and viral QR distribution flywheel.",
 };
 
-export default function AdminProspectusPage() {
+export default async function AdminProspectusPage() {
+  const plans = await getActivePlansOrDefaults();
+
   return (
     <div className="w-full">
       <div className="bg-white border-b-[3px] border-black px-6 py-3 flex items-center justify-between text-xs print:hidden">
@@ -24,7 +29,7 @@ export default function AdminProspectusPage() {
         </Link>
       </div>
 
-      <ProspectusClient />
+      <ProspectusClient plans={plans} />
     </div>
   );
 }

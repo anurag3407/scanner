@@ -13,7 +13,7 @@
     "dev": "next dev",
     "start": "next start",
     "lint": "eslint",
-    "test:functional": "node scripts/check-sql.mjs && bash scripts/test-rls-migration.sh && NODE_ENV=test AUTH_BYPASS_TESTS=true tsx --test tests/api-routes.test.ts tests/rbac.test.ts tests/review-engine.test.ts tests/review-links.test.ts tests/security.test.ts tests/store.test.ts tests/menu.test.ts",
+    "test:functional": "node scripts/check-sql.mjs && bash scripts/test-rls-migration.sh && NODE_ENV=test AUTH_BYPASS_TESTS=true tsx --test tests/api-routes.test.ts tests/rbac.test.ts tests/review-engine.test.ts tests/review-links.test.ts tests/review-integrity.test.ts tests/security.test.ts tests/store.test.ts tests/menu.test.ts tests/subscriptions.test.ts tests/revenue-api.test.ts tests/invoice.test.ts tests/plans.test.ts tests/billing.test.ts tests/billing-api.test.ts",
     "test:bypass": "NODE_ENV=test tsx --experimental-test-module-mocks --test tests/permission-bypass.test.ts && NODE_ENV=test tsx --experimental-test-module-mocks --test tests/redteam-poc.test.ts",
     "test": "npm run test:functional && npm run test:bypass",
     "test:all": "npm run test",

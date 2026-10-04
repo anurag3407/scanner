@@ -17,13 +17,21 @@ import {
   UtensilsCrossed,
   X,
   Power,
+  Timer,
 } from "lucide-react";
-import { MenuItem, Store } from "@/lib/types";
+import { MenuItem, Store, StoreEntitlement } from "@/lib/types";
 import MenuItemImage from "./MenuItemImage";
 
 interface Props {
   store: Store;
   initialItems: MenuItem[];
+  /**
+   * What this location is allowed to do right now. Passed from the server so
+   * the locked state is visible before the owner tries an edit — the API
+   * refuses the write either way (that is the real gate), but a 402 with no
+   * explanation on screen is a support ticket waiting to happen.
+   */
+  entitlement: StoreEntitlement;
 }
 
 /** Quick section labels offered while typing a category. */
@@ -65,7 +73,8 @@ function formatPrice(price: number, currency?: string): string {
  * the scoped menu API and reaches diner phones within one 12s poll cycle —
  * the printed QR never changes.
  */
-export default function MenuManagerClient({ store, initialItems }: Props) {
+export default function MenuManagerClient({ store, initialItems, entitlement }: Props) {
+  const locked = !entitlement.entitled;
   const [items, setItems] = useState<MenuItem[]>(initialItems);
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -107,6 +116,7 @@ export default function MenuManagerClient({ store, initialItems }: Props) {
   };
 
   const openAdd = () => {
+    if (locked) return;
     setEditingItemId(null);
     setDraft(EMPTY_DRAFT);
     setEditorError("");
@@ -190,13 +200,16 @@ export default function MenuManagerClient({ store, initialItems }: Props) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ isAvailable: next }),
       });
-      if (!res.ok) throw new Error();
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        throw new Error(data?.error || "Couldn't update availability. Please try again.");
+      }
       const data = await res.json();
       setItems((prev) => prev.map((i) => (i.id === item.id ? data.item : i)));
       flashSaved();
-    } catch {
+    } catch (err) {
       setItems((prev) => prev.map((i) => (i.id === item.id ? { ...i, isAvailable: item.isAvailable } : i)));
-      setListError("Couldn't update availability. Please try again.");
+      setListError(err instanceof Error ? err.message : "Couldn't update availability. Please try again.");
     } finally {
       setBusyItemId(null);
     }
@@ -211,7 +224,8 @@ export default function MenuManagerClient({ store, initialItems }: Props) {
         setItems((prev) => prev.filter((i) => i.id !== item.id));
         flashSaved();
       } else {
-        setListError("Failed to remove item. Please try again.");
+        const data = await res.json().catch(() => null);
+        setListError(data?.error || "Failed to remove item. Please try again.");
       }
     } catch {
       setListError("Network error removing item. Please try again.");
@@ -240,11 +254,14 @@ export default function MenuManagerClient({ store, initialItems }: Props) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ itemIds }),
       });
-      if (!res.ok) throw new Error();
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        throw new Error(data?.error || "Couldn't save the new order. Please try again.");
+      }
       flashSaved();
-    } catch {
+    } catch (err) {
       setItems(ordered); // rollback
-      setListError("Couldn't save the new order. Please try again.");
+      setListError(err instanceof Error ? err.message : "Couldn't save the new order. Please try again.");
     } finally {
       setBusyItemId(null);
     }
@@ -298,7 +315,8 @@ export default function MenuManagerClient({ store, initialItems }: Props) {
           <button
             type="button"
             onClick={openAdd}
-            className="border-4 border-black bg-neo-red px-4 py-2.5 text-xs font-black uppercase tracking-widest text-white shadow-neo-sm transition-all duration-100 ease-linear hover:bg-black hover:text-neo-yellow active:translate-x-1 active:translate-y-1 active:shadow-none cursor-pointer"
+            disabled={locked}
+            className="border-4 border-black bg-neo-red px-4 py-2.5 text-xs font-black uppercase tracking-widest text-white shadow-neo-sm transition-all duration-100 ease-linear enabled:hover:bg-black enabled:hover:text-neo-yellow enabled:active:translate-x-1 enabled:active:translate-y-1 enabled:active:shadow-none disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer"
           >
             <Plus className="mr-1 inline h-4 w-4" strokeWidth={3} /> Add item
           </button>
@@ -338,6 +356,42 @@ export default function MenuManagerClient({ store, initialItems }: Props) {
         </div>
       )}
 
+      {/* Entitlement strip: why the editor is (or is not) available. */}
+      {locked ? (
+        <div className="flex flex-col items-start justify-between gap-3 border-4 border-black bg-neo-red p-4 text-white shadow-neo-sm sm:flex-row sm:items-center">
+          <div className="flex items-start gap-3">
+            <Timer className="mt-0.5 h-5 w-5 shrink-0" strokeWidth={2.5} />
+            <div>
+              <p className="text-xs font-black uppercase tracking-widest">
+                Menu editing is locked
+              </p>
+              <p className="mt-1 text-xs font-bold leading-relaxed text-white/90">
+                {entitlement.reason ||
+                  "An active subscription is required to customise this menu."}
+              </p>
+            </div>
+          </div>
+          <Link
+            href="/admin/billing"
+            className="shrink-0 border-4 border-white bg-white px-4 py-2.5 text-xs font-black uppercase tracking-widest text-black shadow-neo-white-sm transition-all duration-100 ease-linear hover:bg-neo-yellow active:translate-x-0.5 active:translate-y-0.5 active:shadow-none"
+          >
+            Subscribe
+          </Link>
+        </div>
+      ) : (
+        entitlement.state === "trial" && (
+          <div className="flex items-center gap-3 border-4 border-black bg-neo-yellow p-3 text-xs font-black uppercase tracking-widest shadow-neo-sm">
+            <Timer className="h-5 w-5 shrink-0" strokeWidth={2.5} />
+            <span>
+              Free trial &bull; {entitlement.trialMinutesRemaining} minutes left to edit
+            </span>
+            <Link href="/admin/billing" className="ml-auto underline">
+              Choose a plan
+            </Link>
+          </div>
+        )
+      )}
+
       {/* Menu list */}
       {items.length === 0 ? (
         <div className="border-4 border-dashed border-black bg-white p-12 text-center shadow-neo-sm">
@@ -352,7 +406,8 @@ export default function MenuManagerClient({ store, initialItems }: Props) {
           <button
             type="button"
             onClick={openAdd}
-            className="mt-5 inline-flex items-center gap-2 border-4 border-black bg-neo-red px-5 py-2.5 text-xs font-black uppercase tracking-widest text-white shadow-neo-sm transition-all duration-100 ease-linear hover:bg-black hover:text-neo-yellow active:translate-x-1 active:translate-y-1 active:shadow-none cursor-pointer"
+            disabled={locked}
+            className="mt-5 inline-flex items-center gap-2 border-4 border-black bg-neo-red px-5 py-2.5 text-xs font-black uppercase tracking-widest text-white shadow-neo-sm transition-all duration-100 ease-linear enabled:hover:bg-black enabled:hover:text-neo-yellow enabled:active:translate-x-1 enabled:active:translate-y-1 enabled:active:shadow-none disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer"
           >
             <Plus className="h-4 w-4" strokeWidth={3} /> Add first item
           </button>

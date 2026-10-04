@@ -31,7 +31,10 @@ export default async function HomePage() {
     <main className="min-h-screen bg-cream text-black">
       <LandingPageClient
         sampleStore={sampleStore}
-        totalStoresCount={stores.length || 103}
+        // The real number of live locations — never a fallback. A hardcoded
+        // count here published a customer claim that stayed true even when the
+        // database was empty or unreachable (the load above swallows errors).
+        totalLocationsCount={stores.length}
       />
     </main>
   );

@@ -8,8 +8,9 @@ const nextConfig: NextConfig = {
   //
   // The CSP is intentionally strict but must still permit what the app
   // genuinely uses: Clerk's hosted sign-in iframe/script, Supabase calls from
-  // the browser, Google Fonts (next/font self-hosts, so no font origin needed)
-  // and inline styles React emits for dynamic values such as brand colors.
+  // the browser, Razorpay's checkout script and API (subscription checkout),
+  // Google Fonts (next/font self-hosts, so no font origin needed) and inline
+  // styles React emits for dynamic values such as brand colors.
   // `unsafe-inline` on styles is required by Tailwind's runtime style objects;
   // scripts stay locked to same-origin, which is what stops injected markup
   // from executing even if HTML injection is ever introduced.
@@ -36,9 +37,13 @@ const nextConfig: NextConfig = {
             value: [
               "default-src 'self'",
               // Clerk injects its widget/iframe for the sign-in page.
-              "script-src 'self' https://clerk.com",
-              "frame-src 'self' https://clerk.com https://accounts.google.com",
-              "connect-src 'self' https://clerk.com https://*.clerk.accounts.dev https://*.supabase.co",
+              // Razorpay's checkout script is loaded on demand from our own
+              // bundle only when a tenant starts a subscription.
+              "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://clerk.com https://*.clerk.com https://*.clerk.accounts.dev https://checkout.razorpay.com",
+              "frame-src 'self' https://clerk.com https://*.clerk.com https://*.clerk.accounts.dev https://accounts.google.com https://api.razorpay.com",
+              // api.razorpay.com is called by checkout.js; lumberjack is its
+              // telemetry endpoint (cosmetic — blocking it only logs noise).
+              "connect-src 'self' https://clerk.com https://*.clerk.accounts.dev https://*.supabase.co https://api.razorpay.com https://lumberjack.razorpay.com",
               "img-src 'self' data: blob: https:",
               "font-src 'self' data:",
               "style-src 'self' 'unsafe-inline'",

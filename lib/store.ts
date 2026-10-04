@@ -10,6 +10,10 @@ import {
   AlertDelivery,
   ReviewTemplateSet,
   PublicStore,
+  Subscription,
+  SubscriptionStatus,
+  BillingPeriod,
+  RevenueSummary,
 } from "./types";
 import { getSupabaseClient } from "./supabase";
 import { sanitizeTemplateSet } from "./validation";
@@ -19,6 +23,7 @@ interface DataStoreSchema {
   feedbacks: FeedbackSubmission[];
   events: ScanEvent[];
   members: TeamMember[];
+  subscriptions: Subscription[];
 }
 
 let memoryCache: DataStoreSchema | null = null;
@@ -54,7 +59,7 @@ function getDataFile(): string {
 }
 
 function emptyData(): DataStoreSchema {
-  return { stores: [], feedbacks: [], events: [], members: [] };
+  return { stores: [], feedbacks: [], events: [], members: [], subscriptions: [] };
 }
 
 function loadLocalData(): DataStoreSchema {
@@ -70,6 +75,7 @@ function loadLocalData(): DataStoreSchema {
       feedbacks: Array.isArray(parsed?.feedbacks) ? parsed.feedbacks : [],
       events: Array.isArray(parsed?.events) ? parsed.events : [],
       members: Array.isArray(parsed?.members) ? parsed.members : [],
+      subscriptions: Array.isArray(parsed?.subscriptions) ? parsed.subscriptions : [],
     };
     memoryCacheFile = file;
     return memoryCache;
@@ -691,24 +697,6 @@ export async function deleteTeamMember(memberId: string): Promise<boolean> {
   return true;
 }
 
-// Best-effort review counter update for a confirmed Google hand-off.
-async function incrementSupabaseReviewCount(storeId: string) {
-  const supabase = getSupabaseClient();
-  if (!supabase) return;
-
-  const { data, error } = await supabase
-    .from("stores")
-    .select("review_count")
-    .eq("id", storeId)
-    .maybeSingle();
-  if (error || !data) return;
-
-  await supabase
-    .from("stores")
-    .update({ review_count: (data.review_count ?? 0) + 1 })
-    .eq("id", storeId);
-}
-
 export async function logScanEvent(event: Omit<ScanEvent, "id" | "timestamp">): Promise<ScanEvent> {
   const newEvent: ScanEvent = {
     ...event,
@@ -737,21 +725,16 @@ export async function logScanEvent(event: Omit<ScanEvent, "id" | "timestamp">): 
       return newEvent;
     }
 
-    if (event.type === "copy_open") {
-      await incrementSupabaseReviewCount(event.storeId);
-    }
+    // NOTE: this deliberately does NOT touch stores.reviewCount any more.
+    // `copy_open` is an anonymous, publicly-writable event, so incrementing a
+    // per-store counter here meant anyone who had scanned the QR could inflate
+    // a store's headline number ~7,200/hour from one IP. Copy events are still
+    // recorded in scan_events, which is what the analytics funnel reads.
     return newEvent;
   }
 
   const data = loadLocalData();
   data.events.push(newEvent);
-
-  if (event.type === "copy_open") {
-    const store = data.stores.find((s) => s.id === event.storeId);
-    if (store) {
-      store.reviewCount += 1;
-    }
-  }
 
   persistLocalData(data);
   return newEvent;
@@ -1045,3 +1028,179 @@ export const SCAN_EVENT_TYPES: ScanEventType[] = [
   "copy_open",
   "feedback_submit",
 ];
+
+/* ------------------------------------------------------------------------- */
+/* Subscriptions                                                             */
+/* ------------------------------------------------------------------------- */
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function mapRowToSubscription(r: any): Subscription {
+  return {
+    id: r.id,
+    storeId: r.store_id || r.storeId,
+    plan: r.plan || "solo",
+    status: (r.status || "active") as SubscriptionStatus,
+    // Money is an integer count of paise. A non-numeric or negative value from
+    // a hand-edited row must not silently become revenue.
+    mrrInr: Math.max(0, Math.trunc(Number(r.mrr_inr ?? r.mrrInr) || 0)),
+    billingPeriod: (r.billing_period || r.billingPeriod || "monthly") as BillingPeriod,
+    gstin: r.gstin || undefined,
+    trialStartedAt: r.trial_started_at || r.trialStartedAt || undefined,
+    trialMinutes: Number.isFinite(Number(r.trial_minutes ?? r.trialMinutes))
+      ? Number(r.trial_minutes ?? r.trialMinutes)
+      : undefined,
+    currentPeriodEnd: r.current_period_end || r.currentPeriodEnd || undefined,
+    startedAt: r.started_at || r.startedAt || new Date().toISOString(),
+    endedAt: r.ended_at || r.endedAt || undefined,
+    cancelReason: r.cancel_reason || r.cancelReason || undefined,
+    createdAt: r.created_at || r.createdAt || new Date().toISOString(),
+    updatedAt: r.updated_at || r.updatedAt || undefined,
+  };
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function mapSubscriptionToRow(s: Subscription): any {
+  return {
+    id: s.id,
+    store_id: s.storeId,
+    plan: s.plan,
+    status: s.status,
+    mrr_inr: Math.max(0, Math.trunc(Number(s.mrrInr) || 0)),
+    billing_period: s.billingPeriod,
+    gstin: s.gstin || null,
+    trial_started_at: s.trialStartedAt || null,
+    trial_minutes: s.trialMinutes ?? null,
+    current_period_end: s.currentPeriodEnd || null,
+    started_at: s.startedAt,
+    ended_at: s.endedAt || null,
+    cancel_reason: s.cancelReason || null,
+    created_at: s.createdAt,
+    updated_at: s.updatedAt || new Date().toISOString(),
+  };
+}
+
+/**
+ * Subscriptions for the given stores.
+ *
+ * `storeIds` of `null` means "no filter" (super admin), mirroring
+ * `scopedStoreIds` in lib/auth.ts — callers pass their scope, so a store admin
+ * can never widen their own view by calling this directly.
+ */
+export async function getSubscriptions(
+  storeIds?: string[] | null
+): Promise<Subscription[]> {
+  const supabase = getSupabaseClient();
+  if (supabase) {
+    let query = supabase.from("subscriptions").select("*");
+    if (Array.isArray(storeIds)) {
+      if (storeIds.length === 0) return [];
+      query = query.in("store_id", storeIds);
+    }
+    const { data, error } = await query;
+    if (error) throw new Error(`Failed to load subscriptions: ${error.message}`);
+    return (data || []).map(mapRowToSubscription);
+  }
+
+  const data = loadLocalData();
+  if (Array.isArray(storeIds)) {
+    const allowed = new Set(storeIds);
+    return data.subscriptions.filter((s) => allowed.has(s.storeId));
+  }
+  return data.subscriptions;
+}
+
+/** Creates (or replaces) the subscription for a store. One live row per store. */
+export async function upsertSubscription(
+  input: Omit<Subscription, "id" | "createdAt" | "updatedAt"> & { id?: string }
+): Promise<Subscription> {
+  // Look the target row up through the SAME backend as the write. Reading only
+  // the local file here meant that with Supabase configured (the production
+  // case) `existing` was always undefined, so every save minted a new id and
+  // inserted a duplicate subscription instead of updating the store's row.
+  const candidates = await getSubscriptions([input.storeId]);
+  const existing =
+    (input.id ? candidates.find((s) => s.id === input.id) : undefined) ??
+    candidates.find((s) => !s.endedAt) ??
+    candidates[0] ??
+    null;
+
+  const row: Subscription = {
+    ...input,
+    id: input.id || existing?.id || id("sub"),
+    // An ended subscription is churned by definition. Keeping status and
+    // ended_at in agreement is what makes the churn figure trustworthy.
+    status: input.endedAt ? "churned" : input.status,
+    mrrInr: Math.max(0, Math.trunc(Number(input.mrrInr) || 0)),
+    createdAt: existing?.createdAt || new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+
+  const supabase = getSupabaseClient();
+  if (supabase) {
+    const { error } = await supabase
+      .from("subscriptions")
+      .upsert(mapSubscriptionToRow(row), { onConflict: "id" });
+    if (error) throw new Error(`Failed to save subscription: ${error.message}`);
+    return row;
+  }
+
+  const data = loadLocalData();
+  const index = data.subscriptions.findIndex((s) => s.id === row.id);
+  if (index === -1) data.subscriptions.push(row);
+  else data.subscriptions[index] = row;
+  persistLocalData(data);
+  return row;
+}
+
+/** Ends a subscription. Churn is recorded, never inferred from a deleted row. */
+export async function cancelSubscription(
+  storeId: string,
+  reason?: string
+): Promise<Subscription | null> {
+  const existing = (await getSubscriptions([storeId])).find((s) => s.storeId === storeId);
+  if (!existing) return null;
+  return upsertSubscription({
+    ...existing,
+    status: "churned",
+    endedAt: new Date().toISOString(),
+    cancelReason: reason || "cancelled",
+  });
+}
+
+/**
+ * Recurring revenue, computed only from live subscriptions.
+ *
+ * This is the first place MRR can be derived from data rather than from a
+ * hardcoded slider. `payingLocations` counts active and trialling rows, so a
+ * trial is visible without being counted as revenue.
+ */
+export async function getRevenueSummary(
+  storeIds?: string[] | null
+): Promise<RevenueSummary> {
+  const subs = await getSubscriptions(storeIds);
+
+  const live = subs.filter((s) => s.status === "active" || s.status === "trial");
+  const byPlan: RevenueSummary["byPlan"] = {};
+  let mrrInr = 0;
+
+  for (const s of live) {
+    mrrInr += s.mrrInr;
+    if (!byPlan[s.plan]) byPlan[s.plan] = { locations: 0, mrrInr: 0 };
+    byPlan[s.plan].locations += 1;
+    byPlan[s.plan].mrrInr += s.mrrInr;
+  }
+
+  const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
+  const churnedLast30Days = subs.filter(
+    (s) => s.status === "churned" && s.endedAt && new Date(s.endedAt).getTime() >= thirtyDaysAgo
+  ).length;
+
+  return {
+    payingLocations: live.length,
+    mrrInr,
+    mrrRupees: mrrInr / 100,
+    arrInr: mrrInr * 12,
+    byPlan,
+    churnedLast30Days,
+  };
+}

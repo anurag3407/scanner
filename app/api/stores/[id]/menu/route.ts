@@ -6,8 +6,10 @@ import {
   getMenuVersion,
   reorderMenuItems,
 } from "@/lib/menu";
+import { getStoreEntitlement } from "@/lib/billing-service";
 import { assertStoreAccess } from "@/lib/auth";
 import { isSameOriginRequest } from "@/lib/csrf";
+import { requireMenuEntitlement } from "@/lib/billing-gate";
 import { MENU_LIMITS, sanitizeMenuItemInput } from "@/lib/validation";
 
 interface RouteContext {
@@ -25,7 +27,15 @@ export async function GET(_req: Request, context: RouteContext) {
     }
 
     const items = await getMenuItems(id);
-    return NextResponse.json({ items, version: await getMenuVersion(id, items) });
+    // The entitlement ships with the read so the console can render the
+    // locked state (and the Subscribe CTA) without a second round-trip. It is
+    // informational here — enforcement happens in the write handlers below.
+    const entitlement = await getStoreEntitlement(id);
+    return NextResponse.json({
+      items,
+      version: await getMenuVersion(id, items),
+      entitlement,
+    });
   } catch (err) {
     console.error("Failed to load menu", err);
     return NextResponse.json({ error: "Failed to load menu" }, { status: 500 });
@@ -53,6 +63,10 @@ export async function POST(req: Request, context: RouteContext) {
     } catch {
       return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
     }
+
+    // Paid capability: a lapsed location may not add items.
+    const gate = await requireMenuEntitlement(id);
+    if (gate) return gate;
 
     const parsed = sanitizeMenuItemInput(body, "create");
     if (!parsed.ok) {
@@ -107,6 +121,10 @@ export async function PUT(req: Request, context: RouteContext) {
     } catch {
       return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
     }
+
+    // Paid capability: reordering is customisation too.
+    const gate = await requireMenuEntitlement(id);
+    if (gate) return gate;
 
     const itemIds = Array.isArray(body.itemIds)
       ? body.itemIds.filter((v): v is string => typeof v === "string" && v.length > 0 && v.length <= 128)

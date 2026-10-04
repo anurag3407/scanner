@@ -12,6 +12,8 @@ import {
   Globe,
   Plus,
   Users,
+  IndianRupee,
+  CreditCard,
 } from "lucide-react";
 
 export const dynamic = "force-dynamic";
@@ -131,6 +133,26 @@ export default async function AdminLayout({
             >
               <BarChart3 className="h-4 w-4 text-neo-blue" strokeWidth={2.5} />
               <span>Scan Analytics</span>
+            </Link>
+
+            {/* Revenue is how the business is run day to day — it needs its own
+                page, not a metric card buried on the overview. */}
+            <Link
+              href="/admin/revenue"
+              className="flex items-center gap-2.5 border-2 border-transparent px-3 py-2.5 font-black uppercase tracking-widest text-white transition-all duration-100 ease-linear hover:border-white hover:bg-white hover:text-black hover:shadow-neo-white-sm"
+            >
+              <IndianRupee className="h-4 w-4 text-neo-green" strokeWidth={2.5} />
+              <span>Revenue &amp; Billing</span>
+            </Link>
+
+            {/* Subscriptions: what a location is paying for, the price on sale,
+                and — for the platform owner — the coupons behind them. */}
+            <Link
+              href="/admin/billing"
+              className="flex items-center gap-2.5 border-2 border-transparent px-3 py-2.5 font-black uppercase tracking-widest text-white transition-all duration-100 ease-linear hover:border-white hover:bg-white hover:text-black hover:shadow-neo-white-sm"
+            >
+              <CreditCard className="h-4 w-4 text-neo-violet" strokeWidth={2.5} />
+              <span>{isSuperAdmin ? "Plans &amp; Subscriptions" : "My Subscription"}</span>
             </Link>
 
             {isSuperAdmin && (

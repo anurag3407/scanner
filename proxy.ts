@@ -17,6 +17,15 @@ const isProtectedApi = createRouteMatcher([
   // Owner menu writes go through /api/menu/<itemId>. The diner's read-only
   // feed lives at /api/public/menu/<key>, a different prefix that stays public.
   "/api/menu(.*)",
+  // Billing console, checkout and confirmation. The Razorpay WEBHOOK is
+  // deliberately absent: Razorpay cannot present a Clerk session, so it is
+  // authenticated by its own HMAC signature inside the route handler instead.
+  "/api/billing/plans(.*)",
+  "/api/billing/coupons(.*)",
+  "/api/billing/checkout(.*)",
+  "/api/billing/verify(.*)",
+  "/api/billing/subscription(.*)",
+  "/api/revenue(.*)",
 ]);
 const isFeedbackApi = createRouteMatcher(["/api/feedback(.*)"]);
 

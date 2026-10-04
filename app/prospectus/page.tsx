@@ -2,13 +2,21 @@ import React from "react";
 import ProspectusClient from "@/components/ProspectusClient";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
+import { getActivePlansOrDefaults } from "@/lib/billing-data";
+
+// Plan prices are super-admin controlled and can change at any time, so the
+// deck reads the catalogue at request time rather than baking a build-time
+// snapshot into an investor document.
+export const dynamic = "force-dynamic";
 
 export const metadata = {
   title: "SaaS Investment & Pitch Prospectus | Credo",
   description: "Institutional B2B SaaS prospectus: unit economics, TAM, restaurant ROI, viral QR loop, and market valuation.",
 };
 
-export default function PublicProspectusPage() {
+export default async function PublicProspectusPage() {
+  const plans = await getActivePlansOrDefaults();
+
   return (
     <div className="min-h-screen bg-cream bg-neo-grid flex flex-col font-sans text-black print:bg-white">
       {/* Top Navbar */}
@@ -40,7 +48,7 @@ export default function PublicProspectusPage() {
 
       {/* Main Prospectus Body */}
       <main className="flex-1 print:p-0">
-        <ProspectusClient />
+        <ProspectusClient plans={plans} />
       </main>
 
       {/* Footer */}

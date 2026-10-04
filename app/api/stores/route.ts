@@ -12,6 +12,8 @@ import {
 } from "@/lib/validation";
 import { assertAdminAuth, assertSuperAdmin, scopedStoreIds } from "@/lib/auth";
 import { isSameOriginRequest } from "@/lib/csrf";
+import { beginTrial } from "@/lib/billing-service";
+import { DEFAULT_TRIAL_MINUTES } from "@/lib/plans";
 
 export async function GET() {
   const auth = await assertAdminAuth();
@@ -106,6 +108,16 @@ export async function POST(req: Request) {
       reviewTone: sanitizeReviewTone(body.reviewTone) || "punchy",
       currency: sanitizeCurrency(body.currency) || "INR",
     });
+
+    // Every new location starts on the short free trial, so it can be set up
+    // and demoed immediately. The trial is time-derived (no cron), and a
+    // failure here must not lose the store that was just created — the
+    // platform owner can start a trial again from /admin/billing.
+    try {
+      await beginTrial(store.id, DEFAULT_TRIAL_MINUTES);
+    } catch (trialErr) {
+      console.error("Failed to seed the trial subscription", trialErr);
+    }
 
     return NextResponse.json({ store }, { status: 201 });
   } catch (err) {

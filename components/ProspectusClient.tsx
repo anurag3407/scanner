@@ -1,13 +1,32 @@
 "use client";
 
+import { PERIOD_DAYS } from "@/lib/plans";
+import type { PlanConfig } from "@/lib/types";
 import React, { useState } from "react";
 import Link from "next/link";
 import { Printer, Zap, Sparkles, ArrowLeft, Check } from "lucide-react";
 
-export default function ProspectusClient() {
+/**
+ * Monthly-equivalent price in whole rupees, so an annual plan compares fairly
+ * against a monthly one. Derived from the stored catalogue — the same rows the
+ * public /pricing page renders — and never from a number typed into this file.
+ * The deck used to advertise $29/$69/$199 while the product was sold to
+ * Indian restaurants.
+ */
+const monthlyRupees = (plan: PlanConfig): number =>
+  Math.round((plan.priceInr * 30) / PERIOD_DAYS[plan.period] / 100);
+
+export default function ProspectusClient({ plans }: { plans: PlanConfig[] }) {
+  const monthlyValues = plans.map(monthlyRupees);
+  const blendedArpu = monthlyValues.length
+    ? Math.round(monthlyValues.reduce((sum, value) => sum + value, 0) / monthlyValues.length)
+    : 0;
+  const arpuMin = monthlyValues.length ? Math.min(...monthlyValues) : 0;
+  const arpuMax = monthlyValues.length ? Math.max(...monthlyValues) : 0;
+
   // Financial Model Simulator State
   const [locationsCount, setLocationsCount] = useState<number>(350);
-  const [arpu, setArpu] = useState<number>(69);
+  const [arpu, setArpu] = useState<number>(blendedArpu);
 
   // Financial calculations
   const monthlyRevenue = locationsCount * arpu;
@@ -87,7 +106,9 @@ export default function ProspectusClient() {
             <div className="pt-4 grid grid-cols-2 sm:grid-cols-4 gap-4 border-t-4 border-white/40 text-xs">
               <div>
                 <span className="text-black/60 block">Target ARPU</span>
-                <span className="font-bold text-white text-sm">$69 / month</span>
+                <span className="font-bold text-white text-sm">
+                  ₹{blendedArpu.toLocaleString("en-IN")} / month
+                </span>
               </div>
               <div>
                 <span className="text-black/60 block">Gross Margin</span>
@@ -179,7 +200,9 @@ export default function ProspectusClient() {
           <div className="bg-white p-6 rounded-none border-[3px] border-black shadow-neo-xs text-center space-y-1">
             <span className="text-[10px] font-bold uppercase tracking-wider text-black">Initial 36-Month SOM</span>
             <div className="text-3xl sm:text-4xl font-black text-black">$74.5 Million</div>
-            <p className="text-xs text-black/60 mt-1">90,000 locations on $69/month standard subscription</p>
+            <p className="text-xs text-black/60 mt-1">
+              90,000 locations at the published blended plan price
+            </p>
           </div>
         </div>
       </section>
@@ -196,72 +219,48 @@ export default function ProspectusClient() {
         </div>
 
         <div className="bg-white rounded-none p-6 sm:p-8 border-[3px] border-black shadow-neo-xs space-y-8">
+          {/* Rendered from the stored plan catalogue — the same rows the public
+              /pricing page reads, passed in by the host page. These figures
+              used to be hardcoded here AND in PLAN.md, which is how the deck
+              advertised $29/$69/$199 while the product was actually sold to
+              Indian restaurants. */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {/* Tier 1 */}
-            <div className="p-6 rounded-none bg-cream border-[3px] border-black space-y-3">
-              <span className="text-xs font-bold text-black/60 uppercase tracking-wider">Starter</span>
-              <div className="text-3xl font-black text-black">$29<span className="text-xs font-normal text-black/60">/mo</span></div>
-              <ul className="text-xs text-black/70 space-y-2">
-                <li className="flex items-center gap-2">
-                  <Check className="w-3.5 h-3.5 text-black" /> 1 Location
-                </li>
-                <li className="flex items-center gap-2">
-                  <Check className="w-3.5 h-3.5 text-black" /> 500 scans / mo
-                </li>
-                <li className="flex items-center gap-2">
-                  <Check className="w-3.5 h-3.5 text-black" /> 0ms Heuristic review engine
-                </li>
-                <li className="flex items-center gap-2">
-                  <Check className="w-3.5 h-3.5 text-black" /> Reputation Firewall protection
-                </li>
-              </ul>
-            </div>
-
-            {/* Tier 2 */}
-            <div className="p-6 rounded-none bg-white border-4 border-black shadow-neo-sm space-y-3 relative">
-              <span className="absolute -top-3 right-6 px-2.5 py-0.5 rounded-none bg-black text-white text-[10px] font-bold">
-                FLAGSHIP TIER
-              </span>
-              <span className="text-xs font-bold text-black uppercase tracking-wider">Pro Operator</span>
-              <div className="text-3xl font-black text-black">$69<span className="text-xs font-normal text-black/60">/mo</span></div>
-              <ul className="text-xs text-black space-y-2 font-bold">
-                <li className="flex items-center gap-2">
-                  <Check className="w-3.5 h-3.5 text-black stroke-[2.5]" /> Up to 3 Locations
-                </li>
-                <li className="flex items-center gap-2">
-                  <Check className="w-3.5 h-3.5 text-black stroke-[2.5]" /> Unlimited table scans
-                </li>
-                <li className="flex items-center gap-2">
-                  <Check className="w-3.5 h-3.5 text-black stroke-[2.5]" /> Gemini 2.5 Flash Dynamic Tuning
-                </li>
-                <li className="flex items-center gap-2">
-                  <Check className="w-3.5 h-3.5 text-black stroke-[2.5]" /> 4x6&quot; Table Tent Print Generator
-                </li>
-                <li className="flex items-center gap-2">
-                  <Check className="w-3.5 h-3.5 text-black stroke-[2.5]" /> Table # incident tracking
-                </li>
-              </ul>
-            </div>
-
-            {/* Tier 3 */}
-            <div className="p-6 rounded-none bg-cream border-[3px] border-black space-y-3">
-              <span className="text-xs font-bold text-black/60 uppercase tracking-wider">Franchise &amp; Agency</span>
-              <div className="text-3xl font-black text-black">$199<span className="text-xs font-normal text-black/60">/mo</span></div>
-              <ul className="text-xs text-black/70 space-y-2">
-                <li className="flex items-center gap-2">
-                  <Check className="w-3.5 h-3.5 text-black" /> Up to 10 Locations
-                </li>
-                <li className="flex items-center gap-2">
-                  <Check className="w-3.5 h-3.5 text-black" /> White-label table standees
-                </li>
-                <li className="flex items-center gap-2">
-                  <Check className="w-3.5 h-3.5 text-black" /> Multi-manager role permissions
-                </li>
-                <li className="flex items-center gap-2">
-                  <Check className="w-3.5 h-3.5 text-black" /> Priority local SEO strategy
-                </li>
-              </ul>
-            </div>
+            {plans.map((plan) => (
+              <div
+                key={plan.id}
+                className={`p-6 rounded-none border-[3px] border-black space-y-3 ${
+                  plan.featured ? "bg-neo-yellow" : "bg-cream"
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-black/60 uppercase tracking-wider">{plan.name}</span>
+                  {plan.featured && (
+                    <span className="bg-neo-green text-black px-2 py-0.5 text-[10px] font-black uppercase">
+                      Popular
+                    </span>
+                  )}
+                </div>
+                <div className="text-3xl font-black text-black">
+                  {new Intl.NumberFormat("en-IN", {
+                    style: "currency",
+                    currency: "INR",
+                    maximumFractionDigits: 0,
+                  }).format(monthlyRupees(plan))}
+                  <span className="text-xs font-normal text-black/60">/mo</span>
+                </div>
+                <ul className="text-xs text-black/70 space-y-2">
+                  <li className="flex items-center gap-2">
+                    <Check className="w-3.5 h-3.5 text-black" strokeWidth={2.5} />{" "}
+                    {plan.maxLocations} {plan.maxLocations === 1 ? "Location" : "Locations"}
+                  </li>
+                  {plan.features.slice(0, 4).map((f) => (
+                    <li key={f} className="flex items-center gap-2">
+                      <Check className="w-3.5 h-3.5 text-black" strokeWidth={2.5} /> {f}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
           </div>
 
           {/* Unit Economics Metrics Grid */}
@@ -273,7 +272,9 @@ export default function ProspectusClient() {
               <div className="p-4 rounded-none bg-cream">
                 <span className="text-[11px] text-black/60 block">Customer Lifetime (LTV)</span>
                 <span className="text-xl font-black text-black mt-1 block">$1,656</span>
-                <span className="text-[10px] text-black/50">24 months tenure @ $69/mo</span>
+                <span className="text-[10px] text-black/50">
+                  24 months tenure at the blended plan price
+                </span>
               </div>
 
               <div className="p-4 rounded-none bg-cream">
@@ -344,22 +345,25 @@ export default function ProspectusClient() {
                     Average Revenue Per Unit (ARPU):
                   </span>
                   <span className="font-mono font-bold text-neo-green text-base">
-                    ${arpu} / mo
+                    ₹{arpu.toLocaleString("en-IN")} / mo
                   </span>
                 </div>
                 <input
                   type="range"
-                  min={29}
-                  max={149}
-                  step={10}
+                  min={arpuMin}
+                  max={arpuMax || arpuMin + 1}
+                  step={100}
                   value={arpu}
                   onChange={(e) => setArpu(Number(e.target.value))}
                   className="w-full h-2 bg-white/20 appearance-none cursor-pointer accent-emerald-400"
                 />
                 <div className="flex justify-between text-[10px] text-white/60 mt-1">
-                  <span>$29 (Starter)</span>
-                  <span>$69 (Pro Flagship)</span>
-                  <span>$149 (Enterprise)</span>
+                  <span>
+                    ₹{arpuMin.toLocaleString("en-IN")} ({plans[0]?.name || "Entry"})
+                  </span>
+                  <span>
+                    ₹{arpuMax.toLocaleString("en-IN")} ({plans[plans.length - 1]?.name || "Top tier"})
+                  </span>
                 </div>
               </div>
             </div>
@@ -497,7 +501,9 @@ export default function ProspectusClient() {
               </tr>
               <tr>
                 <td className="py-3 px-3 font-bold text-black">Monthly Subscription Pricing</td>
-                <td className="py-3 px-3 font-bold text-black bg-neo-green">$29 – $69 / mo</td>
+                <td className="py-3 px-3 font-bold text-black bg-neo-green">
+                  ₹{arpuMin.toLocaleString("en-IN")} – ₹{arpuMax.toLocaleString("en-IN")} / mo
+                </td>
                 <td className="py-3 px-3 text-black/80 font-mono">$350 – $600 / mo</td>
                 <td className="py-3 px-3 text-black/60">$5 – $15 / mo</td>
                 <td className="py-3 px-3 text-black/60">Hardware only ($150)</td>

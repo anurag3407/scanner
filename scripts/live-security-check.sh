@@ -6,8 +6,14 @@
 # the middleware layer, path normalization and response headers are exercised
 # for real.
 #
-# It runs against a temporary JSON store and fake Clerk keys, so it never
-# touches production Supabase data or the real Resend key.
+# It runs against a temporary JSON store and well-formed dummy Clerk keys, so
+# it never touches production Supabase data or the real Resend key.
+#
+# The keys must be WELL-FORMED Clerk keys: v7 validates the format
+# (pk_test_/pk_live_ plus a base64 payload) at boot and throws before any
+# route is reached, which would turn every check below into a meaningless
+# 500. These are base64 of "clerk.dummy.example$", which is syntactically
+# valid (a hostname plus a trailing $) and points nowhere.
 #
 # Usage: bash scripts/live-security-check.sh
 set -uo pipefail
@@ -42,13 +48,20 @@ not_served() {
 }
 
 # Isolate from the developer's real credentials.
+#
+# .dev.vars matters as much as .env: next.config.ts boots the OpenNext dev
+# init, which prints "Using secrets defined in .dev.vars" and loads that file
+# OVERRIDING the inline environment below. Leaving it in place meant this
+# script silently tested against the developer's own Clerk keys (or stale
+# ones), and every check reported a meaningless 500.
 mv .env.local /tmp/.env.local.bak.$$ 2>/dev/null
 mv .env      /tmp/.env.bak.$$      2>/dev/null
-trap 'mv /tmp/.env.local.bak.$$ .env.local 2>/dev/null; mv /tmp/.env.bak.$$ .env 2>/dev/null; cleanup' EXIT
+mv .dev.vars /tmp/.dev.vars.bak.$$ 2>/dev/null
+trap 'mv /tmp/.env.local.bak.$$ .env.local 2>/dev/null; mv /tmp/.env.bak.$$ .env 2>/dev/null; mv /tmp/.dev.vars.bak.$$ .dev.vars 2>/dev/null; cleanup' EXIT
 
 echo "Starting server on $BASE ..."
-NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_mock_dummy_publishable_key \
-CLERK_SECRET_KEY=sk_mock_dummy_secret_key \
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_Y2xlcmsuZHVtbXkuZXhhbXBsZSQ \
+CLERK_SECRET_KEY=sk_test_Y2xlcmsuZHVtbXkuZXhhbXBsZSQ \
 ADMIN_ALLOWED_EMAIL=owner@platform.test \
 STORE_DATA_FILE="$TMP_STORE" \
 NEXT_PUBLIC_APP_URL="$BASE" \
@@ -63,6 +76,7 @@ done
 echo
 echo "1. Protected pages must redirect to sign-in"
 for p in /admin /admin/stores /admin/team /admin/feedback /admin/analytics \
+         /admin/billing /admin/revenue \
          /admin/prospectus /admin/stores/x/print /admin/x/print; do
   code=$(curl -s -o /dev/null -w '%{http_code}' "$BASE$p")
   if [ "$code" = "307" ] || [ "$code" = "302" ]; then pass "GET $p"; else fail "GET $p (got $code)"; fi
@@ -70,9 +84,18 @@ done
 
 echo
 echo "2. Protected APIs must return 401"
-for p in /api/stores /api/analytics /api/team /api/feedback; do
+for p in /api/stores /api/analytics /api/team /api/feedback \
+         /api/billing/plans /api/billing/coupons /api/billing/subscription \
+         /api/revenue /api/revenue/invoice; do
   check "GET $p" 401 "$(curl -s -o /dev/null -w '%{http_code}' "$BASE$p")"
 done
+# Billing mutations must be stopped at the middleware as well: a checkout that
+# reached the handler unauthenticated would still be priced server-side, but the
+# proxy must never be the only thing that notices an anonymous caller.
+check "POST /api/billing/checkout" 401 \
+  "$(curl -s -o /dev/null -w '%{http_code}' -X POST -H 'Content-Type: application/json' -d '{"storeId":"x","planId":"solo"}' "$BASE/api/billing/checkout")"
+check "PATCH /api/billing/subscription" 401 \
+  "$(curl -s -o /dev/null -w '%{http_code}' -X PATCH -H 'Content-Type: application/json' -d '{"storeId":"x","action":"start_trial"}' "$BASE/api/billing/subscription")"
 check "PATCH /api/feedback" 401 \
   "$(curl -s -o /dev/null -w '%{http_code}' -X PATCH -H 'Content-Type: application/json' -d '{}' "$BASE/api/feedback")"
 check "POST /api/stores" 401 \
@@ -132,8 +155,8 @@ mint_token() { # sub keyfile
 
 # Restart the server so it trusts the local public key.
 kill "$SERVER_PID" 2>/dev/null; wait "$SERVER_PID" 2>/dev/null
-NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_mock_dummy_publishable_key \
-CLERK_SECRET_KEY=sk_mock_dummy_secret_key \
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_Y2xlcmsuZHVtbXkuZXhhbXBsZSQ \
+CLERK_SECRET_KEY=sk_test_Y2xlcmsuZHVtbXkuZXhhbXBsZSQ \
 CLERK_JWT_KEY="$(cat "$KEYDIR/good.pub")" \
 ADMIN_ALLOWED_EMAIL=owner@platform.test \
 STORE_DATA_FILE="$TMP_STORE" \
@@ -237,8 +260,8 @@ import("@/lib/store").then(async (m) => {
 
 # The server caches its data file in memory, so restart it to pick up the seed.
 kill "$SERVER_PID" 2>/dev/null; wait "$SERVER_PID" 2>/dev/null
-NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_mock_dummy_publishable_key \
-CLERK_SECRET_KEY=sk_mock_dummy_secret_key \
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_Y2xlcmsuZHVtbXkuZXhhbXBsZSQ \
+CLERK_SECRET_KEY=sk_test_Y2xlcmsuZHVtbXkuZXhhbXBsZSQ \
 ADMIN_ALLOWED_EMAIL=owner@platform.test \
 STORE_DATA_FILE="$TMP_STORE" \
 NEXT_PUBLIC_APP_URL="$BASE" \

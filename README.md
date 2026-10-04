@@ -23,7 +23,14 @@
    - **Permanent QR codes**: printed standees encode the immutable store id, so dishes, menus, keywords and sentence combinations can change anytime without a reprint.
    - **Role-based access** (`/admin/team`): the platform owner (super admin) manages every location and invites store admins, who only see and edit the locations assigned to them.
 
-3. **Internal Admin Dashboard (`/admin`)**:
+3. **Subscriptions, Coupons & Payments (`/admin/billing`)**:
+   - **Runtime pricing**: the plan catalogue (name, price, period, location allowance, GST %, features, featured flag) lives in the database and is edited by the platform owner from `/admin/billing`. A price change never requires a redeploy, and subscribers keep the amount they were sold at.
+   - **Online checkout (Razorpay)**: a tenant starts a subscription from the console, the server prices it from the stored plan, Razorpay's checkout.js collects payment, and the order is activated only after the HMAC signature verifies. The webhook (`/api/billing/webhook`) is a second, idempotent path to the same state, so a customer who closes the tab is still activated.
+   - **Coupons**: the platform owner issues percentage or fixed-amount codes with a redemption limit, an expiry, and optional plan/location scoping. Discounts are applied before GST, and redemption counts come from a ledger rather than a counter, so a retried payment cannot consume an extra use.
+   - **Trials and entitlement**: a new location starts on a 30-minute trial. What a location may do is derived from the subscription plus the clock on every read (`lib/billing.ts`), so no cron job can leave access switched on. **Menu editing is refused server-side (HTTP 402) once the trial or paid period elapses** — reads, the public QR menu and analytics keep working.
+   - **Money discipline**: every amount is an integer number of paise end to end; rupee conversion happens only for display, and percentages round rather than truncate.
+
+4. **Internal Admin Dashboard (`/admin`)**:
    - Requires a signed-in Clerk user (see below).
    - **Pulse Overview (`/admin`)**: Real scan, hand-off, firewall intercept, and average diner rating metrics computed from recorded table activity.
    - **Store Manager (`/admin/stores`)**: Add/edit locations, configure Google Place IDs, brand colors, menu currency, owner alert inboxes, custom 1-tap feature tags, and each store's sentence combinations via the Review Studio (super admin creates and deletes locations; store admins manage their own).
@@ -33,11 +40,11 @@
    - **Scan Telemetry (`/admin/analytics`)**: Conversion funnel metrics, daily activity heatmaps, and local Google SEO ranking impact.
    - **Printable Table Standee Generator (`/admin/[id]/print`)**: Print-ready 4x6" dual-sided foldable table tents and counter acrylic inserts with cutting/folding guides formatted for `@media print`.
 
-4. **SaaS Prospectus & Pitch Deck (`/admin/prospectus`)**:
-   - Comprehensive investor & franchise prospectus breaking down the $4.8B market opportunity, $69/mo unit economics (88% gross margin, 6.6x LTV/CAC), viral QR distribution loop, and restaurant sales closing scripts.
+5. **SaaS Prospectus & Pitch Deck (`/admin/prospectus`)**:
+   - Comprehensive investor & franchise prospectus breaking down the $4.8B market opportunity, unit economics derived from the live plan catalogue (blended ARPU, 88% gross margin, 6.6x LTV/CAC), viral QR distribution loop, and restaurant sales closing scripts.
 
-5. **SaaS Marketing Landing Page (`/`)**:
-   - High-converting B2B landing page with an interactive scanner widget, 3-step flywheel explainer, growth + reputation pillars, and a role-based team access section.
+6. **SaaS Marketing Landing Page (`/`)**:
+   - High-converting B2B landing page with an interactive scanner widget, 3-step flywheel explainer, growth + reputation pillars, and a role-based team access section. The public `/pricing` page renders the same stored catalogue, with GST shown on top.
 
 ---
 
@@ -50,7 +57,8 @@
 - **Micro-interactions**: `canvas-confetti`
 - **AI Engine**: Google Gemini 2.5 Flash / 1.5 Flash with instant 0ms deterministic heuristic engine fallback (100% free-tier and offline friendly).
 - **Authentication & RBAC**: Clerk (`@clerk/nextjs`) plus a `team_members` directory. The `ADMIN_ALLOWED_EMAIL` account is the super admin; invited store admins only see their assigned locations. Diner scan pages, review generation, and the private feedback form stay public.
-- **Data Store**: Supabase PostgreSQL is the source of truth (locations, live menu items, firewall feedback, scan telemetry). When Supabase env vars are absent, the app falls back to local JSON files at `.data/store-data.json` and `.data/menu-data.json` for development and tests. **No demo data is ever seeded** — dashboards compute only from real activity.
+- **Data Store**: Supabase PostgreSQL is the source of truth (locations, live menu items, firewall feedback, scan telemetry, plans, coupons, coupon redemptions, payments, subscriptions). When Supabase env vars are absent, the app falls back to local JSON files at `.data/store-data.json`, `.data/menu-data.json` and `.data/billing-data.json` for development and tests. **No demo data is ever seeded** — dashboards compute only from real activity.
+- **Payments**: Razorpay (orders + checkout.js), integrated as plain REST plus HMAC verification (`node:crypto`) — no vendor SDK. Checkout signatures are `HMAC-SHA256(order_id|payment_id)`; webhook signatures cover the **raw** request body and are deduplicated by order id.
 
 ---
 
@@ -83,19 +91,28 @@ GEMINI_API_KEY="your-gemini-api-key"
 ```
 *Note: If no API key is set, the application automatically uses the instant 0ms deterministic review generator with full functionality.*
 
-### 5. Run Development Server
+### 5. (Optional) Configure Payments (Razorpay)
+To sell subscriptions online, set three values in `.env.local` (and as Worker secrets on Cloudflare):
+```bash
+RAZORPAY_KEY_ID="rzp_live_..."          # public: sent to the browser with checkout
+RAZORPAY_KEY_SECRET="..."               # server-only: signs the checkout handshake
+RAZORPAY_WEBHOOK_SECRET="..."          # the secret you pick when registering the webhook
+```
+Then add a webhook in the Razorpay dashboard pointing at `https://<your-domain>/api/billing/webhook` for the events `payment.captured`, `payment.failed` and `order.paid`. Without the webhook, a payment only applies if the customer finishes in the browser; without the keys, nothing is charged and the console records transfers by hand at `/admin/revenue`.
+
+### 6. Run Development Server
 ```bash
 npm run dev
 ```
 Open [http://localhost:3000](http://localhost:3000) in your browser. Add your first restaurant location from `/admin/stores` (you will be asked to sign in).
 
-### 6. Run Automated Tests
+### 7. Run Automated Tests
 ```bash
 npm test
 ```
-Runs 18 automated tests covering AI generation, store CRUD, the reputation firewall, analytics math, and API validation. Tests run against an isolated temp file and never touch your Supabase data.
+Runs ~240 automated tests covering review generation, store CRUD, the reputation firewall, analytics math, API validation, the RLS migration against a throwaway Postgres, permission bypasses, and the whole billing path (pricing, coupons, signature verification, webhook idempotency, entitlement gating). Tests run against isolated temp files and never touch your Supabase data.
 
-### 7. Production Build
+### 8. Production Build
 ```bash
 npm run build
 ```
@@ -115,6 +132,8 @@ Compiles static and dynamic routes with zero warnings.
 | `/admin/team` | Super-admin team directory: invite store admins, assign locations, suspend access |
 | `/admin/feedback` | Reputation Firewall private manager feedback inbox (scoped by role) |
 | `/admin/analytics` | Table conversion funnel & diner highlight chips analytics (scoped by role) |
+| `/admin/billing` | Subscriptions: pay/renew a location, super-admin plan pricing and coupon issuance |
+| `/admin/revenue` | MRR, churn and manual payment records; GST tax invoice generation |
 | `/admin/prospectus` | Admin suite access to investor prospectus & financial model |
 | `/api/stores` | List (scoped) & create (super admin) stores |
 | `/api/stores/[id]` | Get & update (assigned stores), delete (super admin) locations |
@@ -124,6 +143,12 @@ Compiles static and dynamic routes with zero warnings.
 | `/api/events` | Table scan & review copy event telemetry logging |
 | `/api/feedback` | Reputation Firewall complaint submissions & status updates |
 | `/api/analytics` | Telemetry summaries & conversion metrics |
+| `/api/billing/plans` | Read the plan catalogue (any console user); write prices & plans (super admin only) |
+| `/api/billing/coupons` | Issue, list and withdraw discount codes (super admin only) |
+| `/api/billing/checkout` | Start a subscription purchase for one location (prices server-side) |
+| `/api/billing/verify` | Confirm a checkout from the browser callback (HMAC-verified) |
+| `/api/billing/subscription` | Per-location subscription, entitlement and payment history; start a trial or cancel (super admin) |
+| `/api/billing/webhook` | Razorpay webhook (public, authenticated by its HMAC signature) |
 
 ---
 

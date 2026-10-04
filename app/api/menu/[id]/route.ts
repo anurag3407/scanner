@@ -3,6 +3,7 @@ import { deleteMenuItem, getMenuItemById, updateMenuItem } from "@/lib/menu";
 import { MenuItem } from "@/lib/types";
 import { assertStoreAccess } from "@/lib/auth";
 import { isSameOriginRequest } from "@/lib/csrf";
+import { requireMenuEntitlement } from "@/lib/billing-gate";
 import { sanitizeMenuItemInput } from "@/lib/validation";
 
 interface RouteContext {
@@ -60,6 +61,10 @@ export async function PATCH(req: Request, context: RouteContext) {
       return NextResponse.json({ error: result.message }, { status: result.status });
     }
 
+    // Paid capability: a lapsed location may not edit items.
+    const gate = await requireMenuEntitlement(result.item.storeId);
+    if (gate) return gate;
+
     let body: Record<string, unknown>;
     try {
       body = await req.json();
@@ -94,6 +99,11 @@ export async function DELETE(req: Request, context: RouteContext) {
     if (!result.ok) {
       return NextResponse.json({ error: result.message }, { status: result.status });
     }
+
+    // Paid capability: removal is customisation too. DELETE stays available to
+    // an entitled owner so a sold-out dish can always be cleaned up.
+    const gate = await requireMenuEntitlement(result.item.storeId);
+    if (gate) return gate;
 
     const deleted = await deleteMenuItem(result.item.id);
     if (!deleted) {

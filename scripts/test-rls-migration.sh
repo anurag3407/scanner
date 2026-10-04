@@ -140,11 +140,34 @@ echo "Reads must be blocked"
 runs ZERO "anon SELECT stores -> 0 rows"        "SELECT count(*) FROM public.stores;"
 runs ZERO "anon SELECT team_members -> 0 rows"  "SELECT count(*) FROM public.team_members;"
 runs ZERO "anon SELECT menu_items -> 0 rows"    "SELECT count(*) FROM public.menu_items;"
+runs ZERO "anon SELECT subscriptions -> 0 rows" "SELECT count(*) FROM public.subscriptions;"
+runs ZERO "anon SELECT plans -> 0 rows"         "SELECT count(*) FROM public.plans;"
+runs ZERO "anon SELECT coupons -> 0 rows"       "SELECT count(*) FROM public.coupons;"
+runs ZERO "anon SELECT payments -> 0 rows"      "SELECT count(*) FROM public.payments;"
+runs ZERO "anon SELECT coupon_redemptions -> 0 rows" "SELECT count(*) FROM public.coupon_redemptions;"
 
 echo "Writes that must be blocked"
 runs ZERO "anon UPDATE stores -> 0 rows"         "UPDATE public.stores SET name='pwn';"
 runs ZERO "anon DELETE stores -> 0 rows"         "DELETE FROM public.stores;"
 runs DENY "anon INSERT team_members -> denied"   "INSERT INTO public.team_members (id,email,role) VALUES ('evil','e@e.test','super_admin');"
+runs DENY "anon INSERT subscriptions -> denied"  "INSERT INTO public.subscriptions (id,store_id,plan,mrr_inr) VALUES ('evil','s1','agency',999900);"
+runs ZERO "anon UPDATE subscriptions -> 0 rows"  "UPDATE public.subscriptions SET mrr_inr=0;"
+runs DENY "anon INSERT plans -> denied"          "INSERT INTO public.plans (id,name,price_inr) VALUES ('evil','Evil',1);"
+runs DENY "anon INSERT coupons -> denied"        "INSERT INTO public.coupons (id,code,discount_type,discount_value) VALUES ('evil','FREE100','percent',100);"
+runs DENY "anon INSERT payments -> denied"       "INSERT INTO public.payments (id,store_id,order_id,plan_id) VALUES ('evil','s1','order_x','solo');"
+runs DENY "anon INSERT coupon_redemptions -> denied" "INSERT INTO public.coupon_redemptions (id,coupon_id,code,store_id,plan_id,order_id) VALUES ('evil','c','FREE100','s1','solo','order_x');"
+runs ZERO "anon UPDATE payments -> 0 rows"       "UPDATE public.payments SET amount_inr=0;"
+runs ZERO "anon UPDATE coupons -> 0 rows"        "UPDATE public.coupons SET discount_value=100;"
+
+# The trial window lives on the subscriptions row. A database migrated from an
+# older script must actually have these columns or the entitlement maths fails.
+cols=$(psql -h "$SOCK" -p "$PORT" -U postgres -d rls_verify -X -tA \
+       -c "SELECT count(*) FROM information_schema.columns WHERE table_name='subscriptions' AND column_name IN ('trial_started_at','trial_minutes','current_period_end');" | tr -d '[:space:]')
+if [ "$cols" = "3" ]; then
+  pass "subscriptions carries the trial + period columns"
+else
+  fail "subscriptions is missing trial/period columns (found $cols of 3)"
+fi
 
 echo "The public diner flow must keep working"
 runs ALLOW "anon INSERT feedbacks -> allowed"     "INSERT INTO public.feedbacks (id,store_id,store_name,rating,message) VALUES ('v1','s1','A',1,'cold food');"

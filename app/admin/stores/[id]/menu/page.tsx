@@ -2,6 +2,7 @@ import React from "react";
 import { notFound, redirect } from "next/navigation";
 import { getStoreByScanKey } from "@/lib/store";
 import { getMenuItems } from "@/lib/menu";
+import { getStoreEntitlement } from "@/lib/billing-service";
 import { MenuItem } from "@/lib/types";
 import { getSessionUser, hasStoreAccess } from "@/lib/auth";
 import MenuManagerClient from "@/components/MenuManagerClient";
@@ -39,5 +40,10 @@ export default async function AdminStoreMenuPage({ params }: { params: Promise<{
     items = [];
   }
 
-  return <MenuManagerClient store={store} initialItems={items} />;
+  // Menu editing is a paid capability. The API refuses the write (that is the
+  // real gate); passing the entitlement down lets the console say WHY before
+  // the owner tries.
+  const entitlement = await getStoreEntitlement(store.id);
+
+  return <MenuManagerClient store={store} initialItems={items} entitlement={entitlement} />;
 }

@@ -134,7 +134,7 @@ test("Reputation Firewall feedback submission & status update", async () => {
   assert.equal(listAfterDelete.length, 0);
 });
 
-test("logScanEvent records telemetry and increments reviewCount on copy_open", async () => {
+test("logScanEvent records telemetry but never touches the store's reviewCount", async () => {
   const store = await createStore({ ...baseStore, slug: "telemetry-test", name: "Telemetry Test" });
   assert.equal(store.reviewCount, 0);
 
@@ -149,11 +149,35 @@ test("logScanEvent records telemetry and increments reviewCount on copy_open", a
   assert.equal(event.storeId, store.id);
 
   const storeAfter = await getStoreById(store.id);
-  assert.equal(storeAfter?.reviewCount, 1);
+  // The copy event is anonymous and publicly writable, so it must not be able
+  // to change a per-store counter. Anything that derived a customer-facing
+  // metric from this could be inflated by anyone who had scanned the QR.
+  assert.equal(
+    storeAfter?.reviewCount,
+    0,
+    "an anonymous copy_open event must not increment reviewCount"
+  );
 
   const events = await getScanEvents(store.id);
   assert.equal(events.length, 1);
   assert.equal(events[0].type, "copy_open");
+
+  await deleteStore(store.id);
+});
+
+test("a burst of copy_open events cannot inflate a store's reviewCount", async () => {
+  const store = await createStore({ ...baseStore, slug: "inflate-test", name: "Inflate Test" });
+
+  for (let i = 0; i < 25; i++) {
+    await logScanEvent({ storeId: store.id, type: "copy_open", rating: 5, chips: [] });
+  }
+
+  const after = await getStoreById(store.id);
+  assert.equal(after?.reviewCount, 0, "25 anonymous events must move the counter by 0");
+
+  // The telemetry itself is still recorded — that is the honest, auditable
+  // signal, and the analytics funnel reads it rather than the store row.
+  assert.equal((await getScanEvents(store.id)).length, 25);
 
   await deleteStore(store.id);
 });

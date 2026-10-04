@@ -22,10 +22,11 @@ import { Store } from "@/lib/types";
 
 interface Props {
   sampleStore: Store | null;
-  totalStoresCount?: number;
+  /** Real count of live locations. Never fabricated — see app/page.tsx. */
+  totalLocationsCount?: number;
 }
 
-export default function LandingPageClient({ sampleStore, totalStoresCount = 103 }: Props) {
+export default function LandingPageClient({ sampleStore, totalLocationsCount = 0 }: Props) {
   // Interactive Hero Preview State
   const defaultChips = sampleStore?.chips && sampleStore.chips.length > 0
     ? sampleStore.chips.slice(0, 3)
@@ -74,7 +75,7 @@ export default function LandingPageClient({ sampleStore, totalStoresCount = 103 
     "0ms first draft",
     "Direct 5★ modal open",
     "Reputation firewall shield",
-    "100% Google compliant",
+    "Your review, your words",
   ];
 
   const steps = [
@@ -169,8 +170,8 @@ export default function LandingPageClient({ sampleStore, totalStoresCount = 103 
           text: "Resolving an issue at the table prevents 90%+ of negative public reviews.",
         },
         {
-          strong: "100% Policy Compliant:",
-          text: "Transparent Google review option prevents \"Review Gating\" penalties.",
+          strong: "No Review Gating:",
+          text: "Guests are never blocked or discouraged from leaving a public review — the Google option stays visible to everyone, whatever they tap.",
         },
       ],
     },
@@ -231,6 +232,11 @@ export default function LandingPageClient({ sampleStore, totalStoresCount = 103 
             <Link href="#roles" className="border-2 border-transparent px-1 py-0.5 transition-all duration-100 ease-linear hover:border-black hover:bg-neo-yellow hover:shadow-neo-xs">
               Team &amp; Roles
             </Link>
+            {/* Pricing must be reachable from the marketing site. A buyer who
+                cannot find a price cannot buy, however good the demo is. */}
+            <Link href="/pricing" className="border-2 border-transparent px-1 py-0.5 transition-all duration-100 ease-linear hover:border-black hover:bg-neo-yellow hover:shadow-neo-xs">
+              Pricing
+            </Link>
             <Link href="/admin" className="border-2 border-transparent px-1 py-0.5 transition-all duration-100 ease-linear hover:border-black hover:bg-neo-yellow hover:shadow-neo-xs">
               Admin Portal
             </Link>
@@ -239,10 +245,10 @@ export default function LandingPageClient({ sampleStore, totalStoresCount = 103 
           {/* Right Action Button */}
           <div className="flex items-center gap-2.5">
             <Link
-              href="/admin"
+              href="/pricing"
               className="flex items-center gap-1.5 border-[3px] border-black bg-neo-red px-4 py-2.5 text-xs font-black uppercase tracking-widest text-white shadow-neo-xs transition-all duration-100 ease-linear hover:bg-black hover:text-white active:translate-x-0.5 active:translate-y-0.5 active:shadow-none sm:px-5"
             >
-              <span>Console Login</span>
+              <span>Pricing</span>
               <ArrowRight className="h-3.5 w-3.5" strokeWidth={3} />
             </Link>
           </div>
@@ -401,19 +407,19 @@ export default function LandingPageClient({ sampleStore, totalStoresCount = 103 
                   {copied ? (
                     <>
                       <Check className="h-4 w-4 text-neo-green" strokeWidth={4} />
-                      <span>Copied! Opening 5★ Google box...</span>
+                      <span>Copied to clipboard</span>
                     </>
                   ) : (
                     <>
                       <Copy className="h-3.5 w-3.5" strokeWidth={3} />
-                      <span>Copy Review &amp; Open 5★ Review Box</span>
-                      <ExternalLink className="ml-0.5 h-3.5 w-3.5 opacity-70" strokeWidth={3} />
+                      <span>Copy Review Text</span>
                     </>
                   )}
                 </button>
 
                 <p className="text-center text-[10px] font-bold uppercase tracking-widest text-black/50">
-                  1-tap copies review text and pops open Google&apos;s direct write-a-review modal.
+                  This demo copies the text only. On a live table QR it also opens Google&apos;s
+                  write-a-review box — scan a demo location to see the real flow.
                 </p>
               </div>
             ) : (
@@ -530,27 +536,19 @@ export default function LandingPageClient({ sampleStore, totalStoresCount = 103 
           </div>
 
           <h3 className="font-display text-2xl uppercase tracking-tight text-black sm:text-3xl">
-            POWERING {totalStoresCount}+ LOCATIONS ACROSS INDIA
+            BUILT FOR INDEPENDENT RESTAURANTS ACROSS INDIA
           </h3>
 
           <p className="mx-auto max-w-xl text-xs font-bold text-black/70">
-            From youth cafes in Patna and Bihta to bustling bistros in Bengaluru and Pune, Credo
-            is running on live dining tables every day.
+            {totalLocationsCount > 0
+              ? `${totalLocationsCount} demo ${
+                  totalLocationsCount === 1 ? "location is" : "locations are"
+                } live right now — scan one with your own phone camera.`
+              : "No locations are live yet. Demo scans are being set up as we onboard."}
           </p>
 
-          <div className="flex flex-wrap items-center justify-center gap-3 pt-2 text-xs font-black uppercase tracking-widest text-black">
-            {["Chai Sutta Bar (CSB) Bihta", "Cafe 13 Patna", "Third Wave Coffee", "Toit Brewpub", "French Window Pune"].map(
-              (name, i) => (
-                <span
-                  key={name}
-                  className={`border-[3px] border-black bg-cream px-3 py-1.5 shadow-neo-xs ${
-                    i % 2 === 0 ? "-rotate-1" : "rotate-1"
-                  } transition-transform hover:rotate-0`}
-                >
-                  {name}
-                </span>
-              )
-            )}
+          <div className="pt-2 text-[10px] font-bold uppercase tracking-widest text-black/50">
+            Demo locations — real restaurant names, not current customers
           </div>
         </div>
       </section>
@@ -578,11 +576,15 @@ export default function LandingPageClient({ sampleStore, totalStoresCount = 103 
           </p>
 
           <div className="flex flex-col items-center justify-center gap-4 pt-2 sm:flex-row">
+            {/* This was "Open Admin Console" — the largest button on the
+                marketing page, and it sent every prospective buyer straight
+                into a Clerk login wall. The primary CTA for a stranger is the
+                price. */}
             <Link
-              href="/admin"
+              href="/pricing"
               className="flex w-full items-center justify-center gap-2 border-4 border-white bg-neo-red px-9 py-4 text-sm font-black uppercase tracking-widest text-black shadow-neo-white-sm transition-all duration-100 ease-linear hover:bg-neo-yellow active:translate-x-1.5 active:translate-y-1.5 active:shadow-none sm:w-auto"
             >
-              <span>Open Admin Console</span>
+              <span>See Pricing</span>
               <ArrowRight className="h-4 w-4" strokeWidth={3} />
             </Link>
 

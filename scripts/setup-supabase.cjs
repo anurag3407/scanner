@@ -147,6 +147,131 @@ CREATE TABLE IF NOT EXISTS public.menu_items (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Subscriptions Table (billing record)
+--
+-- Until this existed, a payment could not be recorded anywhere: there was no
+-- plan, no amount, no period and no renewal date, so MRR, churn and renewals
+-- were all undefined. Amounts are stored in MINOR UNITS of INR (paise) as
+-- integers — never as floats — so that MRR arithmetic cannot drift.
+--
+-- The status column deliberately has no CHECK constraint yet: the enum is still
+-- (lead -> trial -> active -> paused -> churned). It is validated in the
+-- application layer, and a CHECK here would make adding a value a migration.
+CREATE TABLE IF NOT EXISTS public.subscriptions (
+  id TEXT PRIMARY KEY,
+  store_id TEXT NOT NULL REFERENCES public.stores(id) ON DELETE CASCADE,
+  plan TEXT NOT NULL DEFAULT 'solo',
+  status TEXT NOT NULL DEFAULT 'active',
+  -- Minor units of INR. 99900 = ₹999.00/month.
+  mrr_inr INTEGER NOT NULL DEFAULT 0,
+  billing_period TEXT NOT NULL DEFAULT 'monthly',
+  -- Customer's GSTIN, required on a B2B tax invoice in India.
+  gstin TEXT,
+  -- The whole trial: when it started and how many minutes it runs for. There
+  -- is no cron that expires it — the application derives entitlement from the
+  -- clock, so a worker that stops running cannot leave access switched on.
+  trial_started_at TIMESTAMPTZ,
+  trial_minutes INTEGER,
+  -- The last instant the current paid period covers. Access runs to this
+  -- timestamp; a renewal stacks onto whichever is later, now or this value.
+  current_period_end TIMESTAMPTZ,
+  started_at TIMESTAMPTZ DEFAULT NOW(),
+  -- NULL while the subscription is live; set when it ends so that churn is
+  -- measurable rather than inferred from a deleted row.
+  ended_at TIMESTAMPTZ,
+  cancel_reason TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Plans Table (super-admin-controlled pricing catalogue)
+--
+-- Prices live in the database, not in code: a super admin edits them from
+-- /admin/billing and a change never requires a deploy. A fresh database is
+-- seeded once from lib/plans.ts by the application; the row then wins.
+-- The price_inr column is an INTEGER count of paise — never a float.
+CREATE TABLE IF NOT EXISTS public.plans (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  tagline TEXT DEFAULT '',
+  price_inr INTEGER NOT NULL DEFAULT 0,
+  period TEXT NOT NULL DEFAULT 'monthly',
+  max_locations INTEGER NOT NULL DEFAULT 1,
+  features JSONB DEFAULT '[]'::jsonb,
+  featured BOOLEAN DEFAULT false,
+  is_active BOOLEAN DEFAULT true,
+  sort_order INTEGER DEFAULT 0,
+  gst_percent NUMERIC(5, 2) DEFAULT 18,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Coupons Table (super-admin issued discounts)
+--
+-- discount_value is interpreted by discount_type: a percent (0-100) or an
+-- integer paise amount. There is deliberately no times_redeemed counter —
+-- the redemption ledger below is the source of truth, so a retried request
+-- cannot consume two slots of a limited coupon.
+CREATE TABLE IF NOT EXISTS public.coupons (
+  id TEXT PRIMARY KEY,
+  code TEXT NOT NULL,
+  discount_type TEXT NOT NULL DEFAULT 'percent',
+  discount_value NUMERIC(12, 2) NOT NULL DEFAULT 0,
+  max_redemptions INTEGER,
+  expires_at TIMESTAMPTZ,
+  plan_id TEXT,
+  store_id TEXT,
+  is_active BOOLEAN DEFAULT true,
+  note TEXT,
+  created_by TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Coupon Redemptions Table (the ledger that makes redemption limits real)
+CREATE TABLE IF NOT EXISTS public.coupon_redemptions (
+  id TEXT PRIMARY KEY,
+  coupon_id TEXT NOT NULL REFERENCES public.coupons(id) ON DELETE CASCADE,
+  code TEXT NOT NULL,
+  store_id TEXT NOT NULL,
+  plan_id TEXT NOT NULL,
+  order_id TEXT NOT NULL,
+  payment_id TEXT,
+  discount_inr INTEGER NOT NULL DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Payments Table (one row per checkout attempt / captured payment)
+--
+-- The order_id column is the idempotency key: Razorpay may deliver the same
+-- event more than once, and the browser callback races the webhook, so every
+-- confirmation looks the order up here first. period_ends_at is fixed when the order is
+-- created so a replay writes the same period instead of granting a second one.
+CREATE TABLE IF NOT EXISTS public.payments (
+  id TEXT PRIMARY KEY,
+  store_id TEXT NOT NULL REFERENCES public.stores(id) ON DELETE CASCADE,
+  order_id TEXT NOT NULL,
+  plan_id TEXT NOT NULL,
+  period TEXT NOT NULL DEFAULT 'monthly',
+  gross_inr INTEGER NOT NULL DEFAULT 0,
+  discount_inr INTEGER NOT NULL DEFAULT 0,
+  tax_inr INTEGER NOT NULL DEFAULT 0,
+  amount_inr INTEGER NOT NULL DEFAULT 0,
+  coupon_code TEXT,
+  -- The buyer's GSTIN, captured at checkout. Kept on the payment so a webhook
+  -- confirmation (which carries no browser payload) can still issue the tax
+  -- invoice.
+  gstin TEXT,
+  status TEXT NOT NULL DEFAULT 'created',
+  payment_id TEXT,
+  period_ends_at TIMESTAMPTZ,
+  signature_verified BOOLEAN DEFAULT false,
+  confirmed_via TEXT,
+  failure_reason TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  paid_at TIMESTAMPTZ
+);
+
 CREATE INDEX IF NOT EXISTS idx_stores_slug ON public.stores(slug);
 
 -- Upgrade existing databases created before these additions.
@@ -184,12 +309,34 @@ ALTER TABLE public.team_members ADD COLUMN IF NOT EXISTS store_ids JSONB DEFAULT
 ALTER TABLE public.team_members ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'active';
 ALTER TABLE public.team_members ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW();
 
+-- Billing columns added after the subscriptions table shipped.
+ALTER TABLE public.subscriptions ADD COLUMN IF NOT EXISTS trial_started_at TIMESTAMPTZ;
+ALTER TABLE public.subscriptions ADD COLUMN IF NOT EXISTS trial_minutes INTEGER;
+ALTER TABLE public.subscriptions ADD COLUMN IF NOT EXISTS current_period_end TIMESTAMPTZ;
+ALTER TABLE public.payments ADD COLUMN IF NOT EXISTS gstin TEXT;
+
 -- Indexes that depend on the columns ensured above.
 CREATE INDEX IF NOT EXISTS idx_feedbacks_store_id ON public.feedbacks(store_id);
 CREATE INDEX IF NOT EXISTS idx_scan_events_store_id ON public.scan_events(store_id);
 CREATE INDEX IF NOT EXISTS idx_team_members_email ON public.team_members(email);
 CREATE INDEX IF NOT EXISTS idx_scan_events_timestamp ON public.scan_events(timestamp);
 CREATE INDEX IF NOT EXISTS idx_menu_items_store_id ON public.menu_items(store_id, sort_order);
+CREATE INDEX IF NOT EXISTS idx_subscriptions_store_id ON public.subscriptions(store_id);
+CREATE INDEX IF NOT EXISTS idx_subscriptions_status ON public.subscriptions(status);
+CREATE INDEX IF NOT EXISTS idx_plans_sort_order ON public.plans(sort_order);
+-- One coupon per code: two rows with the same code and different discounts
+-- would make "what does this code do" ambiguous.
+CREATE UNIQUE INDEX IF NOT EXISTS idx_coupons_code_unique ON public.coupons(code);
+CREATE INDEX IF NOT EXISTS idx_coupons_active ON public.coupons(is_active);
+-- One redemption per order: this is the constraint that makes replaying a
+-- webhook unable to consume a second slot of a limited coupon.
+CREATE UNIQUE INDEX IF NOT EXISTS idx_coupon_redemptions_order_unique ON public.coupon_redemptions(order_id);
+CREATE INDEX IF NOT EXISTS idx_coupon_redemptions_coupon_id ON public.coupon_redemptions(coupon_id);
+-- One payment row per gateway order — the idempotency key both confirm paths
+-- look the order up by.
+CREATE UNIQUE INDEX IF NOT EXISTS idx_payments_order_unique ON public.payments(order_id);
+CREATE INDEX IF NOT EXISTS idx_payments_store_id ON public.payments(store_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_payments_status ON public.payments(status);
 
 -- Enable Row Level Security (RLS)
 ALTER TABLE public.stores ENABLE ROW LEVEL SECURITY;
@@ -197,6 +344,11 @@ ALTER TABLE public.feedbacks ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.scan_events ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.team_members ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.menu_items ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.subscriptions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.plans ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.coupons ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.coupon_redemptions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.payments ENABLE ROW LEVEL SECURITY;
 
 -- Policy model
 -- -------------
@@ -251,7 +403,14 @@ REVOKE SELECT ON public.feedbacks, public.scan_events FROM anon, authenticated;
 -- reads them with the SECRET key, which bypasses RLS and needs no grant at all,
 -- so the anon role is given nothing on them. Every server-side query is a
 -- SELECT or a write through SUPABASE_SECRET_KEY, never through PostgREST.
-REVOKE ALL ON public.stores, public.team_members, public.menu_items FROM anon, authenticated;
+REVOKE ALL ON public.stores, public.team_members, public.menu_items, public.subscriptions FROM anon, authenticated;
+
+-- The commercial tables are the platform's revenue ledger. Only the server
+-- (SECRET key, which bypasses RLS) may read or write them: publishing the plan
+-- catalogue is a product decision made by the Next.js server, never by an anon
+-- PostgREST request, and a coupon table readable by anon would leak every
+-- discount code.
+REVOKE ALL ON public.plans, public.coupons, public.coupon_redemptions, public.payments FROM anon, authenticated;
 
 -- Drop any legacy blanket policies before applying the lockdown.
 DROP POLICY IF EXISTS "Allow public insert/update stores" ON public.stores;
@@ -260,6 +419,11 @@ DROP POLICY IF EXISTS "Allow public feedbacks" ON public.feedbacks;
 DROP POLICY IF EXISTS "Allow public scan_events" ON public.scan_events;
 DROP POLICY IF EXISTS "Allow public team_members" ON public.team_members;
 DROP POLICY IF EXISTS "Allow public menu_items" ON public.menu_items;
+DROP POLICY IF EXISTS "Allow public subscriptions" ON public.subscriptions;
+DROP POLICY IF EXISTS "Allow public plans" ON public.plans;
+DROP POLICY IF EXISTS "Allow public coupons" ON public.coupons;
+DROP POLICY IF EXISTS "Allow public coupon_redemptions" ON public.coupon_redemptions;
+DROP POLICY IF EXISTS "Allow public payments" ON public.payments;
 
 -- Keep a public read of stores ONLY if a legacy deployment still relies on it
 -- being directly readable. Default to locked down.
@@ -273,6 +437,21 @@ BEGIN
   END IF;
   IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Deny anon all on menu_items') THEN
     CREATE POLICY "Deny anon all on menu_items" ON public.menu_items FOR ALL TO anon, authenticated USING (false) WITH CHECK (false);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Deny anon all on subscriptions') THEN
+    CREATE POLICY "Deny anon all on subscriptions" ON public.subscriptions FOR ALL TO anon, authenticated USING (false) WITH CHECK (false);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Deny anon all on plans') THEN
+    CREATE POLICY "Deny anon all on plans" ON public.plans FOR ALL TO anon, authenticated USING (false) WITH CHECK (false);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Deny anon all on coupons') THEN
+    CREATE POLICY "Deny anon all on coupons" ON public.coupons FOR ALL TO anon, authenticated USING (false) WITH CHECK (false);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Deny anon all on coupon_redemptions') THEN
+    CREATE POLICY "Deny anon all on coupon_redemptions" ON public.coupon_redemptions FOR ALL TO anon, authenticated USING (false) WITH CHECK (false);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Deny anon all on payments') THEN
+    CREATE POLICY "Deny anon all on payments" ON public.payments FOR ALL TO anon, authenticated USING (false) WITH CHECK (false);
   END IF;
   IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Public insert feedback') THEN
     CREATE POLICY "Public insert feedback" ON public.feedbacks FOR INSERT TO anon, authenticated WITH CHECK (true);

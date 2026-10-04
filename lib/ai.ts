@@ -251,10 +251,53 @@ function renderTemplate(
  * built-in library — which is also how a store refreshes its review text
  * without ever reprinting a QR code.
  */
-export function generateOfflineReview({
+/**
+ * Re-rolls until the draft makes no five-star claim the diner did not make.
+ *
+ * The intro and closer lists are swapped for 4-star visits, but the BODY — chip
+ * highlights and keyword connectors — is shared with the 5-star path, and some
+ * of those sentences are superlative ("Flawless from start to finish", "earned a
+ * loyal fan"). Patching each return point would be brittle and would need
+ * redoing every time a phrase list changed, so the invariant is enforced once,
+ * here, at the single place every draft passes through.
+ */
+function reRollUntilRatingSafe(
+  build: (seed: number) => string,
+  rating: number | undefined,
+  baseSeed: number,
+  maxTries = 16
+): string {
+  let draft = build(baseSeed);
+  // 4 stars only: 5 legitimately claims five stars, and 1-3 never get here.
+  if (rating !== 4) return draft;
+
+  for (let attempt = 1; attempt <= maxTries && assertsFiveStars(draft, rating); attempt++) {
+    draft = build(baseSeed + attempt * 211);
+  }
+  // If every roll still leaks (a store's own template says "five stars"), fall
+  // back to a body-free construction rather than shipping the false claim.
+  return assertsFiveStars(draft, rating) ? stripSuperlatives(draft) : draft;
+}
+
+/**
+ * Last-resort scrub: removes the offending clauses so the text stays truthful
+ * even when the phrase lists are fully custom. Crude by design — it should
+ * almost never run.
+ */
+function stripSuperlatives(draft: string): string {
+  return draft
+    .split(/(?<=[.!?])\s+/)
+    .filter((sentence) => !assertsFiveStars(sentence, 4))
+    .join(" ")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
+
+function buildReviewDraft({
   storeName,
   category,
   chips,
+  rating,
   variationSeed = 0,
   tone,
   templates,
@@ -266,6 +309,15 @@ export function generateOfflineReview({
 
   let introList = INTROS;
   let outroList = OUTROS;
+
+  // A 4-star visit gets mild-positive phrasing. Only 4 is handled here: 1-3
+  // never reach this function in the product (the Reputation Firewall routes
+  // them to the private feedback form first), and a 5-star visit is the
+  // superlative case the library was always written for.
+  if (rating === 4 && !customIntros && !customClosers) {
+    introList = FOUR_STAR_INTROS;
+    outroList = FOUR_STAR_OUTROS;
+  }
 
   if (tone === "punchy") {
     introList = PUNCHY_INTROS;
@@ -401,6 +453,71 @@ export function generateOfflineReview({
   const body = highlights.slice(0, tone === "punchy" ? 2 : 3).join(" ");
   const keywordTail = keywordLines.length ? ` ${keywordLines.join(" ")}` : "";
   return `${intro} ${body}${keywordTail} ${outro}`;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Rating-aware phrasing                                                      */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Mild-positive openers and closers for a 4-star visit.
+ *
+ * WHY THIS EXISTS. `generateOfflineReview` accepted a `rating` and ignored it,
+ * so a diner who tapped 4 stars was handed text saying "Easily a 5/5 star
+ * spot" / "Five stars without hesitation". That is a review-integrity defect,
+ * not a copy bug: the product sells honest ratings, and the Reputation Firewall
+ * only intercepts 1-3, so the 4-star case was the one nothing handled.
+ *
+ * These are deliberately *not* a new tone. The connectors, keyword weaving and
+ * chip highlighting are shared with the 5-star path, so a 4-star draft still
+ * reads like the same author wrote it — just without claiming five stars.
+ */
+const FOUR_STAR_INTROS = [
+  "Really enjoyed our visit to {name} today.",
+  "Good stop at {name} — everything we ordered came out well.",
+  "Had a nice meal at {name} this afternoon.",
+  "Worth a visit to {name}; the food and the room both held up.",
+  "Stopped by {name} and left happy with the meal.",
+  "A solid evening at {name} — would happily come back.",
+];
+
+const FOUR_STAR_OUTROS = [
+  "Would happily come back on a quieter day.",
+  "Good food, friendly service, and it did not feel rushed.",
+  "Happy to recommend, though there are busier nights than others.",
+  "Enjoyed the visit and would return.",
+  "A reliable spot for a meal out.",
+  "Worth knowing about if you are nearby.",
+];
+
+/**
+ * Phrases that assert an unearned five stars. They must never reach a diner who
+ * did not tap 5, so a draft containing one is re-rolled.
+ */
+const FIVE_STAR_ONLY =
+  /five stars?|five-star|5\/5|10\/10|ten out of ten|cannot recommend|enjoyed every moment|flawless from start to finish|earned a loyal fan|exceptional quality|made my (?:day|year)|will be returning (?:soon|again)|highly recommended|worth a special trip|arguably the best/i;
+
+/**
+ * True when a draft makes a five-star claim the diner did not make.
+ *
+ * Exported for tests: this is the invariant the whole change rests on, and it is
+ * the thing a future edit to the phrase lists would silently break.
+ */
+export function assertsFiveStars(draft: string, rating?: number): boolean {
+  if (rating !== undefined && rating >= 5) return false;
+  return FIVE_STAR_ONLY.test(draft);
+}
+
+/**
+ * The public entry point. Thin wrapper so the rating-safety guard applies to
+ * every draft regardless of which return path inside the builder produced it.
+ */
+export function generateOfflineReview(options: GenerateReviewOptions): string {
+  return reRollUntilRatingSafe(
+    (seed) => buildReviewDraft({ ...options, variationSeed: seed }),
+    options.rating,
+    options.variationSeed ?? 0
+  );
 }
 
 /**
