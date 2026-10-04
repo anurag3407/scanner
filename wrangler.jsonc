@@ -28,6 +28,10 @@
 		{
 			"pattern": "scanner.sayalabs.in",
 			"custom_domain": true
+		},
+		{
+			"pattern": "credo.sayalabs.in",
+			"custom_domain": true
 		}
 	]
 }
